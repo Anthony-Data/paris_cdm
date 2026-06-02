@@ -82,20 +82,29 @@ module.exports = async (req, res) => {
       });
     }
 
-    // 5. Envoi des push
+    // 5. Dédupliquer : 1 seul abonnement par joueur (le plus récent)
+    //    Évite les doublons Safari + PWA sur le même téléphone
+    const bestSubPerPlayer = {};
+    for (const [subKey, subData] of Object.entries(subscriptions)) {
+      const pid = subData.playerId || subKey;
+      const existing = bestSubPerPlayer[pid];
+      if (!existing || (subData.updatedAt || 0) > (existing.updatedAt || 0)) {
+        bestSubPerPlayer[pid] = { ...subData, playerId: pid, _subKey: subKey };
+      }
+    }
+
+    // 6. Envoi des push (1 par joueur max)
     let sent = 0;
     let skipped = 0;
     let removed = 0;
 
     for (const match of targetMatches) {
-      for (const [playerId, subData] of Object.entries(subscriptions)) {
-        // playerId peut être dans subData.playerId (nouveau format) ou la clé elle-même (ancien format)
-        const pid = subData.playerId || playerId;
-        if (pronos[match.id]?.[pid]) { skipped++; continue; }
+      for (const subData of Object.values(bestSubPerPlayer)) {
+        if (pronos[match.id]?.[subData.playerId]) { skipped++; continue; }
 
         const payload = JSON.stringify({
           title: `⚽ ${match.flag1 || ''} ${match.team1} vs ${match.team2} ${match.flag2 || ''}`,
-          body: `${subData.playerName ? subData.playerName + ', n' : 'N'}\'oublie pas ton prono pour le match ${match.team1} vs ${match.team2} !`,
+          body: `${subData.playerName ? subData.playerName + ', n' : 'N'}’oublie pas ton prono pour le match ${match.team1} vs ${match.team2} !`,
           tag: match.id,
         });
 
@@ -104,7 +113,7 @@ module.exports = async (req, res) => {
           sent++;
         } catch (e) {
           if (e.statusCode === 410 || e.statusCode === 404) {
-            await db.ref(`cdm2026/subscriptions/${playerId}`).remove();
+            await db.ref(`cdm2026/subscriptions/${subData._subKey}`).remove();
             removed++;
           }
         }

@@ -666,15 +666,28 @@ async function subscribeToPush() {
     }
     const p = getCurrentPlayer();
     const deviceKey = getDeviceKey();
-    // Clé = {playerId}_{deviceKey} → même joueur sur plusieurs appareils = plusieurs entrées
     const subKey = `${state.currentPlayer}_${deviceKey}`;
+
+    // Supprimer les anciens abonnements de ce joueur (évite les doublons Safari/PWA)
+    const existing = await db.ref('cdm2026/subscriptions').once('value');
+    const allSubs = existing.val() || {};
+    const deleteOps = [];
+    for (const [key, val] of Object.entries(allSubs)) {
+      const pid = val.playerId || key;
+      if (pid === state.currentPlayer && key !== subKey) {
+        deleteOps.push(db.ref(`cdm2026/subscriptions/${key}`).remove());
+      }
+    }
+    if (deleteOps.length) await Promise.all(deleteOps);
+
+    // Enregistrer l'abonnement courant
     await db.ref(`cdm2026/subscriptions/${subKey}`).set({
       subscription: sub.toJSON(),
       playerName: p ? playerFullName(p) : 'Joueur',
       playerId: state.currentPlayer,
       updatedAt: Date.now(),
     });
-    console.log('✅ Abonnement push enregistré (' + subKey + ')');
+    console.log('✅ Abonnement push enregistré (' + subKey + '), anciens doublons supprimés : ' + deleteOps.length);
   } catch(e) {
     console.warn('Push subscription failed:', e);
   }
