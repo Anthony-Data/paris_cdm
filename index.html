@@ -445,7 +445,7 @@ select.form-input { cursor: pointer; }
     <div id="photoPlaceholderMobile" style="height:120px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--text3);font-size:13px;background:var(--surface);">
       <span style="font-size:32px">📸</span>
       <span>Photo de famille</span>
-      <label style="cursor:pointer;color:var(--green);font-size:12px;border:1px solid var(--green);padding:4px 12px;border-radius:6px;">
+      <label id="photoUploadBtnMobile" style="display:none;cursor:pointer;color:var(--green);font-size:12px;border:1px solid var(--green);padding:4px 12px;border-radius:6px;">
         Ajouter une photo
         <input type="file" accept="image/*" style="display:none" onchange="uploadFamilyPhoto(event)">
       </label>
@@ -534,77 +534,7 @@ select.form-input { cursor: pointer; }
         <div id="notifsList"></div>
       </div>
       <!-- ADMIN -->
-      <div id="tab-admin" class="tab-pane">
-        <div class="section-title">Admin <span>& gestion</span></div>
-        <div class="admin-grid">
-          <div class="admin-card">
-            <h3>Joueurs inscrits</h3>
-            <div class="form-group">
-              <label>Ajouter un joueur</label>
-              <div style="display:flex;gap:6px;">
-                <input type="text" class="form-input" id="newPlayerPrenom" placeholder="Prénom" style="flex:1">
-                <input type="text" class="form-input" id="newPlayerNom" placeholder="Nom" style="flex:1">
-              </div>
-            </div>
-            <button class="btn btn-primary" onclick="addPlayer()" style="width:100%;margin-bottom:12px">+ Ajouter</button>
-            <div id="playersList"></div>
-          </div>
-          <div class="admin-card">
-            <h3>Liens WhatsApp</h3>
-            <p style="font-size:12px;color:var(--text3);margin-bottom:10px;">Envoie ce lien à chaque joueur sur WhatsApp → en cliquant, il est directement connecté.</p>
-            <div id="whatsappLinks"></div>
-          </div>
-          <div class="admin-card">
-            <h3>Ajouter un match</h3>
-            <div class="form-group"><label>Équipe 1</label><input type="text" class="form-input" id="mTeam1" placeholder="France"></div>
-            <div class="form-group"><label>Équipe 2</label><input type="text" class="form-input" id="mTeam2" placeholder="Brésil"></div>
-            <div class="form-group"><label>Date & heure</label><input type="datetime-local" class="form-input" id="mDate"></div>
-            <div class="form-group"><label>Phase</label>
-              <select class="form-input" id="mPhase">
-                <option value="Groupes">Phase de groupes</option>
-                <option value="Huitièmes">Huitièmes</option>
-                <option value="Quarts">Quarts de finale</option>
-                <option value="Demies">Demi-finales</option>
-                <option value="3e place">Match 3e place</option>
-                <option value="Finale">Finale</option>
-              </select>
-            </div>
-            <div style="display:flex;gap:6px;">
-              <div class="form-group" style="flex:1"><label>Drapeau 1</label><input type="text" class="form-input" id="mFlag1" placeholder="🇫🇷"></div>
-              <div class="form-group" style="flex:1"><label>Drapeau 2</label><input type="text" class="form-input" id="mFlag2" placeholder="🇧🇷"></div>
-            </div>
-            <button class="btn btn-primary" onclick="addMatch()" style="width:100%">+ Ajouter match</button>
-          </div>
-          <div class="admin-card">
-            <h3>Mettre à jour score</h3>
-            <div class="form-group"><label>Match</label><select class="form-input" id="updateMatchSelect"></select></div>
-            <div style="display:flex;gap:6px;">
-              <div class="form-group" style="flex:1"><label>Score 1</label><input type="number" class="form-input" id="uScore1" min="0" value="0"></div>
-              <div class="form-group" style="flex:1"><label>Score 2</label><input type="number" class="form-input" id="uScore2" min="0" value="0"></div>
-            </div>
-            <div class="form-group"><label>Statut</label>
-              <select class="form-input" id="uStatus">
-                <option value="upcoming">À venir</option>
-                <option value="live">En direct</option>
-                <option value="finished">Terminé</option>
-              </select>
-            </div>
-            <button class="btn btn-primary" onclick="updateMatchScore()" style="width:100%">Mettre à jour</button>
-          </div>
-          <div class="admin-card">
-            <h3>Données</h3>
-            <div style="display:flex;flex-direction:column;gap:8px;">
-              <button class="btn btn-ghost" onclick="exportData()" style="width:100%">📤 Exporter JSON</button>
-              <label class="btn btn-ghost" style="width:100%;text-align:center;cursor:pointer">
-                📥 Importer JSON
-                <input type="file" accept=".json" style="display:none" onchange="importData(event)">
-              </label>
-              <button class="btn btn-gold" onclick="loadSampleData()" style="width:100%">⚡ Données CdM 2026</button>
-              <button class="btn btn-danger" onclick="resetAll()" style="width:100%">⚠️ Réinitialiser tout</button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <div id="tab-admin" class="tab-pane"></div>
     </div>
 
     <!-- SIDEBAR (desktop only) -->
@@ -614,7 +544,7 @@ select.form-input { cursor: pointer; }
         <div id="photoPlaceholderDesktop" style="height:220px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:var(--text3);font-size:13px;background:var(--surface);">
           <span style="font-size:32px">📸</span>
           <span>Photo de famille</span>
-          <label style="cursor:pointer;color:var(--green);font-size:12px;border:1px solid var(--green);padding:4px 12px;border-radius:6px;">
+          <label id="photoUploadBtnDesktop" style="display:none;cursor:pointer;color:var(--green);font-size:12px;border:1px solid var(--green);padding:4px 12px;border-radius:6px;">
             Ajouter
             <input type="file" accept="image/*" style="display:none" onchange="uploadFamilyPhoto(event)">
           </label>
@@ -626,8 +556,8 @@ select.form-input { cursor: pointer; }
       </div>
       <div class="score-legend">
         <strong>Barème</strong>
-        Groupes : <span style="color:var(--green)">5</span> exact · <span style="color:var(--gold)">3</span> écart+win · <span style="color:#4caf50">2</span> win<br>
-        Quarts+ : <span style="color:var(--gold)">×2</span>
+        Groupes/32es : <span style="color:var(--green)">5</span>·<span style="color:var(--gold)">3</span>·<span style="color:#4caf50">2</span><br>
+        16es ×2 · Quarts ×3 · Demies ×4 · Finale ×5
       </div>
     </div>
   </div>
@@ -673,6 +603,10 @@ const link = document.createElement('link');
 link.rel = 'manifest'; link.href = manifestUrl;
 document.head.appendChild(link);
 
+// ===== CONFIG =====
+// Modifie ce code pour sécuriser l'accès admin
+const ADMIN_CODE = 'cdm2026admin';
+
 // ===== STATE =====
 let state = {
   currentPlayer: null,
@@ -682,6 +616,7 @@ let state = {
   notifications: [],
   lastRanks: {},
   familyPhoto: null,
+  adminIds: [],  // IDs des administrateurs
 };
 
 // ===== STORAGE =====
@@ -698,6 +633,7 @@ function load() {
   if (!state.pronos) state.pronos = {};
   if (!state.notifications) state.notifications = [];
   if (!state.lastRanks) state.lastRanks = {};
+  if (!state.adminIds) state.adminIds = [];
 }
 
 // ===== LOGIN / URL PARAM =====
@@ -762,6 +698,12 @@ function enterApp() {
     document.getElementById('userAvatar').textContent = initials;
     document.getElementById('userName').textContent = p.prenom;
   }
+  // Auto-load official calendar on first visit
+  if (state.matches.length === 0) {
+    state.matches = OFFICIAL_MATCHES.map(m => ({...m}));
+    save();
+    addNotif('📅 Calendrier officiel CdM 2026 chargé automatiquement (104 matchs)');
+  }
   renderAll();
   startAutoRefresh();
   scheduleNotifications();
@@ -778,10 +720,15 @@ function playerFullName(p) { return p ? p.prenom + ' ' + p.nom : ''; }
 function playerInitials(p) { return p ? (p.prenom[0] + (p.nom[0] || '')).toUpperCase() : '?'; }
 
 // ===== SCORING =====
-function isKnockout(phase) { return ['Quarts','Demies','3e place','Finale'].includes(phase); }
+const PHASE_ORDER = ['Groupes','32es','16es','Quarts','Demies','3e place','Finale'];
+function phaseMultiplier(phase) {
+  const m = {'Groupes':1,'32es':1,'16es':2,'Quarts':3,'Demies':4,'3e place':3,'Finale':5};
+  return m[phase] || 1;
+}
+function isKnockout(phase) { return phase !== 'Groupes' && phase !== '32es'; }
 function calcPoints(r1, r2, p1, p2, phase) {
   if (r1==null||r2==null||p1==null||p2==null) return null;
-  const x = isKnockout(phase) ? 2 : 1;
+  const x = phaseMultiplier(phase);
   if (r1===p1 && r2===p2) return 5*x;
   if ((r1-r2)===(p1-p2)) return (r1===r2 ? 2 : 3)*x;
   if (Math.sign(r1-r2)===Math.sign(p1-p2)) return 2*x;
@@ -789,7 +736,7 @@ function calcPoints(r1, r2, p1, p2, phase) {
 }
 function ptsLabel(pts, phase) {
   if (pts==null) return '';
-  const x = isKnockout(phase)?2:1;
+  const x = phaseMultiplier(phase);
   if (pts===5*x) return 'exact';
   if (pts===3*x||pts===2*x) return 'diff-win';
   if (pts>0) return 'winner';
@@ -834,12 +781,11 @@ function renderMatches() {
   }
   const byPhase = {};
   matches.forEach(m => { if(!byPhase[m.phase]) byPhase[m.phase]=[]; byPhase[m.phase].push(m); });
-  const phaseOrder = ['Groupes','Huitièmes','Quarts','Demies','3e place','Finale'];
-  const sortedPhases = Object.keys(byPhase).sort((a,b) => phaseOrder.indexOf(a)-phaseOrder.indexOf(b));
+  const sortedPhases = Object.keys(byPhase).sort((a,b) => PHASE_ORDER.indexOf(a)-PHASE_ORDER.indexOf(b));
   let html = '';
   sortedPhases.forEach(phase => {
-    const isKO = isKnockout(phase);
-    html += `<div class="phase-badge${isKO?'':' normal'}">${phase}${isKO?' ×2':''}</div>`;
+    const x = phaseMultiplier(phase);
+    html += `<div class="phase-badge${x>1?'':' normal'}">${phase}${x>1?' ×'+x:''}</div>`;
     byPhase[phase].forEach(m => {
       const dt = new Date(m.date);
       const dateStr = dt.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
@@ -1234,26 +1180,208 @@ function updateMatchScore() {
   toast(`✅ Score mis à jour : ${s1}–${s2}`);
 }
 
+// ===== ADMIN =====
+function isAdmin() {
+  const p = getCurrentPlayer();
+  return p && (state.adminIds||[]).includes(p.id);
+}
+function activateAdmin() {
+  const code = prompt('Code administrateur :');
+  if (code === null) return;
+  if (code === ADMIN_CODE) {
+    const p = getCurrentPlayer();
+    if (!state.adminIds) state.adminIds = [];
+    if (!state.adminIds.includes(p.id)) state.adminIds.push(p.id);
+    save(); toast('✅ Mode admin activé !');
+    renderAdminPanel(); renderFamilyPhotoControls();
+  } else {
+    toast('❌ Code incorrect');
+  }
+}
+function revokeAdmin(id) {
+  state.adminIds = (state.adminIds||[]).filter(x => x !== id);
+  save(); renderAdminPanel(); renderFamilyPhotoControls();
+}
+function renderAdminPanel() {
+  const tab = document.getElementById('tab-admin');
+  if (!tab) return;
+  if (!isAdmin()) {
+    tab.innerHTML = `<div class="section-title">Admin <span>& gestion</span></div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;text-align:center;">
+        <div style="font-size:32px;margin-bottom:12px">🔒</div>
+        <p style="color:var(--text2);margin-bottom:16px">Accès réservé aux administrateurs</p>
+        <button class="btn btn-gold" onclick="activateAdmin()">Entrer le code admin</button>
+      </div>`;
+    return;
+  }
+  // Full admin panel rebuilt
+  tab.innerHTML = `<div class="section-title">Admin <span>& gestion</span></div>
+  <div class="admin-grid">
+    <div class="admin-card">
+      <h3>Joueurs inscrits</h3>
+      <div class="form-group">
+        <label>Ajouter un joueur</label>
+        <div style="display:flex;gap:6px;">
+          <input type="text" class="form-input" id="newPlayerPrenom" placeholder="Prénom" style="flex:1">
+          <input type="text" class="form-input" id="newPlayerNom" placeholder="Nom" style="flex:1">
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="addPlayer()" style="width:100%;margin-bottom:12px">+ Ajouter</button>
+      <div id="playersList"></div>
+    </div>
+    <div class="admin-card">
+      <h3>Liens WhatsApp</h3>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:10px;">Envoie ce lien à chaque joueur → il se connecte automatiquement.</p>
+      <div id="whatsappLinks"></div>
+    </div>
+    <div class="admin-card">
+      <h3>Ajouter un match</h3>
+      <div class="form-group"><label>Équipe 1</label><input type="text" class="form-input" id="mTeam1" placeholder="France"></div>
+      <div class="form-group"><label>Équipe 2</label><input type="text" class="form-input" id="mTeam2" placeholder="Brésil"></div>
+      <div class="form-group"><label>Date & heure</label><input type="datetime-local" class="form-input" id="mDate"></div>
+      <div class="form-group"><label>Phase</label>
+        <select class="form-input" id="mPhase">
+          <option value="Groupes">Phase de groupes</option>
+          <option value="32es">32es de finale</option>
+          <option value="16es">16es de finale</option>
+          <option value="Quarts">Quarts de finale</option>
+          <option value="Demies">Demi-finales</option>
+          <option value="3e place">Match 3e place</option>
+          <option value="Finale">Finale</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <div class="form-group" style="flex:1"><label>Drapeau 1</label><input type="text" class="form-input" id="mFlag1" placeholder="🇫🇷"></div>
+        <div class="form-group" style="flex:1"><label>Drapeau 2</label><input type="text" class="form-input" id="mFlag2" placeholder="🇧🇷"></div>
+      </div>
+      <button class="btn btn-primary" onclick="addMatch()" style="width:100%">+ Ajouter match</button>
+    </div>
+    <div class="admin-card">
+      <h3>Mettre à jour score</h3>
+      <div class="form-group"><label>Match</label><select class="form-input" id="updateMatchSelect"></select></div>
+      <div style="display:flex;gap:6px;">
+        <div class="form-group" style="flex:1"><label>Score 1</label><input type="number" class="form-input" id="uScore1" min="0" value="0"></div>
+        <div class="form-group" style="flex:1"><label>Score 2</label><input type="number" class="form-input" id="uScore2" min="0" value="0"></div>
+      </div>
+      <div class="form-group"><label>Statut</label>
+        <select class="form-input" id="uStatus">
+          <option value="upcoming">À venir</option>
+          <option value="live">En direct</option>
+          <option value="finished">Terminé</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="updateMatchScore()" style="width:100%">Mettre à jour</button>
+    </div>
+    <div class="admin-card">
+      <h3>Photo de famille</h3>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:10px;">Seuls les admins peuvent changer la photo.</p>
+      <div id="adminPhotoControls"></div>
+    </div>
+    <div class="admin-card">
+      <h3>Données</h3>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button class="btn btn-gold" onclick="loadOfficialCalendar()" style="width:100%">📅 Charger calendrier officiel CdM 2026</button>
+        <button class="btn btn-ghost" onclick="exportData()" style="width:100%">📤 Exporter JSON</button>
+        <label class="btn btn-ghost" style="width:100%;text-align:center;cursor:pointer">
+          📥 Importer JSON
+          <input type="file" accept=".json" style="display:none" onchange="importData(event)">
+        </label>
+        <button class="btn btn-danger" onclick="resetAll()" style="width:100%">⚠️ Réinitialiser tout</button>
+      </div>
+    </div>
+    <div class="admin-card">
+      <h3>Admins (${(state.adminIds||[]).length})</h3>
+      <div id="adminsList"></div>
+      <div style="margin-top:10px;font-size:12px;color:var(--text3)">Code: <code style="color:var(--gold)">${ADMIN_CODE}</code></div>
+    </div>
+  </div>`;
+  renderPlayersList(); populateUpdateMatchSelect(); renderWhatsappLinks();
+  renderAdminPhotoControls();
+  renderAdminsList();
+}
+function renderAdminsList() {
+  const c = document.getElementById('adminsList');
+  if (!c) return;
+  const myId = state.currentPlayer;
+  c.innerHTML = (state.adminIds||[]).map(id => {
+    const p = getPlayerById(id);
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);">
+      <span style="font-size:13px">👑 ${p?playerFullName(p):id}</span>
+      ${id!==myId?`<button onclick="revokeAdmin('${id}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:13px">Retirer</button>`:'<span style="font-size:11px;color:var(--text3)">moi</span>'}
+    </div>`;
+  }).join('') || '<p style="font-size:12px;color:var(--text3)">Aucun admin</p>';
+}
+function renderAdminPhotoControls() {
+  const c = document.getElementById('adminPhotoControls');
+  if (!c) return;
+  const hasPhoto = !!state.familyPhoto;
+  c.innerHTML = `
+    <label class="btn btn-primary" style="width:100%;text-align:center;cursor:pointer;display:block;margin-bottom:8px;">
+      📸 ${hasPhoto?'Changer la photo':'Ajouter une photo'}
+      <input type="file" accept="image/*" style="display:none" onchange="uploadFamilyPhoto(event)">
+    </label>
+    ${hasPhoto?`<button class="btn btn-danger" onclick="deleteFamilyPhoto()" style="width:100%">🗑 Supprimer la photo</button>`:''}`;
+}
+
+// ===== OFFICIAL CALENDAR =====
+function loadOfficialCalendar() {
+  if (state.matches.length && !confirm('Remplacer les matchs existants par le calendrier officiel CdM 2026 ?')) return;
+  state.matches = OFFICIAL_MATCHES.map(m => ({...m}));
+  save(); renderMatches(); populateUpdateMatchSelect();
+  toast('✅ Calendrier officiel chargé ! 104 matchs');
+  addNotif('📅 Calendrier officiel CdM 2026 chargé (104 matchs)');
+  scheduleNotifications();
+}
+
 // ===== FAMILY PHOTO =====
 function uploadFamilyPhoto(e) {
+  if (!isAdmin()) { toast('❌ Réservé aux administrateurs'); return; }
   const f = e.target.files[0]; if (!f) return;
   const reader = new FileReader();
   reader.onload = ev => {
     state.familyPhoto = ev.target.result;
     save(); loadFamilyPhoto();
-    toast('📸 Photo ajoutée !');
+    renderAdminPhotoControls();
+    toast('📸 Photo mise à jour !');
   };
   reader.readAsDataURL(f);
 }
+function deleteFamilyPhoto() {
+  if (!isAdmin()) return;
+  if (!confirm('Supprimer la photo de famille ?')) return;
+  state.familyPhoto = null;
+  save(); loadFamilyPhoto(); renderAdminPhotoControls();
+  toast('🗑 Photo supprimée');
+}
+function renderFamilyPhotoControls() {
+  // Show/hide upload buttons based on admin status
+  const phM = document.getElementById('photoPlaceholderMobile');
+  const phD = document.getElementById('photoPlaceholderDesktop');
+  const uploadBtnM = document.getElementById('photoUploadBtnMobile');
+  const uploadBtnD = document.getElementById('photoUploadBtnDesktop');
+  if (uploadBtnM) uploadBtnM.style.display = isAdmin() ? '' : 'none';
+  if (uploadBtnD) uploadBtnD.style.display = isAdmin() ? '' : 'none';
+}
 function loadFamilyPhoto() {
-  if (!state.familyPhoto) return;
   const imgM = document.getElementById('familyImgMobile');
   const imgD = document.getElementById('familyImgDesktop');
   const phM = document.getElementById('photoPlaceholderMobile');
   const phD = document.getElementById('photoPlaceholderDesktop');
   const ov = document.getElementById('mobileOverlay');
-  if (imgM) { imgM.src = state.familyPhoto; imgM.style.display='block'; if(phM) phM.style.display='none'; if(ov) ov.style.display='flex'; }
-  if (imgD) { imgD.src = state.familyPhoto; imgD.style.display='block'; if(phD) phD.style.display='none'; }
+  if (state.familyPhoto) {
+    if (imgM) { imgM.src = state.familyPhoto; imgM.style.display='block'; }
+    if (phM) phM.style.display='none';
+    if (ov) ov.style.display='flex';
+    if (imgD) { imgD.src = state.familyPhoto; imgD.style.display='block'; }
+    if (phD) phD.style.display='none';
+  } else {
+    if (imgM) imgM.style.display='none';
+    if (phM) phM.style.display='flex';
+    if (ov) ov.style.display='none';
+    if (imgD) imgD.style.display='none';
+    if (phD) phD.style.display='flex';
+  }
+  renderFamilyPhotoControls();
 }
 
 // ===== TABS =====
@@ -1264,18 +1392,17 @@ function showTab(id, btn) {
   if (btn) btn.classList.add('active');
   if (id==='classement') renderRanking();
   if (id==='notifs') { renderNotifs(); updateNotifStatus(); }
-  if (id==='admin') { renderPlayersList(); populateUpdateMatchSelect(); renderWhatsappLinks(); }
+  if (id==='admin') renderAdminPanel();
 }
 function mobileTab(id, btn) {
   document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.bnav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('tab-'+id).classList.add('active');
   btn.classList.add('active');
-  // Show sidebar on classement mobile
   document.getElementById('desktopSidebar').style.display = id==='classement' ? 'block' : '';
   if (id==='classement') renderRanking();
   if (id==='notifs') { renderNotifs(); updateNotifStatus(); }
-  if (id==='admin') { renderPlayersList(); populateUpdateMatchSelect(); renderWhatsappLinks(); }
+  if (id==='admin') renderAdminPanel();
 }
 
 // ===== TOAST =====
@@ -1303,7 +1430,7 @@ function importData(e) {
 function resetAll() {
   if (!confirm('Tout supprimer ?')) return;
   localStorage.removeItem('cdm2026v2');
-  state = { currentPlayer:null, players:[], matches:[], pronos:{}, notifications:[], lastRanks:{}, familyPhoto:null };
+  state = { currentPlayer:null, players:[], matches:[], pronos:{}, notifications:[], lastRanks:{}, familyPhoto:null, adminIds:[] };
   save(); renderAll(); toast('🗑 Réinitialisé');
 }
 
@@ -1358,8 +1485,120 @@ function startAutoRefresh() {
 
 // ===== RENDER ALL =====
 function renderAll() {
-  renderMatches(); renderRanking(); renderNotifs();
-  renderPlayersList(); populateUpdateMatchSelect(); renderWhatsappLinks();
+  renderMatches(); renderRanking(); renderNotifs(); renderAdminPanel();
+}
+
+// ===== OFFICIAL MATCHES DATA (CdM 2026) =====
+const OFFICIAL_MATCHES = [
+  {id:'o1',matchNum:1,team1:'Mexique',team2:'Afrique du Sud',flag1:'🇲🇽',flag2:'🇿🇦',date:'2026-06-11T15:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o2',matchNum:2,team1:'Corée du Sud',team2:'Tchéquie',flag1:'🇰🇷',flag2:'🇨🇿',date:'2026-06-11T22:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o3',matchNum:3,team1:'Canada',team2:'Bosnie',flag1:'🇨🇦',flag2:'🇧🇦',date:'2026-06-12T15:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o4',matchNum:4,team1:'USA',team2:'Paraguay',flag1:'🇺🇸',flag2:'🇵🇾',date:'2026-06-12T21:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o5',matchNum:5,team1:'Haïti',team2:'Écosse',flag1:'🇭🇹',flag2:'🏴󠁧󠁢󠁳󠁣󠁴󠁿',date:'2026-06-13T21:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o6',matchNum:6,team1:'Australie',team2:'Türkiye',flag1:'🇦🇺',flag2:'🇹🇷',date:'2026-06-13T00:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o7',matchNum:7,team1:'Brésil',team2:'Maroc',flag1:'🇧🇷',flag2:'🇲🇦',date:'2026-06-13T18:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o8',matchNum:8,team1:'Qatar',team2:'Suisse',flag1:'🇶🇦',flag2:'🇨🇭',date:'2026-06-13T15:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o9',matchNum:9,team1:"Côte d'Ivoire",team2:'Équateur',flag1:'🇨🇮',flag2:'🇪🇨',date:'2026-06-14T19:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o10',matchNum:10,team1:'Allemagne',team2:'Curaçao',flag1:'🇩🇪',flag2:'🏝',date:'2026-06-14T13:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o11',matchNum:11,team1:'Pays-Bas',team2:'Japon',flag1:'🇳🇱',flag2:'🇯🇵',date:'2026-06-14T16:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o12',matchNum:12,team1:'Suède',team2:'Tunisie',flag1:'🇸🇪',flag2:'🇹🇳',date:'2026-06-14T22:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o13',matchNum:13,team1:'Arabie Saoudite',team2:'Uruguay',flag1:'🇸🇦',flag2:'🇺🇾',date:'2026-06-15T18:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o14',matchNum:14,team1:'Espagne',team2:'Cap-Vert',flag1:'🇪🇸',flag2:'🇨🇻',date:'2026-06-15T12:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o15',matchNum:15,team1:'Iran',team2:'Nouvelle-Zélande',flag1:'🇮🇷',flag2:'🇳🇿',date:'2026-06-15T21:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o16',matchNum:16,team1:'Belgique',team2:'Égypte',flag1:'🇧🇪',flag2:'🇪🇬',date:'2026-06-15T15:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o17',matchNum:17,team1:'France',team2:'Sénégal',flag1:'🇫🇷',flag2:'🇸🇳',date:'2026-06-16T15:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o18',matchNum:18,team1:'Irak',team2:'Norvège',flag1:'🇮🇶',flag2:'🇳🇴',date:'2026-06-16T18:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o19',matchNum:19,team1:'Argentine',team2:'Algérie',flag1:'🇦🇷',flag2:'🇩🇿',date:'2026-06-16T21:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o20',matchNum:20,team1:'Autriche',team2:'Jordanie',flag1:'🇦🇹',flag2:'🇯🇴',date:'2026-06-17T00:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o21',matchNum:21,team1:'Ghana',team2:'Panama',flag1:'🇬🇭',flag2:'🇵🇦',date:'2026-06-17T19:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o22',matchNum:22,team1:'Angleterre',team2:'Croatie',flag1:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',flag2:'🇭🇷',date:'2026-06-17T16:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o23',matchNum:23,team1:'Portugal',team2:'Congo DR',flag1:'🇵🇹',flag2:'🇨🇩',date:'2026-06-17T13:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o24',matchNum:24,team1:'Ouzbékistan',team2:'Colombie',flag1:'🇺🇿',flag2:'🇨🇴',date:'2026-06-17T22:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o25',matchNum:25,team1:'Tchéquie',team2:'Afrique du Sud',flag1:'🇨🇿',flag2:'🇿🇦',date:'2026-06-18T12:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o26',matchNum:26,team1:'Suisse',team2:'Bosnie',flag1:'🇨🇭',flag2:'🇧🇦',date:'2026-06-18T15:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o27',matchNum:27,team1:'Canada',team2:'Qatar',flag1:'🇨🇦',flag2:'🇶🇦',date:'2026-06-18T18:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o28',matchNum:28,team1:'Mexique',team2:'Corée du Sud',flag1:'🇲🇽',flag2:'🇰🇷',date:'2026-06-18T21:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o29',matchNum:29,team1:'Brésil',team2:'Haïti',flag1:'🇧🇷',flag2:'🇭🇹',date:'2026-06-19T20:30:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o30',matchNum:30,team1:'Écosse',team2:'Maroc',flag1:'🏴󠁧󠁢󠁳󠁣󠁴󠁿',flag2:'🇲🇦',date:'2026-06-19T18:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o31',matchNum:31,team1:'Türkiye',team2:'Paraguay',flag1:'🇹🇷',flag2:'🇵🇾',date:'2026-06-19T23:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o32',matchNum:32,team1:'USA',team2:'Australie',flag1:'🇺🇸',flag2:'🇦🇺',date:'2026-06-19T15:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o33',matchNum:33,team1:'Allemagne',team2:"Côte d'Ivoire",flag1:'🇩🇪',flag2:'🇨🇮',date:'2026-06-20T16:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o34',matchNum:34,team1:'Équateur',team2:'Curaçao',flag1:'🇪🇨',flag2:'🏝',date:'2026-06-20T20:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o35',matchNum:35,team1:'Pays-Bas',team2:'Suède',flag1:'🇳🇱',flag2:'🇸🇪',date:'2026-06-20T13:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o36',matchNum:36,team1:'Tunisie',team2:'Japon',flag1:'🇹🇳',flag2:'🇯🇵',date:'2026-06-20T00:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o37',matchNum:37,team1:'Uruguay',team2:'Cap-Vert',flag1:'🇺🇾',flag2:'🇨🇻',date:'2026-06-21T18:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o38',matchNum:38,team1:'Espagne',team2:'Arabie Saoudite',flag1:'🇪🇸',flag2:'🇸🇦',date:'2026-06-21T12:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o39',matchNum:39,team1:'Belgique',team2:'Iran',flag1:'🇧🇪',flag2:'🇮🇷',date:'2026-06-21T15:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o40',matchNum:40,team1:'Nouvelle-Zélande',team2:'Égypte',flag1:'🇳🇿',flag2:'🇪🇬',date:'2026-06-21T21:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o41',matchNum:41,team1:'Norvège',team2:'Sénégal',flag1:'🇳🇴',flag2:'🇸🇳',date:'2026-06-22T20:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o42',matchNum:42,team1:'France',team2:'Irak',flag1:'🇫🇷',flag2:'🇮🇶',date:'2026-06-22T17:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o43',matchNum:43,team1:'Argentine',team2:'Autriche',flag1:'🇦🇷',flag2:'🇦🇹',date:'2026-06-22T13:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o44',matchNum:44,team1:'Jordanie',team2:'Algérie',flag1:'🇯🇴',flag2:'🇩🇿',date:'2026-06-22T23:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o45',matchNum:45,team1:'Angleterre',team2:'Ghana',flag1:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',flag2:'🇬🇭',date:'2026-06-23T16:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o46',matchNum:46,team1:'Panama',team2:'Croatie',flag1:'🇵🇦',flag2:'🇭🇷',date:'2026-06-23T19:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o47',matchNum:47,team1:'Portugal',team2:'Ouzbékistan',flag1:'🇵🇹',flag2:'🇺🇿',date:'2026-06-23T13:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o48',matchNum:48,team1:'Colombie',team2:'Congo DR',flag1:'🇨🇴',flag2:'🇨🇩',date:'2026-06-23T22:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o49',matchNum:49,team1:'Écosse',team2:'Brésil',flag1:'🏴󠁧󠁢󠁳󠁣󠁴󠁿',flag2:'🇧🇷',date:'2026-06-24T18:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o50',matchNum:50,team1:'Maroc',team2:'Haïti',flag1:'🇲🇦',flag2:'🇭🇹',date:'2026-06-24T18:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o51',matchNum:51,team1:'Suisse',team2:'Canada',flag1:'🇨🇭',flag2:'🇨🇦',date:'2026-06-24T15:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o52',matchNum:52,team1:'Bosnie',team2:'Qatar',flag1:'🇧🇦',flag2:'🇶🇦',date:'2026-06-24T15:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o53',matchNum:53,team1:'Tchéquie',team2:'Mexique',flag1:'🇨🇿',flag2:'🇲🇽',date:'2026-06-24T21:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o54',matchNum:54,team1:'Afrique du Sud',team2:'Corée du Sud',flag1:'🇿🇦',flag2:'🇰🇷',date:'2026-06-24T21:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o55',matchNum:55,team1:'Curaçao',team2:"Côte d'Ivoire",flag1:'🏝',flag2:'🇨🇮',date:'2026-06-25T16:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o56',matchNum:56,team1:'Équateur',team2:'Allemagne',flag1:'🇪🇨',flag2:'🇩🇪',date:'2026-06-25T16:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o57',matchNum:57,team1:'Japon',team2:'Suède',flag1:'🇯🇵',flag2:'🇸🇪',date:'2026-06-25T19:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o58',matchNum:58,team1:'Tunisie',team2:'Pays-Bas',flag1:'🇹🇳',flag2:'🇳🇱',date:'2026-06-25T19:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o59',matchNum:59,team1:'Türkiye',team2:'USA',flag1:'🇹🇷',flag2:'🇺🇸',date:'2026-06-25T22:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o60',matchNum:60,team1:'Paraguay',team2:'Australie',flag1:'🇵🇾',flag2:'🇦🇺',date:'2026-06-25T22:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o61',matchNum:61,team1:'Norvège',team2:'France',flag1:'🇳🇴',flag2:'🇫🇷',date:'2026-06-26T15:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o62',matchNum:62,team1:'Sénégal',team2:'Irak',flag1:'🇸🇳',flag2:'🇮🇶',date:'2026-06-26T15:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o63',matchNum:63,team1:'Égypte',team2:'Iran',flag1:'🇪🇬',flag2:'🇮🇷',date:'2026-06-26T23:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o64',matchNum:64,team1:'Nouvelle-Zélande',team2:'Belgique',flag1:'🇳🇿',flag2:'🇧🇪',date:'2026-06-26T23:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o65',matchNum:65,team1:'Cap-Vert',team2:'Arabie Saoudite',flag1:'🇨🇻',flag2:'🇸🇦',date:'2026-06-26T20:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o66',matchNum:66,team1:'Uruguay',team2:'Espagne',flag1:'🇺🇾',flag2:'🇪🇸',date:'2026-06-26T20:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o67',matchNum:67,team1:'Panama',team2:'Angleterre',flag1:'🇵🇦',flag2:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',date:'2026-06-27T17:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o68',matchNum:68,team1:'Croatie',team2:'Ghana',flag1:'🇭🇷',flag2:'🇬🇭',date:'2026-06-27T17:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o69',matchNum:69,team1:'Algérie',team2:'Autriche',flag1:'🇩🇿',flag2:'🇦🇹',date:'2026-06-27T22:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o70',matchNum:70,team1:'Jordanie',team2:'Argentine',flag1:'🇯🇴',flag2:'🇦🇷',date:'2026-06-27T22:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o71',matchNum:71,team1:'Colombie',team2:'Portugal',flag1:'🇨🇴',flag2:'🇵🇹',date:'2026-06-27T19:30:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o72',matchNum:72,team1:'Congo DR',team2:'Ouzbékistan',flag1:'🇨🇩',flag2:'🇺🇿',date:'2026-06-27T19:30:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o73',matchNum:73,team1:'2A',team2:'2B',flag1:'⚽',flag2:'⚽',date:'2026-06-28T15:00:00-04:00',phase:'32es',status:'upcoming',score1:null,score2:null},
+  {id:'o74',matchNum:74,team1:'1E',team2:'3ABCDF',flag1:'⚽',flag2:'⚽',date:'2026-06-29T16:30:00-04:00',phase:'32es',status:'upcoming',score1:null,score2:null},
+  {id:'o75',matchNum:75,team1:'1F',team2:'2C',flag1:'⚽',flag2:'⚽',date:'2026-06-29T21:00:00-04:00',phase:'32es',status:'upcoming',score1:null,score2:null},
+  {id:'o76',matchNum:76,team1:'1C',team2:'2F',flag1:'⚽',flag2:'⚽',date:'2026-06-29T13:00:00-04:00',phase:'32es',status:'upcoming',score1:null,score2:null},
+  {id:'o77',matchNum:77,team1:'1I',team2:'3CDFGH',flag1:'⚽',flag2:'⚽',date:'2026-06-30T17:00:00-04:00',phase:'32es',status:'upcoming',score1:null,score2:null},
+  {id:'o78',matchNum:78,team1:'2E',team2:'2I',flag1:'⚽',flag2:'⚽',date:'2026-06-30T13:00:00-04:00',phase:'32es',status:'upcoming',score1:null,score2:null},
+  {id:'o79',matchNum:79,team1:'1A',team2:'3CEFHI',flag1:'⚽',flag2:'⚽',date:'2026-06-30T21:00:00-04:00',phase:'32es',status:'upcoming',score1:null,score2:null},
+  {id:'o80',matchNum:80,team1:'1L',team2:'3EHIJK',flag1:'⚽',flag2:'⚽',date:'2026-07-01T12:00:00-04:00',phase:'32es',status:'upcoming',score1:null,score2:null},
+  {id:'o81',matchNum:81,team1:'1D',team2:'3BEFIJ',flag1:'⚽',flag2:'⚽',date:'2026-07-01T20:00:00-04:00',phase:'32es',status:'upcoming',score1:null,score2:null},
+  {id:'o82',matchNum:82,team1:'1G',team2:'3AEHIJ',flag1:'⚽',flag2:'⚽',date:'2026-07-01T16:00:00-04:00',phase:'32es',status:'upcoming',score1:null,score2:null},
+  {id:'o83',matchNum:83,team1:'2K',team2:'2L',flag1:'⚽',flag2:'⚽',date:'2026-07-02T19:00:00-04:00',phase:'32es',status:'upcoming',score1:null,score2:null},
+  {id:'o84',matchNum:84,team1:'1H',team2:'2J',flag1:'⚽',flag2:'⚽',date:'2026-07-02T15:00:00-04:00',phase:'32es',status:'upcoming',score1:null,score2:null},
+  {id:'o85',matchNum:85,team1:'1B',team2:'3EFGIJ',flag1:'⚽',flag2:'⚽',date:'2026-07-02T23:00:00-04:00',phase:'32es',status:'upcoming',score1:null,score2:null},
+  {id:'o86',matchNum:86,team1:'1J',team2:'2H',flag1:'⚽',flag2:'⚽',date:'2026-07-03T18:00:00-04:00',phase:'32es',status:'upcoming',score1:null,score2:null},
+  {id:'o87',matchNum:87,team1:'1K',team2:'3DEIJL',flag1:'⚽',flag2:'⚽',date:'2026-07-03T21:30:00-04:00',phase:'32es',status:'upcoming',score1:null,score2:null},
+  {id:'o88',matchNum:88,team1:'2D',team2:'2G',flag1:'⚽',flag2:'⚽',date:'2026-07-03T14:00:00-04:00',phase:'32es',status:'upcoming',score1:null,score2:null},
+  {id:'o89',matchNum:89,team1:'W74',team2:'W77',flag1:'⚽',flag2:'⚽',date:'2026-07-04T17:00:00-04:00',phase:'16es',status:'upcoming',score1:null,score2:null},
+  {id:'o90',matchNum:90,team1:'W73',team2:'W75',flag1:'⚽',flag2:'⚽',date:'2026-07-04T13:00:00-04:00',phase:'16es',status:'upcoming',score1:null,score2:null},
+  {id:'o91',matchNum:91,team1:'W76',team2:'W78',flag1:'⚽',flag2:'⚽',date:'2026-07-05T16:00:00-04:00',phase:'16es',status:'upcoming',score1:null,score2:null},
+  {id:'o92',matchNum:92,team1:'W79',team2:'W80',flag1:'⚽',flag2:'⚽',date:'2026-07-05T20:00:00-04:00',phase:'16es',status:'upcoming',score1:null,score2:null},
+  {id:'o93',matchNum:93,team1:'W83',team2:'W84',flag1:'⚽',flag2:'⚽',date:'2026-07-06T15:00:00-04:00',phase:'16es',status:'upcoming',score1:null,score2:null},
+  {id:'o94',matchNum:94,team1:'W81',team2:'W82',flag1:'⚽',flag2:'⚽',date:'2026-07-06T20:00:00-04:00',phase:'16es',status:'upcoming',score1:null,score2:null},
+  {id:'o95',matchNum:95,team1:'W86',team2:'W88',flag1:'⚽',flag2:'⚽',date:'2026-07-07T12:00:00-04:00',phase:'16es',status:'upcoming',score1:null,score2:null},
+  {id:'o96',matchNum:96,team1:'W85',team2:'W87',flag1:'⚽',flag2:'⚽',date:'2026-07-07T16:00:00-04:00',phase:'16es',status:'upcoming',score1:null,score2:null},
+  {id:'o97',matchNum:97,team1:'W89',team2:'W90',flag1:'⚽',flag2:'⚽',date:'2026-07-09T16:00:00-04:00',phase:'Quarts',status:'upcoming',score1:null,score2:null},
+  {id:'o98',matchNum:98,team1:'W93',team2:'W94',flag1:'⚽',flag2:'⚽',date:'2026-07-10T15:00:00-04:00',phase:'Quarts',status:'upcoming',score1:null,score2:null},
+  {id:'o99',matchNum:99,team1:'W91',team2:'W92',flag1:'⚽',flag2:'⚽',date:'2026-07-11T17:00:00-04:00',phase:'Quarts',status:'upcoming',score1:null,score2:null},
+  {id:'o100',matchNum:100,team1:'W95',team2:'W96',flag1:'⚽',flag2:'⚽',date:'2026-07-11T21:00:00-04:00',phase:'Quarts',status:'upcoming',score1:null,score2:null},
+  {id:'o101',matchNum:101,team1:'W97',team2:'W98',flag1:'⚽',flag2:'⚽',date:'2026-07-14T15:00:00-04:00',phase:'Demies',status:'upcoming',score1:null,score2:null},
+  {id:'o102',matchNum:102,team1:'W99',team2:'W100',flag1:'⚽',flag2:'⚽',date:'2026-07-15T15:00:00-04:00',phase:'Demies',status:'upcoming',score1:null,score2:null},
+  {id:'o103',matchNum:103,team1:'Perdant SF1',team2:'Perdant SF2',flag1:'⚽',flag2:'⚽',date:'2026-07-18T17:00:00-04:00',phase:'3e place',status:'upcoming',score1:null,score2:null},
+  {id:'o104',matchNum:104,team1:'Finaliste 1',team2:'Finaliste 2',flag1:'🏆',flag2:'🏆',date:'2026-07-19T15:00:00-04:00',phase:'Finale',status:'upcoming',score1:null,score2:null},
+];
+
+// ===== SERVICE WORKER (push notifs background) =====
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
 
 // ===== KEYBOARD LOGIN =====
