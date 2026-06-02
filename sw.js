@@ -1,4 +1,4 @@
-const CACHE = 'cdm2026-v1';
+const CACHE = 'cdm2026-v2';
 const ASSETS = ['./index.html'];
 
 self.addEventListener('install', e => {
@@ -7,7 +7,11 @@ self.addEventListener('install', e => {
 });
 
 self.addEventListener('activate', e => {
-  e.waitUntil(clients.claim());
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+    ).then(() => clients.claim())
+  );
 });
 
 self.addEventListener('fetch', e => {
@@ -16,31 +20,48 @@ self.addEventListener('fetch', e => {
   );
 });
 
-// Receive scheduled notification from main thread
-self.addEventListener('message', e => {
-  if (e.data && e.data.type === 'SCHEDULE_NOTIF') {
-    const { matchId, team1, team2, flag1, flag2, delayMs, playerName, rank, pts } = e.data;
-    if (delayMs <= 0) return;
-    setTimeout(() => {
-      self.registration.showNotification(
-        `⚽ ${flag1} ${team1} vs ${team2} ${flag2}`,
-        {
-          body: `${playerName ? playerName + ', donne' : 'Donne'} ton prono avant le coup d\'envoi ! Classement : #${rank} (${pts}pts)`,
-          icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⚽</text></svg>',
-          tag: matchId,
-          vibrate: [300, 150, 300],
-          requireInteraction: true,
-          data: { matchId }
-        }
-      );
-    }, delayMs);
-  }
+// ===== PUSH depuis le serveur Vercel =====
+self.addEventListener('push', e => {
+  let data = {};
+  try { data = e.data ? e.data.json() : {}; } catch(err) {}
+
+  const title = data.title || '⚽ CdM 2026';
+  const options = {
+    body: data.body || 'Rappel de match — donne ton prono !',
+    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⚽</text></svg>',
+    badge: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⚽</text></svg>',
+    tag: data.tag || 'cdm-match',
+    vibrate: [300, 150, 300],
+    requireInteraction: true,
+    data: { url: self.registration.scope },
+  };
+
+  e.waitUntil(self.registration.showNotification(title, options));
 });
 
+// ===== Clic sur la notification → ouvre l'app =====
 self.addEventListener('notificationclick', e => {
   e.notification.close();
-  e.waitUntil(clients.matchAll({ type: 'window' }).then(list => {
-    if (list.length) return list[0].focus();
-    return clients.openWindow('./');
-  }));
+  const url = e.notification.data?.url || self.registration.scope;
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      const existing = list.find(c => c.url === url);
+      if (existing) return existing.focus();
+      return clients.openWindow(url);
+    })
+  );
+});
+
+// ===== Notification locale (depuis la page principale) =====
+self.addEventListener('message', e => {
+  if (e.data?.type === 'SHOW_NOTIFICATION') {
+    const { title, body, tag } = e.data;
+    self.registration.showNotification(title, {
+      body,
+      icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⚽</text></svg>',
+      tag: tag || 'cdm',
+      vibrate: [300, 150, 300],
+      requireInteraction: true,
+    });
+  }
 });

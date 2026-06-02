@@ -631,8 +631,41 @@ link.rel = 'manifest'; link.href = manifestUrl;
 document.head.appendChild(link);
 
 // ===== CONFIG =====
-// Modifie ce code pour sécuriser l'accès admin
 const ADMIN_CODE = 'cdm2026admin';
+
+// Clé publique VAPID pour les notifications push serveur
+const VAPID_PUBLIC_KEY = 'BB601Oq8hysV519jSMEaew5ycqXRBV_ze5SrKMCcWeNM1jmRzaKWJMlyfRsLj4dy_9Bg5frFUAkvGvvWxwNYDZY';
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+
+async function subscribeToPush() {
+  if (!db || !state.currentPlayer) return;
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) return;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+    }
+    const p = getCurrentPlayer();
+    await db.ref(`cdm2026/subscriptions/${state.currentPlayer}`).set({
+      subscription: sub.toJSON(),
+      playerName: p ? playerFullName(p) : 'Joueur',
+      updatedAt: Date.now(),
+    });
+    console.log('✅ Abonnement push enregistré sur Firebase');
+  } catch(e) {
+    console.warn('Push subscription failed:', e);
+  }
+}
 
 // ===== FIREBASE (synchronisation temps réel entre tous les appareils) =====
 // 1. Va sur https://console.firebase.google.com → Créer un projet
@@ -805,6 +838,8 @@ function enterApp() {
   loadFamilyPhoto();
   checkPwaInstall();
   updateNotifStatus();
+  // Si notifs déjà accordées, ré-enregistrer l'abonnement push au démarrage
+  if (Notification.permission === 'granted') subscribeToPush();
 }
 
 function getCurrentPlayer() {
@@ -1051,6 +1086,7 @@ async function requestNotifPermission() {
     toast('✅ Notifications activées !');
     addNotif('🎉 Notifications activées avec succès !');
     scheduleNotifications();
+    await subscribeToPush(); // Abonnement push serveur (téléphone verrouillé)
   } else {
     toast('❌ Permission refusée');
   }
