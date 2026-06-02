@@ -938,7 +938,11 @@ function renderMatches() {
       } else if (!canSeeAll && Object.keys(pronos).length>0) {
         allPronosHtml = `<div class="pronos-reveal"><div class="pronos-reveal-title">🔒 ${Object.keys(pronos).length} prono(s) — révélés au coup d'envoi</div></div>`;
       }
+      const deleteBtn = isAdmin()
+        ? `<button onclick="deleteMatchById('${m.id}')" title="Supprimer ce match" style="position:absolute;top:8px;right:8px;background:none;border:none;cursor:pointer;color:var(--red);font-size:18px;line-height:1;padding:2px 5px;border-radius:4px;opacity:.7;transition:opacity .15s" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.7">✕</button>`
+        : '';
       html += `<div class="match-card ${m.status}" id="match_${m.id}">
+        ${deleteBtn}
         <div class="match-header"><span class="match-info">${m.phase}</span>${statusHtml}</div>
         <div class="match-teams">
           <div class="team-block"><span class="team-flag">${m.flag1||'🏳'}</span><div class="team-name">${m.team1}</div></div>
@@ -1335,6 +1339,15 @@ function populateUpdateMatchSelect() {
   const sel = document.getElementById('updateMatchSelect');
   if (!sel) return;
   sel.innerHTML = state.matches.map(m => `<option value="${m.id}">${m.team1} vs ${m.team2} (${m.phase})</option>`).join('')||'<option>Aucun match</option>';
+}
+function deleteMatchById(id) {
+  const m = state.matches.find(x => x.id === id);
+  if (!m) return;
+  if (!confirm(`Supprimer "${m.team1} vs ${m.team2}" ?\n\nCette action est irréversible.`)) return;
+  state.matches = state.matches.filter(x => x.id !== id);
+  delete state.pronos[id];
+  save(); renderMatches(); populateUpdateMatchSelect(); renderRanking();
+  toast(`🗑 Match supprimé`);
 }
 function deleteMatch() {
   const id = document.getElementById('updateMatchSelect')?.value;
