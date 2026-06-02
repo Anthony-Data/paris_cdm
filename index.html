@@ -507,11 +507,35 @@ select.form-input { cursor: pointer; }
       <div id="tab-notifs" class="tab-pane">
         <div class="section-title">Notifications <span>push</span></div>
 
-        <!-- PWA Install prompt -->
-        <div id="pwaInstallBanner" style="display:none;background:var(--gold-dim);border:1px solid rgba(255,214,0,.3);border-radius:var(--radius);padding:14px 16px;margin-bottom:14px;">
-          <div style="font-weight:600;color:var(--gold);margin-bottom:6px;">📲 Installe l'app pour les notifs iOS/Android</div>
-          <div style="font-size:13px;color:var(--text2);margin-bottom:10px;">Sur iPhone : Safari → <strong style="color:var(--text)">Partager → Sur l'écran d'accueil</strong><br>Sur Android : Menu → <strong style="color:var(--text)">Ajouter à l'écran d'accueil</strong></div>
-          <div style="font-size:12px;color:var(--text3);">⚠️ iOS 16.4+ requis · Android Chrome ou Samsung Internet</div>
+        <!-- PWA Install guide — toujours visible -->
+        <div id="pwaInstallBanner" style="border-radius:var(--radius);padding:14px 16px;margin-bottom:14px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;" onclick="togglePwaTuto()">
+            <div style="font-weight:600;font-size:14px;" id="pwaBannerTitle">📲 Installer l'app sur ton téléphone</div>
+            <span id="pwaTutoArrow" style="color:var(--text3);font-size:18px;">▼</span>
+          </div>
+          <div id="pwaTutoContent" style="margin-top:10px;">
+            <div id="pwaStatusLine" style="font-size:13px;margin-bottom:10px;"></div>
+            <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px;">
+              <div style="font-weight:600;color:var(--text);margin-bottom:6px;font-size:13px;">🍎 iPhone / iPad</div>
+              <ol style="font-size:13px;color:var(--text2);padding-left:18px;line-height:2;">
+                <li>Ouvre <strong style="color:var(--text)">Safari</strong> (pas Chrome)</li>
+                <li>Appuie sur l'icône <strong style="color:var(--text)">Partager</strong> <span style="font-size:16px">⎋</span></li>
+                <li>Choisis <strong style="color:var(--text)">Sur l'écran d'accueil</strong></li>
+                <li>Appuie sur <strong style="color:var(--text)">Ajouter</strong></li>
+              </ol>
+              <div style="font-size:11px;color:var(--text3);margin-top:4px;">⚠️ iOS 16.4 minimum requis</div>
+            </div>
+            <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:12px;">
+              <div style="font-weight:600;color:var(--text);margin-bottom:6px;font-size:13px;">🤖 Android</div>
+              <ol style="font-size:13px;color:var(--text2);padding-left:18px;line-height:2;">
+                <li>Ouvre <strong style="color:var(--text)">Chrome</strong></li>
+                <li>Appuie sur les <strong style="color:var(--text)">3 points</strong> ⋮ en haut à droite</li>
+                <li>Choisis <strong style="color:var(--text)">Ajouter à l'écran d'accueil</strong></li>
+                <li>Appuie sur <strong style="color:var(--text)">Ajouter</strong></li>
+              </ol>
+              <div style="font-size:11px;color:var(--text3);margin-top:4px;">Compatible Chrome, Samsung Internet</div>
+            </div>
+          </div>
         </div>
 
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;margin-bottom:14px;">
@@ -1051,11 +1075,34 @@ function updateNotifStatus() {
 }
 
 function checkPwaInstall() {
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-  if (isMobile && !isStandalone) {
-    document.getElementById('pwaInstallBanner').style.display = 'block';
+  const banner = document.getElementById('pwaInstallBanner');
+  const statusLine = document.getElementById('pwaStatusLine');
+  const title = document.getElementById('pwaBannerTitle');
+  if (!banner) return;
+  if (isStandalone) {
+    banner.style.background = 'var(--green-dim)';
+    banner.style.border = '1px solid rgba(0,200,83,.3)';
+    if (title) title.textContent = '✅ App installée sur cet appareil';
+    if (statusLine) { statusLine.textContent = 'L\'app est bien installée. Les notifications fonctionnent en arrière-plan.'; statusLine.style.color = 'var(--green)'; }
+    // Replier par défaut si déjà installé
+    const content = document.getElementById('pwaTutoContent');
+    const arrow = document.getElementById('pwaTutoArrow');
+    if (content) content.style.display = 'none';
+    if (arrow) arrow.textContent = '▶';
+  } else {
+    banner.style.background = 'var(--gold-dim)';
+    banner.style.border = '1px solid rgba(255,214,0,.3)';
+    if (statusLine) { statusLine.textContent = '⚠️ Installe l\'app pour recevoir les notifications même quand le navigateur est fermé.'; statusLine.style.color = 'var(--gold)'; }
   }
+}
+function togglePwaTuto() {
+  const content = document.getElementById('pwaTutoContent');
+  const arrow = document.getElementById('pwaTutoArrow');
+  if (!content) return;
+  const hidden = content.style.display === 'none';
+  content.style.display = hidden ? 'block' : 'none';
+  if (arrow) arrow.textContent = hidden ? '▼' : '▶';
 }
 
 function testNotifNow() {
@@ -1076,14 +1123,15 @@ function testNotifNow() {
 
 // ===== BETA TEST NOTIFS =====
 function betaTestNotif() {
+  if (Notification.permission !== 'granted') { toast('❌ Active les notifications d\'abord'); return; }
   const now = new Date();
-  const matchTime = new Date(now.getTime() + 45 * 60 * 1000); // in 45 min
+  const matchTime = new Date(now.getTime() + 3 * 60 * 1000); // match dans 3 min
   const testMatch = {
     id: 'test_' + Date.now(),
     team1: '🧪 Test FC',
     team2: '⚡ Bêta United',
     flag1: '🧪', flag2: '⚡',
-    date: matchTime.toISOString().slice(0,16),
+    date: matchTime.toISOString(),
     phase: 'Groupes',
     status: 'upcoming',
     score1: null, score2: null,
@@ -1092,14 +1140,13 @@ function betaTestNotif() {
   state.matches.push(testMatch);
   save();
   renderMatches();
-  // Schedule notif for 15min from now (notification 30 min before = now+15min)
-  const notifIn = 15 * 60 * 1000; // 15 min for demo (instead of 1h before)
+  const notifIn = 2 * 60 * 1000; // notif dans 2 min (= 1 min avant le match)
   const betaStatus = document.getElementById('betaStatus');
-  betaStatus.textContent = `✅ Match test créé ! Notification dans 15 min (${new Date(now.getTime()+notifIn).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})})`;
+  betaStatus.textContent = `✅ Match test créé ! Notification dans 2 min (${new Date(now.getTime()+notifIn).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})})`;
   betaStatus.style.color = 'var(--green)';
   setTimeout(() => sendMatchReminder(testMatch), notifIn);
-  toast('🧪 Match test créé pour dans 45 min');
-  addNotif(`🧪 Bêta test : match créé pour ${matchTime.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})} — notif dans 15 min`);
+  toast('🧪 Match test — notif dans 2 min');
+  addNotif(`🧪 Bêta test : match créé pour ${matchTime.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})} — notif dans 2 min`);
 }
 
 function betaTestImmediate() {
@@ -1162,9 +1209,18 @@ function sendMatchReminder(m) {
   addNotif(`⚽ Rappel : ${m.flag1||''} ${m.team1} vs ${m.team2} dans 1h — prono ?${rankStr}`);
 }
 
+function clearNotifs() {
+  if (!state.notifications.length) return;
+  if (!confirm('Vider toutes les notifications ?')) return;
+  state.notifications = [];
+  save(); renderNotifs(); toast('🗑 Notifications effacées');
+}
 function renderNotifs() {
   const c = document.getElementById('notifsList');
-  if (!state.notifications.length) { c.innerHTML = `<div class="empty"><div class="empty-icon">🔔</div><p>Pas encore de notifications</p></div>`; return; }
+  if (!state.notifications.length) {
+    c.innerHTML = `<div class="empty"><div class="empty-icon">🔔</div><p>Pas encore de notifications</p></div>`;
+    return;
+  }
   const items = state.notifications.slice().reverse().map(n => `
     <div class="notif-item">
       <div class="notif-dot ${n.read?'read':''}"></div>
@@ -1173,7 +1229,11 @@ function renderNotifs() {
         <div class="notif-time">${new Date(n.time).toLocaleString('fr-FR')}</div>
       </div>
     </div>`).join('');
-  c.innerHTML = `<div class="notif-panel">${items}</div>`;
+  c.innerHTML = `
+    <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+      <button class="btn btn-danger" onclick="clearNotifs()" style="font-size:12px;padding:5px 12px;">🗑 Tout effacer</button>
+    </div>
+    <div class="notif-panel">${items}</div>`;
 }
 
 // ===== ADMIN =====
@@ -1309,8 +1369,8 @@ function renderAdminPanel() {
       <div class="form-group">
         <label>Ajouter un joueur</label>
         <div style="display:flex;gap:6px;">
-          <input type="text" class="form-input" id="newPlayerPrenom" placeholder="Prénom" style="flex:1">
-          <input type="text" class="form-input" id="newPlayerNom" placeholder="Nom" style="flex:1">
+          <input type="text" class="form-input" id="newPlayerPrenom" placeholder="Prénom" style="flex:1" onkeydown="if(event.key==='Enter')document.getElementById('newPlayerNom').focus()">
+          <input type="text" class="form-input" id="newPlayerNom" placeholder="Nom" style="flex:1" onkeydown="if(event.key==='Enter')addPlayer()">
         </div>
       </div>
       <button class="btn btn-primary" onclick="addPlayer()" style="width:100%;margin-bottom:12px">+ Ajouter</button>
