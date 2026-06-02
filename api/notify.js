@@ -1,36 +1,58 @@
 const webpush = require('web-push');
 const admin = require('firebase-admin');
 
-// Init Firebase Admin (singleton)
-let firebaseApp;
+// ── Firebase Admin (singleton, compatible warm restart Vercel) ──────────────
 function getDB() {
-  if (!firebaseApp) {
-    firebaseApp = admin.initializeApp({
-      credential: admin.credential.cert(
-        JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
-      ),
+  if (!admin.apps.length) {
+    let serviceAccount;
+    try {
+      // Tente d'abord le décodage base64 (méthode recommandée)
+      const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
+      const decoded = Buffer.from(raw, 'base64').toString('utf8');
+      serviceAccount = JSON.parse(decoded);
+    } catch {
+      // Sinon, parse JSON direct (avec fix des \n dans private_key)
+      const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
+      serviceAccount = JSON.parse(raw);
+      if (serviceAccount.private_key) {
+        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+      }
+    }
+
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
       databaseURL: process.env.FIREBASE_DATABASE_URL,
     });
   }
   return admin.database();
 }
 
-// Config VAPID
+// ── Config VAPID ────────────────────────────────────────────────────────────
 webpush.setVapidDetails(
-  'mailto:' + (process.env.VAPID_EMAIL || 'admin@example.com'),
+  'mailto:' + (process.env.VAPID_EMAIL || 'admin@paris-cdm.com'),
   process.env.VAPID_PUBLIC_KEY,
   process.env.VAPID_PRIVATE_KEY
 );
 
+// ── Handler principal ───────────────────────────────────────────────────────
 module.exports = async (req, res) => {
-  // Sécurité : vérifier le secret cron
+  // 1. Vérification du secret
   const secret = req.headers['x-cron-secret'] || req.query.secret;
   if (secret !== process.env.CRON_SECRET) {
-    return res.status(401).json({ error: 'Non autorisé' });
+    return res.status(401).json({ error: 'Non autorisé — mauvais secret' });
+  }
+
+  // 2. Vérification des variables d'environnement
+  const missing = ['VAPID_PUBLIC_KEY','VAPID_PRIVATE_KEY','FIREBASE_SERVICE_ACCOUNT','FIREBASE_DATABASE_URL','CRON_SECRET']
+    .filter(k => !process.env[k]);
+  if (missing.length) {
+    return res.status(500).json({ error: `Variables manquantes : ${missing.join(', ')}` });
   }
 
   try {
     const db = getDB();
+
+    // 3. Lecture Firebase
     const [sharedSnap, subsSnap] = await Promise.all([
       db.ref('cdm2026/shared').once('value'),
       db.ref('cdm2026/subscriptions').once('value'),
@@ -38,50 +60,50 @@ module.exports = async (req, res) => {
 
     const shared = sharedSnap.val() || {};
     const subscriptions = subsSnap.val() || {};
-
     const matches = shared.matches || [];
     const pronos = shared.pronos || {};
     const now = new Date();
 
-    // Matchs qui commencent dans 50 à 70 minutes
-    // (fenêtre large pour couvrir le cron toutes les 30 min)
-    const upcomingMatches = matches.filter(m => {
+    // 4. Matchs qui commencent dans 50–70 min
+    const targetMatches = matches.filter(m => {
       if (m.status !== 'upcoming') return false;
-      const matchTime = new Date(m.date);
-      const minutesUntil = (matchTime - now) / 60000;
-      return minutesUntil >= 50 && minutesUntil <= 70;
+      const mins = (new Date(m.date) - now) / 60000;
+      return mins >= 50 && mins <= 70;
     });
 
-    if (!upcomingMatches.length) {
-      return res.json({ sent: 0, message: 'Aucun match dans la fenêtre 50-70min' });
+    const subCount = Object.keys(subscriptions).length;
+
+    if (!targetMatches.length) {
+      return res.json({
+        sent: 0,
+        subscribers: subCount,
+        message: 'Aucun match dans la fenêtre 50–70 min',
+        checked: now.toISOString(),
+      });
     }
 
+    // 5. Envoi des push
     let sent = 0;
+    let skipped = 0;
     let removed = 0;
-    const subEntries = Object.entries(subscriptions);
 
-    for (const match of upcomingMatches) {
-      for (const [playerId, subData] of subEntries) {
-        // Ne pas notifier si le prono est déjà rempli
-        if (pronos[match.id]?.[playerId]) continue;
+    for (const match of targetMatches) {
+      for (const [playerId, subData] of Object.entries(subscriptions)) {
+        if (pronos[match.id]?.[playerId]) { skipped++; continue; }
 
         const payload = JSON.stringify({
           title: `⚽ ${match.flag1 || ''} ${match.team1} vs ${match.team2} ${match.flag2 || ''}`,
           body: `${subData.playerName || 'Hey'}, donne ton prono avant le coup d'envoi !`,
           tag: match.id,
-          icon: 'https://anthony-data.github.io/paris_cdm/icon.png',
         });
 
         try {
           await webpush.sendNotification(subData.subscription, payload);
           sent++;
         } catch (e) {
-          // Abonnement expiré ou invalide → supprimer
           if (e.statusCode === 410 || e.statusCode === 404) {
             await db.ref(`cdm2026/subscriptions/${playerId}`).remove();
             removed++;
-          } else {
-            console.error(`Push failed for ${playerId}:`, e.message);
           }
         }
       }
@@ -89,12 +111,19 @@ module.exports = async (req, res) => {
 
     return res.json({
       sent,
+      skipped,
       removed,
-      matches: upcomingMatches.map(m => `${m.team1} vs ${m.team2}`),
+      subscribers: subCount,
+      matches: targetMatches.map(m => `${m.team1} vs ${m.team2}`),
     });
 
   } catch (e) {
-    console.error('Erreur notify:', e);
-    return res.status(500).json({ error: e.message });
+    console.error('ERREUR notify:', e);
+    return res.status(500).json({
+      error: e.message,
+      hint: e.message.includes('private_key')
+        ? 'Problème avec FIREBASE_SERVICE_ACCOUNT — essaie la méthode base64 ci-dessous'
+        : 'Vérifie les logs Vercel pour plus de détails',
+    });
   }
 };
