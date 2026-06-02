@@ -8,6 +8,9 @@
 <meta name="apple-mobile-web-app-title" content="CdM 2026">
 <meta name="theme-color" content="#0a0f0a">
 <title>CdM 2026 — Paris en Famille</title>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -414,7 +417,7 @@ select.form-input { cursor: pointer; }
     </div>
     <div class="login-field">
       <label>Nom de famille</label>
-      <input type="text" class="login-input" id="loginNom" placeholder="Dupont" autocomplete="family-name" autocapitalize="words">
+      <input type="text" class="login-input" id="loginNom" placeholder="Dubois" autocomplete="family-name" autocapitalize="words">
     </div>
     <button class="login-btn" onclick="doLogin()">Entrer ⚽</button>
     <div class="login-error" id="loginError"></div>
@@ -451,7 +454,7 @@ select.form-input { cursor: pointer; }
       </label>
     </div>
     <div class="photo-overlay" id="mobileOverlay" style="display:none">
-      <span>Famille <em>Dupont</em> ⚽</span>
+      <span>Famille <em>Dubois</em> ⚽</span>
     </div>
   </div>
 
@@ -607,6 +610,59 @@ document.head.appendChild(link);
 // Modifie ce code pour sécuriser l'accès admin
 const ADMIN_CODE = 'cdm2026admin';
 
+// ===== FIREBASE (synchronisation temps réel entre tous les appareils) =====
+// 1. Va sur https://console.firebase.google.com → Créer un projet
+// 2. Ajouter une app Web → copie la config ici
+// 3. Active "Realtime Database" → règle: allow read, write: true
+// Laisse null pour fonctionner sans Firebase (localStorage uniquement)
+const FIREBASE_CONFIG = null;
+/* Exemple — remplace null par ton objet config :
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSy...",
+  authDomain: "mon-projet.firebaseapp.com",
+  databaseURL: "https://mon-projet-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "mon-projet",
+  storageBucket: "mon-projet.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:abcdef"
+};
+*/
+
+let db = null;
+let _fbListenerActive = false;
+
+function initFirebase() {
+  if (!FIREBASE_CONFIG || typeof firebase === 'undefined') return;
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.database();
+    // Écoute les changements en temps réel → met à jour tous les appareils
+    db.ref('cdm2026/shared').on('value', snapshot => {
+      const data = snapshot.val();
+      if (!data) return;
+      const prevPlayer = state.currentPlayer; // garder le joueur local
+      Object.assign(state, data);
+      state.currentPlayer = prevPlayer;
+      if (!state.players) state.players = [];
+      if (!state.matches) state.matches = [];
+      if (!state.pronos) state.pronos = {};
+      if (!state.notifications) state.notifications = [];
+      if (!state.lastRanks) state.lastRanks = {};
+      if (!state.adminIds) state.adminIds = [];
+      // Sauvegarde cache local
+      localStorage.setItem('cdm2026v2', JSON.stringify({...data, currentPlayer: state.currentPlayer}));
+      // Re-render uniquement si l'app est ouverte
+      if (document.getElementById('mainApp').style.display !== 'none') {
+        renderAll(); loadFamilyPhoto();
+      }
+    });
+    _fbListenerActive = true;
+    console.log('✅ Firebase connecté — synchronisation temps réel active');
+  } catch(e) {
+    console.warn('Firebase init failed:', e);
+  }
+}
+
 // ===== STATE =====
 let state = {
   currentPlayer: null,
@@ -621,13 +677,29 @@ let state = {
 
 // ===== STORAGE =====
 function save() {
-  const s = {...state};
-  delete s.refreshTimer;
-  localStorage.setItem('cdm2026v2', JSON.stringify(s));
+  // currentPlayer est local à l'appareil — jamais partagé
+  localStorage.setItem('cdm2026_player', state.currentPlayer || '');
+
+  const shared = {...state};
+  delete shared.currentPlayer;
+  delete shared.refreshTimer;
+
+  // Cache local
+  localStorage.setItem('cdm2026v2', JSON.stringify(shared));
+
+  // Sync Firebase si connecté
+  if (db) {
+    db.ref('cdm2026/shared').set(shared).catch(e => console.warn('Firebase save error:', e));
+  }
 }
 function load() {
+  // Charger le joueur courant (local à l'appareil)
+  state.currentPlayer = localStorage.getItem('cdm2026_player') || null;
+
+  // Charger l'état partagé depuis le cache local
   const d = localStorage.getItem('cdm2026v2');
   if (d) { try { Object.assign(state, JSON.parse(d)); } catch(e){} }
+
   if (!state.players) state.players = [];
   if (!state.matches) state.matches = [];
   if (!state.pronos) state.pronos = {};
@@ -664,7 +736,7 @@ function normalize(s) { return s.toLowerCase().normalize('NFD').replace(/[\u0300
 function doLogout() {
   if (!confirm('Se déconnecter ?')) return;
   state.currentPlayer = null;
-  save();
+  localStorage.removeItem('cdm2026_player');
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('mainApp').style.display = 'none';
 }
@@ -792,7 +864,7 @@ function renderMatches() {
       const pronos = state.pronos[m.id] || {};
       const myProno = myId ? pronos[myId] : null;
       const canSeeAll = m.status==='live'||m.status==='finished';
-      const canProno = m.status==='upcoming'||m.status==='live';
+      const canProno = m.status==='upcoming';
       let statusHtml = m.status==='live'
         ? `<span class="match-status status-live">⏱ En direct</span>`
         : m.status==='finished'
@@ -1046,22 +1118,34 @@ function addNotif(message) {
   save(); renderNotifs();
 }
 
+// Tracks match IDs already scheduled this session to avoid duplicates
+const _scheduledNotifIds = new Set();
+
 function scheduleNotifications() {
+  if (Notification.permission !== 'granted') return;
   const now = new Date();
   state.matches.forEach(m => {
     if (m.status !== 'upcoming') return;
+    if (_scheduledNotifIds.has(m.id)) return; // already scheduled this session
     const matchTime = new Date(m.date);
-    const notifTime = new Date(matchTime.getTime() - 60*60*1000);
-    if (notifTime > now) {
-      const delay = notifTime - now;
-      setTimeout(() => sendMatchReminder(m), delay);
+    const notifTime = new Date(matchTime.getTime() - 60 * 60 * 1000); // 1h before
+    const delay = notifTime - now;
+    if (delay > 0) {
+      _scheduledNotifIds.add(m.id);
+      setTimeout(() => {
+        _scheduledNotifIds.delete(m.id);
+        // Re-fetch fresh match & prono state at fire time
+        const freshMatch = state.matches.find(x => x.id === m.id);
+        if (!freshMatch || freshMatch.status !== 'upcoming') return;
+        const myId = state.currentPlayer;
+        if (myId && state.pronos[m.id]?.[myId]) return; // prono already filled
+        sendMatchReminder(freshMatch);
+      }, delay);
     }
   });
 }
 
 function sendMatchReminder(m) {
-  const myId = state.currentPlayer;
-  if (myId && state.pronos[m.id]?.[myId]) return;
   const ranking = getRanking();
   const myRank = myId ? ranking.findIndex(r=>r.id===myId)+1 : 0;
   const myScore = myId ? ranking.find(r=>r.id===myId) : null;
@@ -1215,7 +1299,11 @@ function renderAdminPanel() {
     return;
   }
   // Full admin panel rebuilt
+  const fbStatus = db
+    ? `<div style="background:var(--green-dim);border:1px solid rgba(0,200,83,.3);border-radius:var(--radius);padding:10px 14px;margin-bottom:14px;font-size:13px;color:var(--green);">🔥 Firebase connecté — toutes les modifications sont synchronisées en temps réel sur tous les appareils.</div>`
+    : `<div style="background:var(--gold-dim);border:1px solid rgba(255,214,0,.3);border-radius:var(--radius);padding:10px 14px;margin-bottom:14px;font-size:13px;color:var(--gold);">⚠️ Firebase non configuré — les données ne sont sauvegardées que sur cet appareil. <a href="https://console.firebase.google.com" target="_blank" style="color:var(--gold);text-decoration:underline">Configurer Firebase →</a></div>`;
   tab.innerHTML = `<div class="section-title">Admin <span>& gestion</span></div>
+  ${fbStatus}
   <div class="admin-grid">
     <div class="admin-card">
       <h3>Joueurs inscrits</h3>
@@ -1278,14 +1366,8 @@ function renderAdminPanel() {
       <div id="adminPhotoControls"></div>
     </div>
     <div class="admin-card">
-      <h3>Données</h3>
+      <h3>Danger</h3>
       <div style="display:flex;flex-direction:column;gap:8px;">
-        <button class="btn btn-gold" onclick="loadOfficialCalendar()" style="width:100%">📅 Charger calendrier officiel CdM 2026</button>
-        <button class="btn btn-ghost" onclick="exportData()" style="width:100%">📤 Exporter JSON</button>
-        <label class="btn btn-ghost" style="width:100%;text-align:center;cursor:pointer">
-          📥 Importer JSON
-          <input type="file" accept=".json" style="display:none" onchange="importData(event)">
-        </label>
         <button class="btn btn-danger" onclick="resetAll()" style="width:100%">⚠️ Réinitialiser tout</button>
       </div>
     </div>
@@ -1430,6 +1512,7 @@ function importData(e) {
 function resetAll() {
   if (!confirm('Tout supprimer ?')) return;
   localStorage.removeItem('cdm2026v2');
+  localStorage.removeItem('cdm2026_player');
   state = { currentPlayer:null, players:[], matches:[], pronos:{}, notifications:[], lastRanks:{}, familyPhoto:null, adminIds:[] };
   save(); renderAll(); toast('🗑 Réinitialisé');
 }
@@ -1606,6 +1689,7 @@ document.getElementById('loginPrenom').addEventListener('keydown', e => { if (e.
 document.getElementById('loginNom').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
 
 // ===== INIT =====
+initFirebase();
 load();
 const autoLogged = checkUrlLogin();
 if (autoLogged || state.currentPlayer) {
