@@ -1171,6 +1171,9 @@ function addNotif(message) {
 // Tracks match IDs already scheduled this session to avoid duplicates
 const _scheduledNotifIds = new Set();
 
+// setTimeout plante si delay > 2^31-1 ms (~24.8 jours) → ne planifier que dans les 7 prochains jours
+const MAX_NOTIF_DELAY_MS = 7 * 24 * 60 * 60 * 1000;
+
 function scheduleNotifications() {
   if (Notification.permission !== 'granted') return;
   const now = new Date();
@@ -1180,7 +1183,9 @@ function scheduleNotifications() {
     const matchTime = new Date(m.date);
     const notifTime = new Date(matchTime.getTime() - 60 * 60 * 1000); // 1h before
     const delay = notifTime - now;
-    if (delay > 0) {
+    // Ignorer si déjà passé OU si trop loin (>7j → sera planifié à la prochaine ouverture)
+    if (delay <= 0 || delay > MAX_NOTIF_DELAY_MS) return;
+    {
       _scheduledNotifIds.add(m.id);
       setTimeout(() => {
         _scheduledNotifIds.delete(m.id);
@@ -1331,6 +1336,18 @@ function populateUpdateMatchSelect() {
   if (!sel) return;
   sel.innerHTML = state.matches.map(m => `<option value="${m.id}">${m.team1} vs ${m.team2} (${m.phase})</option>`).join('')||'<option>Aucun match</option>';
 }
+function deleteMatch() {
+  const id = document.getElementById('updateMatchSelect')?.value;
+  if (!id) { toast('❌ Sélectionne un match'); return; }
+  const m = state.matches.find(x => x.id === id);
+  if (!m) { toast('❌ Match introuvable'); return; }
+  if (!confirm(`Supprimer "${m.team1} vs ${m.team2}" ?`)) return;
+  state.matches = state.matches.filter(x => x.id !== id);
+  // Supprimer aussi les pronos liés
+  delete state.pronos[id];
+  save(); renderMatches(); populateUpdateMatchSelect(); renderRanking();
+  toast(`🗑 Match supprimé`);
+}
 function updateMatchScore() {
   const id = document.getElementById('updateMatchSelect').value;
   const s1 = parseInt(document.getElementById('uScore1').value)||0;
@@ -1438,6 +1455,7 @@ function renderAdminPanel() {
         </select>
       </div>
       <button class="btn btn-primary" onclick="updateMatchScore()" style="width:100%">Mettre à jour</button>
+      <button class="btn btn-danger" onclick="deleteMatch()" style="width:100%;margin-top:6px">🗑 Supprimer ce match</button>
     </div>
     <div class="admin-card">
       <h3>Photo de famille</h3>
