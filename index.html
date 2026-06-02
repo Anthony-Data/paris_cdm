@@ -1196,33 +1196,38 @@ async function testNotifNow() {
 }
 
 // ===== BETA TEST NOTIFS =====
+let _betaTimer = null;
 function betaTestNotif() {
   if (Notification.permission !== 'granted') { toast('❌ Active les notifications d\'abord'); return; }
-  const now = new Date();
-  // Match dans 1h03 → la notification doit se déclencher dans ~3 min (1h avant)
-  const matchTime = new Date(now.getTime() + 63 * 60 * 1000);
-  const notifTime = new Date(matchTime.getTime() - 60 * 60 * 1000); // = now + 3 min
-  const testMatch = {
-    id: 'test_' + Date.now(),
-    team1: 'Test FC',
-    team2: 'Bêta United',
-    flag1: '🧪', flag2: '⚡',
-    date: matchTime.toISOString(),
-    phase: 'Groupes',
-    status: 'upcoming',
-    score1: null, score2: null,
-    isTest: true,
-  };
-  state.matches.push(testMatch);
-  save();
-  renderMatches();
-  // Laisser scheduleNotifications() gérer le timer naturellement (test du vrai chemin)
-  scheduleNotifications();
+
+  // Annuler un éventuel test précédent
+  if (_betaTimer) { clearInterval(_betaTimer); _betaTimer = null; }
+
+  const DELAY_SEC = 3 * 60; // 3 minutes
+  const fakeMatch = { id: 'beta_local', team1: 'Test FC', team2: 'Bêta United', flag1: '🧪', flag2: '⚡', phase: 'Groupes' };
   const betaStatus = document.getElementById('betaStatus');
-  betaStatus.textContent = `✅ Match créé à ${matchTime.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})} — notification attendue vers ${notifTime.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}`;
-  betaStatus.style.color = 'var(--green)';
-  toast('🧪 Match test créé — attends ~3 min');
-  addNotif(`🧪 Bêta test : match dans 1h03 (${matchTime.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}) — notif prévue dans ~3 min`);
+
+  let remaining = DELAY_SEC;
+
+  function tick() {
+    const m = Math.floor(remaining / 60);
+    const s = remaining % 60;
+    if (betaStatus) {
+      betaStatus.innerHTML = `⏳ Notification dans <strong>${m}:${String(s).padStart(2,'0')}</strong> — l'app peut être en arrière-plan`;
+      betaStatus.style.color = 'var(--gold)';
+    }
+    if (remaining <= 0) {
+      clearInterval(_betaTimer);
+      _betaTimer = null;
+      sendMatchReminder(fakeMatch);
+      if (betaStatus) { betaStatus.textContent = '✅ Notification envoyée !'; betaStatus.style.color = 'var(--green)'; }
+    }
+    remaining--;
+  }
+
+  tick(); // affiche immédiatement le décompte
+  _betaTimer = setInterval(tick, 1000);
+  toast('🧪 Décompte lancé — 3 min');
 }
 
 async function betaTestImmediate() {
