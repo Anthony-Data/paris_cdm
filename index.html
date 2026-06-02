@@ -553,7 +553,7 @@ select.form-input { cursor: pointer; }
             <span class="test-badge">🧪 Bêta test notifs</span>
           </div>
           <p style="font-size:13px;color:var(--text2);margin-bottom:12px;">Simule un match qui commence dans moins d'1h pour tester le déclenchement des notifications.</p>
-          <button class="btn btn-gold" onclick="betaTestNotif()" style="margin-bottom:8px;width:100%">⚽ Créer match test dans 45 min</button>
+          <button class="btn btn-gold" onclick="betaTestNotif()" style="margin-bottom:8px;width:100%">⚽ Créer match test (notif dans 2 min)</button>
           <button class="btn btn-ghost" onclick="betaTestImmediate()" style="width:100%">⚡ Déclencher notification immédiate</button>
           <div id="betaStatus" style="font-size:12px;color:var(--text3);margin-top:8px;"></div>
         </div>
@@ -1105,18 +1105,17 @@ function togglePwaTuto() {
   if (arrow) arrow.textContent = hidden ? '▼' : '▶';
 }
 
-function testNotifNow() {
+async function testNotifNow() {
   if (Notification.permission !== 'granted') { toast('❌ Active d\'abord les notifications'); return; }
   const p = getCurrentPlayer();
   const ranking = getRanking();
   const myRank = ranking.findIndex(r => r.id === state.currentPlayer) + 1;
   const myScore = ranking.find(r => r.id === state.currentPlayer);
-  new Notification('⚽ CdM 2026 — Test notification', {
-    body: `${p?p.prenom:'Joueur'}, tu es #${myRank} avec ${myScore?myScore.pts:0} pts. Les notifs fonctionnent !`,
-    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⚽</text></svg>',
-    tag: 'test',
-    vibrate: [200, 100, 200],
-  });
+  await showPushNotification(
+    '⚽ CdM 2026 — Test notification',
+    `${p?p.prenom:'Joueur'}, tu es #${myRank} avec ${myScore?myScore.pts:0} pts. Les notifs fonctionnent !`,
+    'test'
+  );
   addNotif(`🧪 Notification test envoyée à ${p?playerFullName(p):'?'}`);
   toast('📲 Notification envoyée !');
 }
@@ -1149,14 +1148,19 @@ function betaTestNotif() {
   addNotif(`🧪 Bêta test : match créé pour ${matchTime.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})} — notif dans 2 min`);
 }
 
-function betaTestImmediate() {
+async function betaTestImmediate() {
   if (Notification.permission !== 'granted') {
     toast('❌ Active les notifications d\'abord'); return;
   }
   const fakeMatch = { id:'instant_test', team1:'France', team2:'Brésil', flag1:'🇫🇷', flag2:'🇧🇷', phase:'Groupes' };
-  sendMatchReminder(fakeMatch);
-  document.getElementById('betaStatus').textContent = '⚡ Notification déclenchée immédiatement !';
-  document.getElementById('betaStatus').style.color = 'var(--gold)';
+  await showPushNotification(
+    '⚽ 🇫🇷 France vs Brésil 🇧🇷',
+    'Donne ton prono avant le coup d\'envoi ! (test immédiat)',
+    'instant_test'
+  );
+  const el = document.getElementById('betaStatus');
+  if (el) { el.textContent = '⚡ Notification envoyée !'; el.style.color = 'var(--gold)'; }
+  toast('📲 Notification envoyée !');
 }
 
 function addNotif(message) {
@@ -1191,21 +1195,37 @@ function scheduleNotifications() {
   });
 }
 
+// Affiche une notification via Service Worker (iOS/Android) ou Notification API (desktop)
+async function showPushNotification(title, body, tag) {
+  if (Notification.permission !== 'granted') return;
+  const opts = {
+    body,
+    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⚽</text></svg>',
+    tag: tag || 'cdm-notif',
+    vibrate: [300, 150, 300],
+    requireInteraction: true,
+  };
+  // Priorité au Service Worker (requis sur iOS, meilleur sur Android)
+  try {
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg) { await reg.showNotification(title, opts); return; }
+    }
+  } catch(e) {}
+  // Fallback desktop
+  try { new Notification(title, opts); } catch(e) {}
+}
+
 function sendMatchReminder(m) {
+  const myId = state.currentPlayer;
   const ranking = getRanking();
   const myRank = myId ? ranking.findIndex(r=>r.id===myId)+1 : 0;
   const myScore = myId ? ranking.find(r=>r.id===myId) : null;
   const rankStr = myId ? ` | Classement : #${myRank} (${myScore?myScore.pts:0}pts)` : '';
   const p = getCurrentPlayer();
-  if (Notification.permission === 'granted') {
-    new Notification(`⚽ ${m.flag1||''} ${m.team1} vs ${m.team2} ${m.flag2||''}`, {
-      body: `${p?p.prenom+', donne':'Donne'} ton prono avant le coup d'envoi !${rankStr}`,
-      icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⚽</text></svg>',
-      tag: m.id,
-      vibrate: [300, 150, 300],
-      requireInteraction: true,
-    });
-  }
+  const title = `⚽ ${m.flag1||''} ${m.team1} vs ${m.team2} ${m.flag2||''}`;
+  const body = `${p?p.prenom+', donne':'Donne'} ton prono avant le coup d'envoi !${rankStr}`;
+  showPushNotification(title, body, m.id);
   addNotif(`⚽ Rappel : ${m.flag1||''} ${m.team1} vs ${m.team2} dans 1h — prono ?${rankStr}`);
 }
 
