@@ -552,8 +552,8 @@ select.form-input { cursor: pointer; }
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
             <span class="test-badge">🧪 Bêta test notifs</span>
           </div>
-          <p style="font-size:13px;color:var(--text2);margin-bottom:12px;">Simule un match qui commence dans moins d'1h pour tester le déclenchement des notifications.</p>
-          <button class="btn btn-gold" onclick="betaTestNotif()" style="margin-bottom:8px;width:100%">⚽ Créer match test (notif dans 2 min)</button>
+          <p style="font-size:13px;color:var(--text2);margin-bottom:12px;">Crée un match fictif dans 1h03 — la notification arrivera automatiquement dans ~3 min quand le match sera à 1h.</p>
+          <button class="btn btn-gold" onclick="betaTestNotif()" style="margin-bottom:8px;width:100%">🕐 Créer match test dans 1h03 (notif dans ~3 min)</button>
           <button class="btn btn-ghost" onclick="betaTestImmediate()" style="width:100%">⚡ Déclencher notification immédiate</button>
           <div id="betaStatus" style="font-size:12px;color:var(--text3);margin-top:8px;"></div>
         </div>
@@ -1177,11 +1177,13 @@ async function testNotifNow() {
 function betaTestNotif() {
   if (Notification.permission !== 'granted') { toast('❌ Active les notifications d\'abord'); return; }
   const now = new Date();
-  const matchTime = new Date(now.getTime() + 3 * 60 * 1000); // match dans 3 min
+  // Match dans 1h03 → la notification doit se déclencher dans ~3 min (1h avant)
+  const matchTime = new Date(now.getTime() + 63 * 60 * 1000);
+  const notifTime = new Date(matchTime.getTime() - 60 * 60 * 1000); // = now + 3 min
   const testMatch = {
     id: 'test_' + Date.now(),
-    team1: '🧪 Test FC',
-    team2: '⚡ Bêta United',
+    team1: 'Test FC',
+    team2: 'Bêta United',
     flag1: '🧪', flag2: '⚡',
     date: matchTime.toISOString(),
     phase: 'Groupes',
@@ -1192,13 +1194,13 @@ function betaTestNotif() {
   state.matches.push(testMatch);
   save();
   renderMatches();
-  const notifIn = 2 * 60 * 1000; // notif dans 2 min (= 1 min avant le match)
+  // Laisser scheduleNotifications() gérer le timer naturellement (test du vrai chemin)
+  scheduleNotifications();
   const betaStatus = document.getElementById('betaStatus');
-  betaStatus.textContent = `✅ Match test créé ! Notification dans 2 min (${new Date(now.getTime()+notifIn).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})})`;
+  betaStatus.textContent = `✅ Match créé à ${matchTime.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})} — notification attendue vers ${notifTime.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}`;
   betaStatus.style.color = 'var(--green)';
-  setTimeout(() => sendMatchReminder(testMatch), notifIn);
-  toast('🧪 Match test — notif dans 2 min');
-  addNotif(`🧪 Bêta test : match créé pour ${matchTime.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})} — notif dans 2 min`);
+  toast('🧪 Match test créé — attends ~3 min');
+  addNotif(`🧪 Bêta test : match dans 1h03 (${matchTime.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}) — notif prévue dans ~3 min`);
 }
 
 async function betaTestImmediate() {
@@ -1208,7 +1210,7 @@ async function betaTestImmediate() {
   const fakeMatch = { id:'instant_test', team1:'France', team2:'Brésil', flag1:'🇫🇷', flag2:'🇧🇷', phase:'Groupes' };
   await showPushNotification(
     '⚽ 🇫🇷 France vs Brésil 🇧🇷',
-    'Donne ton prono avant le coup d\'envoi ! (test immédiat)',
+    'N\'oublie pas ton prono pour le match France vs Brésil ! (test immédiat)',
     'instant_test'
   );
   const el = document.getElementById('betaStatus');
@@ -1282,9 +1284,9 @@ function sendMatchReminder(m) {
   const rankStr = myId ? ` | Classement : #${myRank} (${myScore?myScore.pts:0}pts)` : '';
   const p = getCurrentPlayer();
   const title = `⚽ ${m.flag1||''} ${m.team1} vs ${m.team2} ${m.flag2||''}`;
-  const body = `${p?p.prenom+', donne':'Donne'} ton prono avant le coup d'envoi !${rankStr}`;
+  const body = `${p ? p.prenom + ', n' : 'N'}\'oublie pas ton prono pour le match ${m.team1} vs ${m.team2} !`;
   showPushNotification(title, body, m.id);
-  addNotif(`⚽ Rappel : ${m.flag1||''} ${m.team1} vs ${m.team2} dans 1h — prono ?${rankStr}`);
+  addNotif(`⚽ N'oublie pas ton prono pour le match ${m.flag1||''} ${m.team1} vs ${m.team2} ${m.flag2||''} !${rankStr}`);
 }
 
 function clearNotifs() {

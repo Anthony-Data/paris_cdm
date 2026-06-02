@@ -95,7 +95,7 @@ module.exports = async (req, res) => {
 
         const payload = JSON.stringify({
           title: `⚽ ${match.flag1 || ''} ${match.team1} vs ${match.team2} ${match.flag2 || ''}`,
-          body: `${subData.playerName || 'Hey'}, donne ton prono avant le coup d'envoi !`,
+          body: `${subData.playerName ? subData.playerName + ', n' : 'N'}\'oublie pas ton prono pour le match ${match.team1} vs ${match.team2} !`,
           tag: match.id,
         });
 
