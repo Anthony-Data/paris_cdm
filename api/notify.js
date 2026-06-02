@@ -89,7 +89,9 @@ module.exports = async (req, res) => {
 
     for (const match of targetMatches) {
       for (const [playerId, subData] of Object.entries(subscriptions)) {
-        if (pronos[match.id]?.[playerId]) { skipped++; continue; }
+        // playerId peut être dans subData.playerId (nouveau format) ou la clé elle-même (ancien format)
+        const pid = subData.playerId || playerId;
+        if (pronos[match.id]?.[pid]) { skipped++; continue; }
 
         const payload = JSON.stringify({
           title: `⚽ ${match.flag1 || ''} ${match.team1} vs ${match.team2} ${match.flag2 || ''}`,

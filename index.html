@@ -643,6 +643,15 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
 }
 
+function getDeviceKey() {
+  let key = localStorage.getItem('cdm2026_device');
+  if (!key) {
+    key = 'dev_' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('cdm2026_device', key);
+  }
+  return key;
+}
+
 async function subscribeToPush() {
   if (!db || !state.currentPlayer) return;
   try {
@@ -656,12 +665,16 @@ async function subscribeToPush() {
       });
     }
     const p = getCurrentPlayer();
-    await db.ref(`cdm2026/subscriptions/${state.currentPlayer}`).set({
+    const deviceKey = getDeviceKey();
+    // Clé = {playerId}_{deviceKey} → même joueur sur plusieurs appareils = plusieurs entrées
+    const subKey = `${state.currentPlayer}_${deviceKey}`;
+    await db.ref(`cdm2026/subscriptions/${subKey}`).set({
       subscription: sub.toJSON(),
       playerName: p ? playerFullName(p) : 'Joueur',
+      playerId: state.currentPlayer,
       updatedAt: Date.now(),
     });
-    console.log('✅ Abonnement push enregistré sur Firebase');
+    console.log('✅ Abonnement push enregistré (' + subKey + ')');
   } catch(e) {
     console.warn('Push subscription failed:', e);
   }
