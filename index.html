@@ -553,8 +553,7 @@ select.form-input { cursor: pointer; }
             <span class="test-badge">🧪 Bêta test notifs</span>
           </div>
           <p style="font-size:13px;color:var(--text2);margin-bottom:12px;">Crée un match fictif dans 1h03 — la notification arrivera automatiquement dans ~3 min quand le match sera à 1h.</p>
-          <button class="btn btn-gold" onclick="betaTestNotif()" style="margin-bottom:8px;width:100%">🕐 Créer match test dans 1h03 (notif dans ~3 min)</button>
-          <button class="btn btn-ghost" onclick="betaTestImmediate()" style="width:100%">⚡ Déclencher notification immédiate</button>
+          <button class="btn btn-gold" onclick="betaTestNotif()" style="width:100%">🕐 Créer match test dans 1h03 (notif dans ~3 min)</button>
           <div id="betaStatus" style="font-size:12px;color:var(--text3);margin-top:8px;"></div>
         </div>
 
@@ -1118,6 +1117,16 @@ async function requestNotifPermission() {
   }
 }
 
+async function resubscribePush() {
+  const btn = event.target;
+  btn.textContent = '⏳ En cours...';
+  btn.disabled = true;
+  await subscribeToPush();
+  btn.textContent = '✅ Mis à jour !';
+  btn.style.color = 'var(--green)';
+  toast('✅ Abonnement mis à jour — doublons supprimés');
+}
+
 function updateNotifStatus() {
   const el = document.getElementById('notifStatus');
   const btn = document.getElementById('notifEnableBtn');
@@ -1128,7 +1137,7 @@ function updateNotifStatus() {
   }
   const perm = Notification.permission;
   if (perm === 'granted') {
-    el.textContent = '✅ Notifications activées';
+    el.innerHTML = '✅ Notifications activées &nbsp;<button onclick="resubscribePush()" class="btn btn-ghost" style="font-size:11px;padding:3px 10px;">🔄 Mettre à jour l\'abonnement</button>';
     el.style.color = 'var(--green)';
     btn.textContent = '✅ Notifications actives';
     btn.disabled = true;
