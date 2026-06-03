@@ -914,6 +914,17 @@ function playerInitials(p) { return p ? (p.prenom[0] + (p.nom[0] || '')).toUpper
 // Stocke les scores précédents lors d'une modification de prono
 const _pendingEditValues = {};
 
+// Drapeaux qui ne s'affichent pas bien en emoji → image via flagcdn.com
+const FLAG_IMG = {
+  'Bosnie':   'https://flagcdn.com/h24/ba.png',
+  'Curaçao':  'https://flagcdn.com/h24/cw.png',
+};
+function getFlagHtml(flag, team) {
+  const url = FLAG_IMG[team];
+  if (url) return `<img src="${url}" alt="${flag}" style="height:1em;vertical-align:middle;border-radius:1px">`;
+  return flag || '🏳';
+}
+
 // ===== SCORING =====
 const PHASE_ORDER = ['Groupes','32e de finale','16e de finale','Quarts','Demies','3e place','Finale'];
 function phaseMultiplier(phase) {
@@ -1046,9 +1057,9 @@ function renderMatches() {
         ${deleteBtn}
         <div class="match-header"><span class="match-info">${m.phase}</span>${statusHtml}</div>
         <div class="match-teams">
-          <div class="team-block"><span class="team-flag">${m.flag1||'🏳'}</span><div class="team-name">${m.team1}</div></div>
+          <div class="team-block"><span class="team-flag">${getFlagHtml(m.flag1,m.team1)}</span><div class="team-name">${m.team1}</div></div>
           ${scoreHtml}
-          <div class="team-block"><span class="team-flag">${m.flag2||'🏳'}</span><div class="team-name">${m.team2}</div></div>
+          <div class="team-block"><span class="team-flag">${getFlagHtml(m.flag2,m.team2)}</span><div class="team-name">${m.team2}</div></div>
         </div>
         ${pronoHtml}${allPronosHtml}
       </div>`;
