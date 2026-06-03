@@ -283,10 +283,14 @@ header {
 .pronos-reveal-title { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 7px; }
 .prono-tags { display: flex; flex-wrap: wrap; gap: 5px; }
 .prono-tag { font-family: var(--font-mono); font-size: 11px; padding: 3px 9px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg2); color: var(--text2); }
-.prono-tag.exact { background: var(--green-dim); border-color: var(--green); color: var(--green); }
-.prono-tag.diff-win { background: rgba(255,214,0,0.1); border-color: var(--gold); color: var(--gold); }
-.prono-tag.winner { background: rgba(100,180,100,0.1); border-color: #4caf50; color: #4caf50; }
-.prono-tag.wrong { background: var(--red-dim); border-color: var(--red); color: var(--red); opacity: .6; }
+.prono-tag.exact  { background: rgba(0,200,83,.12);  border-color: var(--green);  color: var(--green); }
+.prono-tag.pts-3  { background: rgba(255,120,0,.12); border-color: #ff7800;       color: #ff7800; }
+.prono-tag.diff-win { background: rgba(255,214,0,.12); border-color: var(--gold); color: var(--gold); }
+.prono-tag.wrong  { background: rgba(200,16,46,.12);  border-color: var(--red);   color: var(--red); opacity:.7; }
+.prono-saved.exact   { color: var(--green); }
+.prono-saved.pts-3   { color: #ff7800; }
+.prono-saved.diff-win{ color: var(--gold); }
+.prono-saved.wrong   { color: var(--red); }
 
 /* ===== PHASE BADGE ===== */
 .phase-badge { display: inline-block; font-family: var(--font-display); font-size: 13px; letter-spacing: 1px; background: var(--gold-dim); color: var(--gold); border: 1px solid rgba(255,214,0,.3); padding: 3px 12px; border-radius: 20px; margin-bottom: 10px; }
@@ -933,8 +937,8 @@ function ptsLabel(pts, phase) {
   if (pts==null) return '';
   const x = phaseMultiplier(phase);
   if (pts===5*x) return 'exact';
-  if (pts===3*x||pts===2*x) return 'diff-win';
-  if (pts>0) return 'winner';
+  if (pts===3*x) return 'pts-3';
+  if (pts===2*x) return 'diff-win';
   return 'wrong';
 }
 
@@ -1007,7 +1011,7 @@ function renderMatches() {
           pronoHtml = `<div class="prono-section">
             <label>Mon prono</label>
             <div class="prono-inputs">
-              <span class="prono-saved">✓ ${myProno.s1}–${myProno.s2} ${ptsTag}</span>
+              <span class="prono-saved ${label}">✓ ${myProno.s1}–${myProno.s2} ${ptsTag}</span>
               ${canProno?`<button class="btn btn-ghost" onclick="editProno('${m.id}')">Modifier</button>`:''}
             </div>
           </div>`;
