@@ -2381,13 +2381,6 @@ function obInitSwipe() {
   }, { passive: true });
 }
 
-function obNext(step) {
-  document.querySelectorAll('.ob-step').forEach(el => el.style.display = 'none');
-  document.querySelectorAll('.ob-dot').forEach((d, i) => d.classList.toggle('active', i === step - 1));
-  document.getElementById('ob' + step).style.display = 'block';
-  document.getElementById('onboardingOverlay').scrollTo({ top: 0, behavior: 'smooth' });
-}
-
 function obUpdateInstallStatus() {
   const myId = state.currentPlayer;
   const isInstalled = window.matchMedia('(display-mode: standalone)').matches
