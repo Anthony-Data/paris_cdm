@@ -459,7 +459,7 @@ select.form-input { cursor: pointer; }
 
     <!-- Step 2 : Installation -->
     <div class="ob-step" id="ob2" style="display:none">
-      <button onclick="obNext(1)" style="background:none;border:none;color:var(--text3);font-size:13px;cursor:pointer;padding:0;margin-bottom:12px">← Retour</button>
+      <button onclick="obNext(1)" style="background:none;border:none;color:var(--text3);font-size:13px;cursor:pointer;padding:4px 0 16px">← Retour</button>
       <div style="text-align:center;padding:16px 0 12px">
         <div style="font-size:32px;margin-bottom:6px">📲</div>
         <div style="font-family:var(--font-display);font-size:22px;color:var(--gold);letter-spacing:1px">INSTALLE L'APPLICATION</div>
@@ -491,7 +491,7 @@ select.form-input { cursor: pointer; }
 
     <!-- Step 3 : Notifications -->
     <div class="ob-step" id="ob3" style="display:none">
-      <button onclick="obNext(2)" style="background:none;border:none;color:var(--text3);font-size:13px;cursor:pointer;padding:0;margin-bottom:12px">← Retour</button>
+      <button onclick="obNext(2)" style="background:none;border:none;color:var(--text3);font-size:13px;cursor:pointer;padding:4px 0 16px">← Retour</button>
       <div style="text-align:center;padding:16px 0 12px">
         <div style="font-size:32px;margin-bottom:6px">🔔</div>
         <div style="font-family:var(--font-display);font-size:22px;color:var(--gold);letter-spacing:1px">ACTIVE LES NOTIFS</div>
@@ -508,7 +508,7 @@ select.form-input { cursor: pointer; }
 
     <!-- Step 4 : C'est parti -->
     <div class="ob-step" id="ob4" style="display:none">
-      <button onclick="obNext(3)" style="background:none;border:none;color:var(--text3);font-size:13px;cursor:pointer;padding:0;margin-bottom:12px">← Retour</button>
+      <button onclick="obNext(3)" style="background:none;border:none;color:var(--text3);font-size:13px;cursor:pointer;padding:4px 0 16px">← Retour</button>
       <div style="text-align:center;padding:32px 0">
         <div style="font-size:56px;margin-bottom:12px">🏆</div>
         <div style="font-family:var(--font-display);font-size:28px;color:var(--gold);letter-spacing:2px">C'EST PARTI !</div>
@@ -2333,13 +2333,24 @@ function obNext(step) {
 
 function obInitSwipe() {
   const el = document.getElementById('onboardingOverlay');
-  let startX = 0;
-  el.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
+  let startX = 0, startY = 0, locked = null;
+  el.addEventListener('touchstart', e => {
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    locked = null;
+  }, { passive: true });
+  el.addEventListener('touchmove', e => {
+    const dx = e.touches[0].clientX - startX;
+    const dy = e.touches[0].clientY - startY;
+    if (!locked) locked = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v';
+    if (locked === 'h') e.preventDefault(); // bloque le scroll vertical pendant un swipe horizontal
+  }, { passive: false });
   el.addEventListener('touchend', e => {
+    if (locked !== 'h') return;
     const dx = e.changedTouches[0].clientX - startX;
     if (Math.abs(dx) < 50) return;
-    if (dx < 0 && _obCurrentStep < _obMaxStep) obNext(_obCurrentStep + 1); // swipe gauche → suivant
-    if (dx > 0 && _obPrevMap[_obCurrentStep])   obNext(_obPrevMap[_obCurrentStep]); // swipe droite → retour
+    if (dx < 0 && _obCurrentStep < _obMaxStep)  obNext(_obCurrentStep + 1);
+    if (dx > 0 && _obPrevMap[_obCurrentStep])    obNext(_obPrevMap[_obCurrentStep]);
   }, { passive: true });
 }
 
