@@ -741,6 +741,7 @@ function initFirebase() {
       const data = snapshot.val();
       const prevPlayer = state.currentPlayer;
 
+      let migrated = false; // déclaré ici pour être visible dans tout le callback
       if (data) {
         // Firebase a des données → elles ont TOUJOURS priorité sur localStorage
         Object.assign(state, data);
@@ -753,7 +754,6 @@ function initFirebase() {
         if (!state.adminIds) state.adminIds = [];
         // Migration silencieuse des anciens noms de phases
         const phaseMap = {'32es':'32e de finale','16es':'16e de finale'};
-        let migrated = false;
         state.matches.forEach(m => { if (phaseMap[m.phase]) { m.phase = phaseMap[m.phase]; migrated = true; } });
         localStorage.setItem('cdm2026v2', JSON.stringify(data));
       } else if (!_appReady) {
@@ -762,8 +762,8 @@ function initFirebase() {
           state.matches = OFFICIAL_MATCHES.map(m => ({...m}));
         }
         _appReady = true;
-        save(); // écriture initiale dans Firebase
-        return; // le listener se redéclenchera avec les données qu'on vient d'écrire
+        save();
+        return;
       }
 
       _appReady = true;
