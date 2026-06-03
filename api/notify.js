@@ -34,14 +34,7 @@ webpush.setVapidDetails(
 // ── Handler principal ───────────────────────────────────────────────────────
 module.exports = async (req, res) => {
   // 1. Auth : Vercel cron → Authorization: Bearer, fallback x-cron-secret ou ?secret=
-  const authHeader = req.headers['authorization'];
-  const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-  const secret = bearerToken || req.headers['x-cron-secret'] || req.query.secret;
-  if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
-    return res.status(401).json({ error: 'Non autorisé' });
-  }
-
-  // 2. Variables d'environnement requises
+  // 1. Variables d'environnement requises
   const missing = ['VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'FIREBASE_SERVICE_ACCOUNT', 'FIREBASE_DATABASE_URL']
     .filter(k => !process.env[k]);
   if (missing.length) {

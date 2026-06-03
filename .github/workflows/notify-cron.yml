@@ -12,8 +12,7 @@ jobs:
       - name: Appel endpoint notify
         run: |
           response=$(curl -s -o /tmp/body.txt -w "%{http_code}" \
-            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
-            "${{ secrets.VERCEL_URL }}/api/notify")
+            "https://paris-cdm.vercel.app/api/notify")
           body=$(cat /tmp/body.txt)
           echo "HTTP $response : $body"
           if [ "$response" != "200" ]; then
