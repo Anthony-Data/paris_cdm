@@ -890,8 +890,8 @@ function initFirebase() {
       if (migrated) save();
       if (document.getElementById('mainApp').style.display !== 'none') {
         renderAll(); loadFamilyPhoto();
-        maybeShowOnboarding(); // déclenche si admin a remis onboardingDone=false
       }
+      maybeShowOnboarding(); // toujours vérifier, même si loginScreen est affiché
     });
     console.log('✅ Firebase connecté');
   } catch(e) {
