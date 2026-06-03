@@ -1020,7 +1020,9 @@ function enterApp() {
   scheduleFranceNotifs();
   loadFamilyPhoto();
   checkPwaInstall();
-  maybeShowOnboarding();
+  // Si Firebase a déjà chargé (_appReady), ses données sont dans state → check immédiat
+  // Si pas encore chargé, le callback Firebase appellera maybeShowOnboarding() au bon moment
+  if (_appReady) maybeShowOnboarding();
   updateNotifStatus();
   // Si notifs déjà accordées, ré-enregistrer l'abonnement push au démarrage
   if (Notification.permission === 'granted') subscribeToPush();
