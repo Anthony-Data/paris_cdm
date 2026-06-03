@@ -686,8 +686,8 @@ select.form-input { cursor: pointer; }
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
             <span class="test-badge">🧪 Bêta test notifs</span>
           </div>
-          <p style="font-size:13px;color:var(--text2);margin-bottom:12px;">Crée un match fictif dans 1h02 — notif dans 2 min si l'app est ouverte, ou via push serveur dans 0–5 min si l'app est fermée.</p>
-          <button id="betaStartBtn" class="btn btn-gold" onclick="betaTestNotif()" style="width:100%">🕐 Lancer le beta test (notif dans 2 min)</button>
+          <p style="font-size:13px;color:var(--text2);margin-bottom:12px;">Crée un match fictif dans 1h02. La notification est envoyée pile quand le match est à 1h — dans ~2 min, que l'app soit ouverte, en arrière-plan ou fermée.</p>
+          <button id="betaStartBtn" class="btn btn-gold" onclick="betaTestNotif()" style="width:100%">🕐 Lancer le beta test</button>
           <button id="betaCancelBtn" class="btn btn-danger" onclick="cancelBetaTest()" style="width:100%;margin-top:8px;display:none">✕ Annuler le beta test</button>
           <div id="betaStatus" style="font-size:12px;color:var(--text3);margin-top:8px;line-height:1.6"></div>
         </div>
@@ -1594,8 +1594,7 @@ async function betaTestNotif() {
     const s = remaining % 60;
     if (betaStatus) {
       betaStatus.innerHTML =
-        `⏳ <strong>App ouverte :</strong> notif dans <strong>${m}:${String(s).padStart(2,'0')}</strong><br>` +
-        `📲 <strong>App fermée :</strong> notif serveur dans 0–5 min (cron Vercel)`;
+        `⏳ Notification dans <strong>${m}:${String(s).padStart(2,'0')}</strong> — ferme l'app pour tester le push serveur`;
       betaStatus.style.color = 'var(--gold)';
     }
     if (remaining <= 0) {

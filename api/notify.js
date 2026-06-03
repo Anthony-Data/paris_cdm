@@ -6,19 +6,16 @@ function getDB() {
   if (!admin.apps.length) {
     let serviceAccount;
     try {
-      // Tente d'abord le décodage base64 (méthode recommandée)
       const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
       const decoded = Buffer.from(raw, 'base64').toString('utf8');
       serviceAccount = JSON.parse(decoded);
     } catch {
-      // Sinon, parse JSON direct (avec fix des \n dans private_key)
       const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
       serviceAccount = JSON.parse(raw);
       if (serviceAccount.private_key) {
         serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
       }
     }
-
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
       databaseURL: process.env.FIREBASE_DATABASE_URL,
@@ -36,18 +33,16 @@ webpush.setVapidDetails(
 
 // ── Handler principal ───────────────────────────────────────────────────────
 module.exports = async (req, res) => {
-  // 1. Vérification du secret
-  // Vercel cron envoie : Authorization: Bearer <CRON_SECRET>
-  // Fallback : header x-cron-secret ou ?secret= (cron externe)
+  // 1. Auth : Vercel cron → Authorization: Bearer, fallback x-cron-secret ou ?secret=
   const authHeader = req.headers['authorization'];
   const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
   const secret = bearerToken || req.headers['x-cron-secret'] || req.query.secret;
   if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
-    return res.status(401).json({ error: 'Non autorisé — mauvais secret' });
+    return res.status(401).json({ error: 'Non autorisé' });
   }
 
-  // 2. Vérification des variables d'environnement (CRON_SECRET exclu : optionnel)
-  const missing = ['VAPID_PUBLIC_KEY','VAPID_PRIVATE_KEY','FIREBASE_SERVICE_ACCOUNT','FIREBASE_DATABASE_URL']
+  // 2. Variables d'environnement requises
+  const missing = ['VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'FIREBASE_SERVICE_ACCOUNT', 'FIREBASE_DATABASE_URL']
     .filter(k => !process.env[k]);
   if (missing.length) {
     return res.status(500).json({ error: `Variables manquantes : ${missing.join(', ')}` });
@@ -55,26 +50,35 @@ module.exports = async (req, res) => {
 
   try {
     const db = getDB();
+    const now = new Date();
 
-    // 3. Lecture Firebase
-    const [sharedSnap, subsSnap] = await Promise.all([
+    // 3. Lecture Firebase (matches + subscriptions + notifs déjà envoyées)
+    const [sharedSnap, subsSnap, sentSnap] = await Promise.all([
       db.ref('cdm2026/shared').once('value'),
       db.ref('cdm2026/subscriptions').once('value'),
+      db.ref('cdm2026/notifsSent').once('value'),
     ]);
 
     const shared = sharedSnap.val() || {};
     const subscriptions = subsSnap.val() || {};
+    const notifsSent = sentSnap.val() || {};
+
     // Firebase peut retourner un objet à clés numériques au lieu d'un tableau
     const rawMatches = shared.matches;
     const matches = Array.isArray(rawMatches) ? rawMatches : Object.values(rawMatches || {});
     const pronos = shared.pronos || {};
-    const now = new Date();
 
-    // 4. Matchs qui commencent dans 50–70 min
+    // 4. Sélection des matchs : ceux dont la marque "1h avant" vient de passer
+    //    (entre 0 et 7 min après l'heure de notif) et pas encore notifiés.
+    //    → La notif arrive toujours à ~1h avant le match, indépendamment du cron.
+    //    Le cron tourne toutes les 5 min ; fenêtre 7 min couvre le pire cas.
+    const WINDOW_MS = 7 * 60 * 1000;
     const targetMatches = matches.filter(m => {
       if (m.status !== 'upcoming') return false;
-      const mins = (new Date(m.date) - now) / 60000;
-      return mins >= 50 && mins <= 70;
+      if (notifsSent[m.id]) return false; // déjà envoyé
+      const notifAt = new Date(m.date).getTime() - 60 * 60 * 1000; // pile 1h avant
+      const msSince = now - notifAt;
+      return msSince >= 0 && msSince < WINDOW_MS;
     });
 
     const subCount = Object.keys(subscriptions).length;
@@ -83,13 +87,12 @@ module.exports = async (req, res) => {
       return res.json({
         sent: 0,
         subscribers: subCount,
-        message: 'Aucun match dans la fenêtre 50–70 min',
+        message: 'Aucun match à notifier maintenant',
         checked: now.toISOString(),
       });
     }
 
     // 5. Dédupliquer : 1 seul abonnement par joueur (le plus récent)
-    //    Évite les doublons Safari + PWA sur le même téléphone
     const bestSubPerPlayer = {};
     for (const [subKey, subData] of Object.entries(subscriptions)) {
       const pid = subData.playerId || subKey;
@@ -99,18 +102,21 @@ module.exports = async (req, res) => {
       }
     }
 
-    // 6. Envoi des push (1 par joueur max)
+    // 6. Envoi
     let sent = 0;
     let skipped = 0;
     let removed = 0;
 
     for (const match of targetMatches) {
+      // Marquer comme envoyé avant l'envoi pour éviter les doublons en cas de retry
+      await db.ref(`cdm2026/notifsSent/${match.id}`).set(now.toISOString());
+
       for (const subData of Object.values(bestSubPerPlayer)) {
         if (pronos[match.id]?.[subData.playerId]) { skipped++; continue; }
 
         const payload = JSON.stringify({
           title: `⚽ ${match.flag1 || ''} ${match.team1} vs ${match.team2} ${match.flag2 || ''}`,
-          body: `${subData.playerName ? subData.playerName + ', n' : 'N'}’oublie pas ton prono pour le match ${match.team1} vs ${match.team2} !`,
+          body: `${subData.playerName ? subData.playerName + ', n' : 'N'}'oublie pas ton prono pour le match ${match.team1} vs ${match.team2} !`,
           tag: match.id,
         });
 
@@ -131,7 +137,7 @@ module.exports = async (req, res) => {
       skipped,
       removed,
       subscribers: subCount,
-      matches: targetMatches.map(m => `${m.team1} vs ${m.team2}`),
+      matches: targetMatches.map(m => `${m.team1} vs ${m.team2} @ ${new Date(m.date).toISOString()}`),
     });
 
   } catch (e) {
@@ -139,8 +145,8 @@ module.exports = async (req, res) => {
     return res.status(500).json({
       error: e.message,
       hint: e.message.includes('private_key')
-        ? 'Problème avec FIREBASE_SERVICE_ACCOUNT — essaie la méthode base64 ci-dessous'
-        : 'Vérifie les logs Vercel pour plus de détails',
+        ? 'Problème avec FIREBASE_SERVICE_ACCOUNT — essaie la méthode base64'
+        : 'Vérifie les logs Vercel',
     });
   }
 };
