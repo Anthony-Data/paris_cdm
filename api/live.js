@@ -4,13 +4,20 @@
 const FDORG_TOKEN = process.env.FOOTBALL_DATA_TOKEN;
 const FDORG_BASE  = 'https://api.football-data.org/v4';
 
-// Compétitions supportées (codes football-data.org)
-// WC = FIFA World Cup, CL = Champions League (pour les tests avant le 11 juin)
+// Compétitions supportées (codes football-data.org — tier gratuit uniquement)
 const COMP_MAP = {
-  WC:  2000,
-  CL:  2001,
-  PL:  2021,
-  FL1: 2015,
+  WC:  2000,  // FIFA World Cup
+  CL:  2001,  // UEFA Champions League
+  PL:  2021,  // Premier League
+  ELC: 2016,  // Championship (D2 Angleterre)
+  BL1: 2002,  // Bundesliga
+  SA:  2019,  // Serie A
+  PD:  2014,  // Primera Division (La Liga)
+  FL1: 2015,  // Ligue 1
+  DED: 2003,  // Eredivisie
+  PPL: 2017,  // Primeira Liga
+  BSA: 2013,  // Brasileirão Série A
+  EC:  2018,  // UEFA European Championship
 };
 
 module.exports = async (req, res) => {

@@ -1800,10 +1800,22 @@ function renderAdminPanel() {
       <div class="form-group">
         <label>Compétition à suivre</label>
         <select class="form-input" id="liveCompSelect" onchange="LIVE_COMPETITION=this.value">
-          <option value="WC">🏆 Coupe du Monde 2026</option>
-          <option value="CL">⭐ Champions League (test)</option>
-          <option value="PL">🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League (test)</option>
-          <option value="FL1">🇫🇷 Ligue 1 (test)</option>
+          <optgroup label="🏆 Compétition principale">
+            <option value="WC">🌍 FIFA Coupe du Monde 2026</option>
+          </optgroup>
+          <optgroup label="🧪 Tests (matchs en cours selon saison)">
+            <option value="BSA">🇧🇷 Brasileirão Série A</option>
+            <option value="CL">⭐ UEFA Champions League</option>
+            <option value="PL">🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League</option>
+            <option value="BL1">🇩🇪 Bundesliga</option>
+            <option value="SA">🇮🇹 Serie A</option>
+            <option value="PD">🇪🇸 La Liga</option>
+            <option value="FL1">🇫🇷 Ligue 1</option>
+            <option value="DED">🇳🇱 Eredivisie</option>
+            <option value="PPL">🇵🇹 Primeira Liga</option>
+            <option value="ELC">🏴󠁧󠁢󠁥󠁮󠁧󠁿 Championship (D2 Angleterre)</option>
+            <option value="EC">🇪🇺 UEFA Euro</option>
+          </optgroup>
         </select>
       </div>
       <div style="display:flex;gap:6px;margin-bottom:10px;">
