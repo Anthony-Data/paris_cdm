@@ -90,7 +90,7 @@ body::before {
 
 /* ===== HEADER ===== */
 header {
-  padding: 20px 0 18px; display: flex; align-items: center;
+  padding: calc(var(--safe-top) + 14px) 0 18px; display: flex; align-items: center;
   justify-content: space-between; gap: 12px;
   border-bottom: 1px solid var(--border); margin-bottom: 22px;
 }
@@ -516,14 +516,25 @@ select.form-input { cursor: pointer; }
           <div id="pwaTutoContent" style="margin-top:10px;">
             <div id="pwaStatusLine" style="font-size:13px;margin-bottom:10px;"></div>
             <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px;">
-              <div style="font-weight:600;color:var(--text);margin-bottom:6px;font-size:13px;">🍎 iPhone / iPad</div>
-              <ol style="font-size:13px;color:var(--text2);padding-left:18px;line-height:2;">
-                <li>Ouvre <strong style="color:var(--text)">Safari</strong> (pas Chrome)</li>
-                <li>Appuie sur l'icône <strong style="color:var(--text)">Partager</strong> <span style="font-size:16px">⎋</span></li>
-                <li>Choisis <strong style="color:var(--text)">Sur l'écran d'accueil</strong></li>
-                <li>Appuie sur <strong style="color:var(--text)">Ajouter</strong></li>
-              </ol>
-              <div style="font-size:11px;color:var(--text3);margin-top:4px;">⚠️ iOS 16.4 minimum requis</div>
+              <div style="font-weight:600;color:var(--text);margin-bottom:8px;font-size:13px;">🍎 iPhone / iPad</div>
+              <div style="font-size:13px;color:var(--text2);line-height:1.8;">
+                <div style="margin-bottom:8px;padding:8px;background:var(--bg2);border-radius:6px;">
+                  <strong style="color:var(--gold)">① </strong>Ouvre cette page dans <strong style="color:var(--text)">Safari</strong> (l'icône boussole bleue)
+                </div>
+                <div style="margin-bottom:8px;padding:8px;background:var(--bg2);border-radius:6px;">
+                  <strong style="color:var(--gold)">② </strong>En bas à droite de l'écran, appuie sur les <strong style="color:var(--text)">⋯</strong> (trois points)
+                </div>
+                <div style="margin-bottom:8px;padding:8px;background:var(--bg2);border-radius:6px;">
+                  <strong style="color:var(--gold)">③ </strong>Appuie sur l'icône <strong style="color:var(--text)">Partager</strong> — c'est un carré avec une flèche qui pointe vers le haut <span style="font-size:18px;vertical-align:middle">⬆</span>
+                </div>
+                <div style="margin-bottom:8px;padding:8px;background:var(--bg2);border-radius:6px;">
+                  <strong style="color:var(--gold)">④ </strong>Fais <strong style="color:var(--text)">défiler vers le bas</strong> dans la liste et appuie sur <strong style="color:var(--text)">« + Sur l'écran d'accueil »</strong>
+                </div>
+                <div style="padding:8px;background:var(--bg2);border-radius:6px;">
+                  <strong style="color:var(--gold)">⑤ </strong>Appuie sur <strong style="color:var(--text)">Ajouter</strong> en haut à droite — c'est fait ! 🎉
+                </div>
+              </div>
+              <div style="font-size:11px;color:var(--text3);margin-top:8px;">⚠️ iOS 16.4 minimum requis · Doit être fait depuis Safari uniquement</div>
             </div>
             <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:12px;">
               <div style="font-weight:600;color:var(--text);margin-bottom:6px;font-size:13px;">🤖 Android</div>
@@ -576,15 +587,7 @@ select.form-input { cursor: pointer; }
           </label>
         </div>
       </div>
-      <div class="mini-rank" id="miniRank">
-        <div class="mini-rank-title">Top <span>joueurs</span></div>
-        <div id="miniRankBody"></div>
-      </div>
-      <div class="score-legend">
-        <strong>Barème</strong>
-        Groupes/32es : <span style="color:var(--green)">5</span>·<span style="color:var(--gold)">3</span>·<span style="color:#4caf50">2</span><br>
-        16es ×2 · Quarts ×3 · Demies ×4 · Finale ×5
-      </div>
+      <div class="mini-rank" id="miniRank" style="display:none"><div id="miniRankBody"></div></div>
     </div>
   </div>
 </div>
@@ -710,37 +713,64 @@ const FIREBASE_CONFIG = {
 
 
 let db = null;
-let _fbListenerActive = false;
+// _appReady = false tant que Firebase n'a pas envoyé ses données initiales.
+// save() n'écrit PAS dans Firebase avant ce moment → empêche un ancien
+// localStorage de "réécraser" les données de tout le groupe.
+let _appReady = false;
 
 function initFirebase() {
-  if (!FIREBASE_CONFIG || typeof firebase === 'undefined') return;
+  if (!FIREBASE_CONFIG || typeof firebase === 'undefined') {
+    _appReady = true; // pas de Firebase → écriture localStorage immédiate OK
+    return;
+  }
   try {
     firebase.initializeApp(FIREBASE_CONFIG);
     db = firebase.database();
-    // Écoute les changements en temps réel → met à jour tous les appareils
+
+    // Timeout de sécurité : si Firebase ne répond pas en 6s → mode hors ligne
+    const fbTimeout = setTimeout(() => {
+      if (!_appReady) {
+        _appReady = true;
+        console.warn('Firebase timeout — mode hors ligne activé');
+        if (document.getElementById('mainApp').style.display !== 'none') renderAll();
+      }
+    }, 6000);
+
     db.ref('cdm2026/shared').on('value', snapshot => {
+      clearTimeout(fbTimeout);
       const data = snapshot.val();
-      if (!data) return;
-      const prevPlayer = state.currentPlayer; // garder le joueur local
-      Object.assign(state, data);
-      state.currentPlayer = prevPlayer;
-      if (!state.players) state.players = [];
-      if (!state.matches) state.matches = [];
-      if (!state.pronos) state.pronos = {};
-      if (!state.notifications) state.notifications = [];
-      if (!state.lastRanks) state.lastRanks = {};
-      if (!state.adminIds) state.adminIds = [];
-      // Sauvegarde cache local
-      localStorage.setItem('cdm2026v2', JSON.stringify({...data, currentPlayer: state.currentPlayer}));
-      // Re-render uniquement si l'app est ouverte
+      const prevPlayer = state.currentPlayer;
+
+      if (data) {
+        // Firebase a des données → elles ont TOUJOURS priorité sur localStorage
+        Object.assign(state, data);
+        state.currentPlayer = prevPlayer;
+        if (!state.players) state.players = [];
+        if (!state.matches) state.matches = [];
+        if (!state.pronos) state.pronos = {};
+        if (!state.notifications) state.notifications = [];
+        if (!state.lastRanks) state.lastRanks = {};
+        if (!state.adminIds) state.adminIds = [];
+        localStorage.setItem('cdm2026v2', JSON.stringify(data));
+      } else if (!_appReady) {
+        // Firebase vide (1ère connexion) → charger le calendrier officiel et sauver
+        if (state.matches.length === 0) {
+          state.matches = OFFICIAL_MATCHES.map(m => ({...m}));
+        }
+        _appReady = true;
+        save(); // écriture initiale dans Firebase
+        return; // le listener se redéclenchera avec les données qu'on vient d'écrire
+      }
+
+      _appReady = true;
       if (document.getElementById('mainApp').style.display !== 'none') {
         renderAll(); loadFamilyPhoto();
       }
     });
-    _fbListenerActive = true;
-    console.log('✅ Firebase connecté — synchronisation temps réel active');
+    console.log('✅ Firebase connecté');
   } catch(e) {
     console.warn('Firebase init failed:', e);
+    _appReady = true;
   }
 }
 
@@ -768,8 +798,8 @@ function save() {
   // Cache local
   localStorage.setItem('cdm2026v2', JSON.stringify(shared));
 
-  // Sync Firebase si connecté
-  if (db) {
+  // Sync Firebase uniquement une fois les données initiales reçues
+  if (db && _appReady) {
     db.ref('cdm2026/shared').set(shared).catch(e => console.warn('Firebase save error:', e));
   }
 }
@@ -851,15 +881,17 @@ function enterApp() {
     document.getElementById('userAvatar').textContent = initials;
     document.getElementById('userName').textContent = p.prenom;
   }
-  // Auto-load official calendar on first visit
-  if (state.matches.length === 0) {
+  // Auto-load uniquement si Firebase n'est pas configuré (mode localStorage seul)
+  if (state.matches.length === 0 && !FIREBASE_CONFIG) {
     state.matches = OFFICIAL_MATCHES.map(m => ({...m}));
+    _appReady = true;
     save();
     addNotif('📅 Calendrier officiel CdM 2026 chargé automatiquement (104 matchs)');
   }
   renderAll();
   startAutoRefresh();
   scheduleNotifications();
+  scheduleFranceNotifs();
   loadFamilyPhoto();
   checkPwaInstall();
   updateNotifStatus();
@@ -874,13 +906,15 @@ function getPlayerById(id) { return state.players.find(p => p.id === id); }
 function playerFullName(p) { return p ? p.prenom + ' ' + p.nom : ''; }
 function playerInitials(p) { return p ? (p.prenom[0] + (p.nom[0] || '')).toUpperCase() : '?'; }
 
+// Stocke les scores précédents lors d'une modification de prono
+const _pendingEditValues = {};
+
 // ===== SCORING =====
-const PHASE_ORDER = ['Groupes','32es','16es','Quarts','Demies','3e place','Finale'];
+const PHASE_ORDER = ['Groupes','32e de finale','16e de finale','Quarts','Demies','3e place','Finale'];
 function phaseMultiplier(phase) {
-  const m = {'Groupes':1,'32es':1,'16es':2,'Quarts':3,'Demies':4,'3e place':3,'Finale':5};
-  return m[phase] || 1;
+  return ['Quarts','Demies','3e place','Finale'].includes(phase) ? 2 : 1;
 }
-function isKnockout(phase) { return phase !== 'Groupes' && phase !== '32es'; }
+function isKnockout(phase) { return phaseMultiplier(phase) > 1; }
 function calcPoints(r1, r2, p1, p2, phase) {
   if (r1==null||r2==null||p1==null||p2==null) return null;
   const x = phaseMultiplier(phase);
@@ -940,7 +974,7 @@ function renderMatches() {
   let html = '';
   sortedPhases.forEach(phase => {
     const x = phaseMultiplier(phase);
-    html += `<div class="phase-badge${x>1?'':' normal'}">${phase}${x>1?' ×'+x:''}</div>`;
+    html += `<div class="phase-badge${x>1?'':' normal'}">${phase}</div>`;
     byPhase[phase].forEach(m => {
       const dt = new Date(m.date);
       const dateStr = dt.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
@@ -974,9 +1008,9 @@ function renderMatches() {
             <label>Mon prono</label>
             <div class="prono-inputs">
               <div class="prono-score-input">
-                <input type="number" class="score-input" id="p1_${m.id}" min="0" max="20" value="0">
+                <input type="text" inputmode="numeric" pattern="[0-9]*" class="score-input" id="p1_${m.id}" placeholder="—" value="${_pendingEditValues[m.id]?.s1 ?? ''}">
                 <span class="prono-sep">–</span>
-                <input type="number" class="score-input" id="p2_${m.id}" min="0" max="20" value="0">
+                <input type="text" inputmode="numeric" pattern="[0-9]*" class="score-input" id="p2_${m.id}" placeholder="—" value="${_pendingEditValues[m.id]?.s2 ?? ''}">
               </div>
               <button class="btn btn-primary" onclick="submitProno('${m.id}')">Valider</button>
             </div>
@@ -1019,8 +1053,12 @@ function renderMatches() {
 function submitProno(matchId) {
   const myId = state.currentPlayer;
   if (!myId) return;
-  const s1 = parseInt(document.getElementById('p1_'+matchId)?.value)||0;
-  const s2 = parseInt(document.getElementById('p2_'+matchId)?.value)||0;
+  const v1 = document.getElementById('p1_'+matchId)?.value;
+  const v2 = document.getElementById('p2_'+matchId)?.value;
+  if (v1 === '' || v2 === '') { toast('❌ Entre un score pour les deux équipes'); return; }
+  const s1 = parseInt(v1) || 0;
+  const s2 = parseInt(v2) || 0;
+  delete _pendingEditValues[matchId];
   if (!state.pronos[matchId]) state.pronos[matchId] = {};
   state.pronos[matchId][myId] = { s1, s2, at: new Date().toISOString() };
   save(); toast(`✅ Prono enregistré : ${s1}–${s2}`);
@@ -1028,6 +1066,8 @@ function submitProno(matchId) {
 }
 function editProno(matchId) {
   const myId = state.currentPlayer;
+  const existing = state.pronos[matchId]?.[myId];
+  if (existing) _pendingEditValues[matchId] = { s1: existing.s1, s2: existing.s2 };
   if (state.pronos[matchId]) delete state.pronos[matchId][myId];
   save(); renderMatches();
 }
@@ -1253,6 +1293,35 @@ function addNotif(message) {
 // Tracks match IDs already scheduled this session to avoid duplicates
 const _scheduledNotifIds = new Set();
 
+// Notif à 10h le jour où la France joue
+function scheduleFranceNotifs() {
+  if (Notification.permission !== 'granted') return;
+  const now = new Date();
+  state.matches.forEach(m => {
+    if (m.status !== 'upcoming') return;
+    const isFrance = m.team1 === 'France' || m.team2 === 'France';
+    if (!isFrance) return;
+    const matchDate = new Date(m.date);
+    // 10h Paris (CEST = UTC+2 en été) = 08:00 UTC
+    const notifTime = new Date(Date.UTC(matchDate.getUTCFullYear(), matchDate.getUTCMonth(), matchDate.getUTCDate(), 8, 0, 0));
+    const delay = notifTime - now;
+    const notifId = 'france_10h_' + m.id;
+    if (delay <= 0 || delay > MAX_NOTIF_DELAY_MS || _scheduledNotifIds.has(notifId)) return;
+    _scheduledNotifIds.add(notifId);
+    setTimeout(async () => {
+      _scheduledNotifIds.delete(notifId);
+      const fresh = state.matches.find(x => x.id === m.id);
+      if (!fresh || fresh.status !== 'upcoming') return;
+      await showPushNotification(
+        '🇫🇷 La France joue aujourd\'hui !',
+        `${fresh.team1} vs ${fresh.team2} — N\'oublie pas ton prono !`,
+        notifId
+      );
+      addNotif(`🇫🇷 La France joue aujourd'hui : ${fresh.team1} vs ${fresh.team2} !`);
+    }, delay);
+  });
+}
+
 // setTimeout plante si delay > 2^31-1 ms (~24.8 jours) → ne planifier que dans les 7 prochains jours
 const MAX_NOTIF_DELAY_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -1439,6 +1508,12 @@ function deleteMatch() {
   save(); renderMatches(); populateUpdateMatchSelect(); renderRanking();
   toast(`🗑 Match supprimé`);
 }
+async function notifyMatchFinished(m) {
+  const title = `🏁 ${m.flag1||''} ${m.team1} ${m.score1} – ${m.score2} ${m.team2} ${m.flag2||''}`;
+  const body = `Le match est terminé ! Viens voir ton score 🏆`;
+  await showPushNotification(title, body, 'fin_' + m.id);
+  addNotif(`🏁 ${m.team1} ${m.score1}–${m.score2} ${m.team2} — Match terminé ! Viens voir ton score.`);
+}
 function updateMatchScore() {
   const id = document.getElementById('updateMatchSelect').value;
   const s1 = parseInt(document.getElementById('uScore1').value)||0;
@@ -1446,7 +1521,9 @@ function updateMatchScore() {
   const status = document.getElementById('uStatus').value;
   const m = state.matches.find(m=>m.id===id);
   if (!m) { toast('❌ Match introuvable'); return; }
+  const wasFinished = m.status === 'finished';
   m.score1=s1; m.score2=s2; m.status=status;
+  if (status === 'finished' && !wasFinished) notifyMatchFinished(m);
   save(); renderMatches(); renderRanking();
   toast(`✅ Score mis à jour : ${s1}–${s2}`);
 }
@@ -1517,8 +1594,8 @@ function renderAdminPanel() {
       <div class="form-group"><label>Phase</label>
         <select class="form-input" id="mPhase">
           <option value="Groupes">Phase de groupes</option>
-          <option value="32es">32es de finale</option>
-          <option value="16es">16es de finale</option>
+          <option value="32e de finale">32e de finale</option>
+          <option value="16e de finale">16e de finale</option>
           <option value="Quarts">Quarts de finale</option>
           <option value="Demies">Demi-finales</option>
           <option value="3e place">Match 3e place</option>
@@ -1770,7 +1847,7 @@ const OFFICIAL_MATCHES = [
   {id:'o7',matchNum:7,team1:'Brésil',team2:'Maroc',flag1:'🇧🇷',flag2:'🇲🇦',date:'2026-06-13T18:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
   {id:'o8',matchNum:8,team1:'Qatar',team2:'Suisse',flag1:'🇶🇦',flag2:'🇨🇭',date:'2026-06-13T15:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
   {id:'o9',matchNum:9,team1:"Côte d'Ivoire",team2:'Équateur',flag1:'🇨🇮',flag2:'🇪🇨',date:'2026-06-14T19:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
-  {id:'o10',matchNum:10,team1:'Allemagne',team2:'Curaçao',flag1:'🇩🇪',flag2:'🏝',date:'2026-06-14T13:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o10',matchNum:10,team1:'Allemagne',team2:'Curaçao',flag1:'🇩🇪',flag2:'🇨🇼',date:'2026-06-14T13:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
   {id:'o11',matchNum:11,team1:'Pays-Bas',team2:'Japon',flag1:'🇳🇱',flag2:'🇯🇵',date:'2026-06-14T16:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
   {id:'o12',matchNum:12,team1:'Suède',team2:'Tunisie',flag1:'🇸🇪',flag2:'🇹🇳',date:'2026-06-14T22:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
   {id:'o13',matchNum:13,team1:'Arabie Saoudite',team2:'Uruguay',flag1:'🇸🇦',flag2:'🇺🇾',date:'2026-06-15T18:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
@@ -1815,7 +1892,7 @@ const OFFICIAL_MATCHES = [
   {id:'o52',matchNum:52,team1:'Bosnie',team2:'Qatar',flag1:'🇧🇦',flag2:'🇶🇦',date:'2026-06-24T15:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
   {id:'o53',matchNum:53,team1:'Tchéquie',team2:'Mexique',flag1:'🇨🇿',flag2:'🇲🇽',date:'2026-06-24T21:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
   {id:'o54',matchNum:54,team1:'Afrique du Sud',team2:'Corée du Sud',flag1:'🇿🇦',flag2:'🇰🇷',date:'2026-06-24T21:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
-  {id:'o55',matchNum:55,team1:'Curaçao',team2:"Côte d'Ivoire",flag1:'🏝',flag2:'🇨🇮',date:'2026-06-25T16:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o55',matchNum:55,team1:'Curaçao',team2:"Côte d'Ivoire",flag1:'🇨🇼',flag2:'🇨🇮',date:'2026-06-25T16:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
   {id:'o56',matchNum:56,team1:'Équateur',team2:'Allemagne',flag1:'🇪🇨',flag2:'🇩🇪',date:'2026-06-25T16:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
   {id:'o57',matchNum:57,team1:'Japon',team2:'Suède',flag1:'🇯🇵',flag2:'🇸🇪',date:'2026-06-25T19:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
   {id:'o58',matchNum:58,team1:'Tunisie',team2:'Pays-Bas',flag1:'🇹🇳',flag2:'🇳🇱',date:'2026-06-25T19:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
@@ -1833,30 +1910,30 @@ const OFFICIAL_MATCHES = [
   {id:'o70',matchNum:70,team1:'Jordanie',team2:'Argentine',flag1:'🇯🇴',flag2:'🇦🇷',date:'2026-06-27T22:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
   {id:'o71',matchNum:71,team1:'Colombie',team2:'Portugal',flag1:'🇨🇴',flag2:'🇵🇹',date:'2026-06-27T19:30:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
   {id:'o72',matchNum:72,team1:'Congo DR',team2:'Ouzbékistan',flag1:'🇨🇩',flag2:'🇺🇿',date:'2026-06-27T19:30:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
-  {id:'o73',matchNum:73,team1:'2A',team2:'2B',flag1:'⚽',flag2:'⚽',date:'2026-06-28T15:00:00-04:00',phase:'32es',status:'upcoming',score1:null,score2:null},
-  {id:'o74',matchNum:74,team1:'1E',team2:'3ABCDF',flag1:'⚽',flag2:'⚽',date:'2026-06-29T16:30:00-04:00',phase:'32es',status:'upcoming',score1:null,score2:null},
-  {id:'o75',matchNum:75,team1:'1F',team2:'2C',flag1:'⚽',flag2:'⚽',date:'2026-06-29T21:00:00-04:00',phase:'32es',status:'upcoming',score1:null,score2:null},
-  {id:'o76',matchNum:76,team1:'1C',team2:'2F',flag1:'⚽',flag2:'⚽',date:'2026-06-29T13:00:00-04:00',phase:'32es',status:'upcoming',score1:null,score2:null},
-  {id:'o77',matchNum:77,team1:'1I',team2:'3CDFGH',flag1:'⚽',flag2:'⚽',date:'2026-06-30T17:00:00-04:00',phase:'32es',status:'upcoming',score1:null,score2:null},
-  {id:'o78',matchNum:78,team1:'2E',team2:'2I',flag1:'⚽',flag2:'⚽',date:'2026-06-30T13:00:00-04:00',phase:'32es',status:'upcoming',score1:null,score2:null},
-  {id:'o79',matchNum:79,team1:'1A',team2:'3CEFHI',flag1:'⚽',flag2:'⚽',date:'2026-06-30T21:00:00-04:00',phase:'32es',status:'upcoming',score1:null,score2:null},
-  {id:'o80',matchNum:80,team1:'1L',team2:'3EHIJK',flag1:'⚽',flag2:'⚽',date:'2026-07-01T12:00:00-04:00',phase:'32es',status:'upcoming',score1:null,score2:null},
-  {id:'o81',matchNum:81,team1:'1D',team2:'3BEFIJ',flag1:'⚽',flag2:'⚽',date:'2026-07-01T20:00:00-04:00',phase:'32es',status:'upcoming',score1:null,score2:null},
-  {id:'o82',matchNum:82,team1:'1G',team2:'3AEHIJ',flag1:'⚽',flag2:'⚽',date:'2026-07-01T16:00:00-04:00',phase:'32es',status:'upcoming',score1:null,score2:null},
-  {id:'o83',matchNum:83,team1:'2K',team2:'2L',flag1:'⚽',flag2:'⚽',date:'2026-07-02T19:00:00-04:00',phase:'32es',status:'upcoming',score1:null,score2:null},
-  {id:'o84',matchNum:84,team1:'1H',team2:'2J',flag1:'⚽',flag2:'⚽',date:'2026-07-02T15:00:00-04:00',phase:'32es',status:'upcoming',score1:null,score2:null},
-  {id:'o85',matchNum:85,team1:'1B',team2:'3EFGIJ',flag1:'⚽',flag2:'⚽',date:'2026-07-02T23:00:00-04:00',phase:'32es',status:'upcoming',score1:null,score2:null},
-  {id:'o86',matchNum:86,team1:'1J',team2:'2H',flag1:'⚽',flag2:'⚽',date:'2026-07-03T18:00:00-04:00',phase:'32es',status:'upcoming',score1:null,score2:null},
-  {id:'o87',matchNum:87,team1:'1K',team2:'3DEIJL',flag1:'⚽',flag2:'⚽',date:'2026-07-03T21:30:00-04:00',phase:'32es',status:'upcoming',score1:null,score2:null},
-  {id:'o88',matchNum:88,team1:'2D',team2:'2G',flag1:'⚽',flag2:'⚽',date:'2026-07-03T14:00:00-04:00',phase:'32es',status:'upcoming',score1:null,score2:null},
-  {id:'o89',matchNum:89,team1:'W74',team2:'W77',flag1:'⚽',flag2:'⚽',date:'2026-07-04T17:00:00-04:00',phase:'16es',status:'upcoming',score1:null,score2:null},
-  {id:'o90',matchNum:90,team1:'W73',team2:'W75',flag1:'⚽',flag2:'⚽',date:'2026-07-04T13:00:00-04:00',phase:'16es',status:'upcoming',score1:null,score2:null},
-  {id:'o91',matchNum:91,team1:'W76',team2:'W78',flag1:'⚽',flag2:'⚽',date:'2026-07-05T16:00:00-04:00',phase:'16es',status:'upcoming',score1:null,score2:null},
-  {id:'o92',matchNum:92,team1:'W79',team2:'W80',flag1:'⚽',flag2:'⚽',date:'2026-07-05T20:00:00-04:00',phase:'16es',status:'upcoming',score1:null,score2:null},
-  {id:'o93',matchNum:93,team1:'W83',team2:'W84',flag1:'⚽',flag2:'⚽',date:'2026-07-06T15:00:00-04:00',phase:'16es',status:'upcoming',score1:null,score2:null},
-  {id:'o94',matchNum:94,team1:'W81',team2:'W82',flag1:'⚽',flag2:'⚽',date:'2026-07-06T20:00:00-04:00',phase:'16es',status:'upcoming',score1:null,score2:null},
-  {id:'o95',matchNum:95,team1:'W86',team2:'W88',flag1:'⚽',flag2:'⚽',date:'2026-07-07T12:00:00-04:00',phase:'16es',status:'upcoming',score1:null,score2:null},
-  {id:'o96',matchNum:96,team1:'W85',team2:'W87',flag1:'⚽',flag2:'⚽',date:'2026-07-07T16:00:00-04:00',phase:'16es',status:'upcoming',score1:null,score2:null},
+  {id:'o73',matchNum:73,team1:'2A',team2:'2B',flag1:'⚽',flag2:'⚽',date:'2026-06-28T15:00:00-04:00',phase:'32e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o74',matchNum:74,team1:'1E',team2:'3ABCDF',flag1:'⚽',flag2:'⚽',date:'2026-06-29T16:30:00-04:00',phase:'32e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o75',matchNum:75,team1:'1F',team2:'2C',flag1:'⚽',flag2:'⚽',date:'2026-06-29T21:00:00-04:00',phase:'32e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o76',matchNum:76,team1:'1C',team2:'2F',flag1:'⚽',flag2:'⚽',date:'2026-06-29T13:00:00-04:00',phase:'32e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o77',matchNum:77,team1:'1I',team2:'3CDFGH',flag1:'⚽',flag2:'⚽',date:'2026-06-30T17:00:00-04:00',phase:'32e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o78',matchNum:78,team1:'2E',team2:'2I',flag1:'⚽',flag2:'⚽',date:'2026-06-30T13:00:00-04:00',phase:'32e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o79',matchNum:79,team1:'1A',team2:'3CEFHI',flag1:'⚽',flag2:'⚽',date:'2026-06-30T21:00:00-04:00',phase:'32e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o80',matchNum:80,team1:'1L',team2:'3EHIJK',flag1:'⚽',flag2:'⚽',date:'2026-07-01T12:00:00-04:00',phase:'32e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o81',matchNum:81,team1:'1D',team2:'3BEFIJ',flag1:'⚽',flag2:'⚽',date:'2026-07-01T20:00:00-04:00',phase:'32e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o82',matchNum:82,team1:'1G',team2:'3AEHIJ',flag1:'⚽',flag2:'⚽',date:'2026-07-01T16:00:00-04:00',phase:'32e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o83',matchNum:83,team1:'2K',team2:'2L',flag1:'⚽',flag2:'⚽',date:'2026-07-02T19:00:00-04:00',phase:'32e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o84',matchNum:84,team1:'1H',team2:'2J',flag1:'⚽',flag2:'⚽',date:'2026-07-02T15:00:00-04:00',phase:'32e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o85',matchNum:85,team1:'1B',team2:'3EFGIJ',flag1:'⚽',flag2:'⚽',date:'2026-07-02T23:00:00-04:00',phase:'32e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o86',matchNum:86,team1:'1J',team2:'2H',flag1:'⚽',flag2:'⚽',date:'2026-07-03T18:00:00-04:00',phase:'32e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o87',matchNum:87,team1:'1K',team2:'3DEIJL',flag1:'⚽',flag2:'⚽',date:'2026-07-03T21:30:00-04:00',phase:'32e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o88',matchNum:88,team1:'2D',team2:'2G',flag1:'⚽',flag2:'⚽',date:'2026-07-03T14:00:00-04:00',phase:'32e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o89',matchNum:89,team1:'W74',team2:'W77',flag1:'⚽',flag2:'⚽',date:'2026-07-04T17:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o90',matchNum:90,team1:'W73',team2:'W75',flag1:'⚽',flag2:'⚽',date:'2026-07-04T13:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o91',matchNum:91,team1:'W76',team2:'W78',flag1:'⚽',flag2:'⚽',date:'2026-07-05T16:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o92',matchNum:92,team1:'W79',team2:'W80',flag1:'⚽',flag2:'⚽',date:'2026-07-05T20:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o93',matchNum:93,team1:'W83',team2:'W84',flag1:'⚽',flag2:'⚽',date:'2026-07-06T15:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o94',matchNum:94,team1:'W81',team2:'W82',flag1:'⚽',flag2:'⚽',date:'2026-07-06T20:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o95',matchNum:95,team1:'W86',team2:'W88',flag1:'⚽',flag2:'⚽',date:'2026-07-07T12:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o96',matchNum:96,team1:'W85',team2:'W87',flag1:'⚽',flag2:'⚽',date:'2026-07-07T16:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
   {id:'o97',matchNum:97,team1:'W89',team2:'W90',flag1:'⚽',flag2:'⚽',date:'2026-07-09T16:00:00-04:00',phase:'Quarts',status:'upcoming',score1:null,score2:null},
   {id:'o98',matchNum:98,team1:'W93',team2:'W94',flag1:'⚽',flag2:'⚽',date:'2026-07-10T15:00:00-04:00',phase:'Quarts',status:'upcoming',score1:null,score2:null},
   {id:'o99',matchNum:99,team1:'W91',team2:'W92',flag1:'⚽',flag2:'⚽',date:'2026-07-11T17:00:00-04:00',phase:'Quarts',status:'upcoming',score1:null,score2:null},
