@@ -1016,9 +1016,9 @@ function renderMatches() {
             <label>Mon prono</label>
             <div class="prono-inputs">
               <div class="prono-score-input">
-                <input type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" class="score-input" id="p1_${m.id}" placeholder=" " value="${_pendingEditValues[m.id]?.s1 ?? ''}" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,1);if(this.value)document.getElementById('p2_${m.id}')?.focus()">
+                <input type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" class="score-input" id="p1_${m.id}" placeholder=" " value="${_pendingEditValues[m.id]?.s1 ?? ''}" onfocus="this.select()" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,1);if(this.value)document.getElementById('p2_${m.id}')?.focus()">
                 <span class="prono-sep">–</span>
-                <input type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" class="score-input" id="p2_${m.id}" placeholder=" " value="${_pendingEditValues[m.id]?.s2 ?? ''}">
+                <input type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" class="score-input" id="p2_${m.id}" placeholder=" " value="${_pendingEditValues[m.id]?.s2 ?? ''}" onfocus="this.select()">
               </div>
               <button class="btn btn-primary" onclick="submitProno('${m.id}')">Valider</button>
             </div>
