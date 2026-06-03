@@ -2342,7 +2342,6 @@ function maybeShowOnboarding() {
   document.body.style.overflow = 'hidden';
   obUpdateInstallStatus();
   obGoto(1, false);
-  obInitSwipe();
 }
 
 function obGoto(step, animate) {
@@ -2440,6 +2439,7 @@ function obFinish() {
 }
 
 // ===== INIT =====
+obInitSwipe(); // une seule fois, jamais dans maybeShowOnboarding
 initFirebase();
 load();
 checkAndStartLivePolling();
