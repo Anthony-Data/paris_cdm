@@ -755,10 +755,13 @@ function initFirebase() {
         if (!state.lastRanks) state.lastRanks = {};
         if (!state.adminIds) state.adminIds = [];
         // Migration silencieuse : noms de phases + drapeaux corrompus
-        const phaseMap = {'32es':'16e de finale','32e de finale':'16e de finale','16es':'8e de finale','16e de finale':'8e de finale','3e place':'3ème/4ème Place'};
+        const phaseMap = {'32es':'16e de finale','32e de finale':'16e de finale','16es':'8e de finale','3e place':'3ème/4ème Place'};
         // Correction des drapeaux : Curaçao (🏝→🇨🇼) et Bosnie (corruption emoji)
         state.matches.forEach(m => {
           if (phaseMap[m.phase]) { m.phase = phaseMap[m.phase]; migrated = true; }
+          // Correction ciblée matchNum : 73-88 = 16e de finale, 89-96 = 8e de finale
+          if (m.matchNum >= 73 && m.matchNum <= 88 && m.phase !== '16e de finale') { m.phase = '16e de finale'; migrated = true; }
+          if (m.matchNum >= 89 && m.matchNum <= 96 && m.phase !== '8e de finale')  { m.phase = '8e de finale';  migrated = true; }
           // Drapeaux corrects via Unicode explicite (évite toute corruption d'encodage)
           const CW = '🇨🇼'; // 🇨🇼 Curaçao
           const BA = '🇧🇦'; // 🇧🇦 Bosnie
@@ -1382,7 +1385,7 @@ function checkPwaInstall() {
     banner.style.background = 'var(--green-dim)';
     banner.style.border = '1px solid rgba(0,200,83,.3)';
     if (title) title.textContent = '✅ App installée sur cet appareil';
-    if (statusLine) { statusLine.textContent = 'L\'app est bien installée. Les notifications fonctionnent en arrière-plan.'; statusLine.style.color = 'var(--green)'; }
+    if (statusLine) { statusLine.textContent = 'L\'app est bien installée. Les notifications fonctionnent en arrière-plan.'; statusLine.style.color = '#00c853'; }
     // Replier par défaut si déjà installé
     const content = document.getElementById('pwaTutoContent');
     const arrow = document.getElementById('pwaTutoArrow');
@@ -1747,7 +1750,7 @@ function renderAdminPanel() {
   }
   // Full admin panel rebuilt
   const fbStatus = db
-    ? `<div style="background:var(--green-dim);border:1px solid rgba(0,200,83,.3);border-radius:var(--radius);padding:10px 14px;margin-bottom:14px;font-size:13px;color:var(--green);">🔥 Firebase connecté — toutes les modifications sont synchronisées en temps réel sur tous les appareils.</div>`
+    ? `<div style="background:rgba(0,200,83,.08);border:1px solid rgba(0,200,83,.3);border-radius:var(--radius);padding:10px 14px;margin-bottom:14px;font-size:13px;color:#00c853;">🔥 Firebase connecté — toutes les modifications sont synchronisées en temps réel sur tous les appareils.</div>`
     : `<div style="background:var(--gold-dim);border:1px solid rgba(255,214,0,.3);border-radius:var(--radius);padding:10px 14px;margin-bottom:14px;font-size:13px;color:var(--gold);">⚠️ Firebase non configuré — les données ne sont sauvegardées que sur cet appareil. <a href="https://console.firebase.google.com" target="_blank" style="color:var(--gold);text-decoration:underline">Configurer Firebase →</a></div>`;
   tab.innerHTML = `<div class="section-title">Admin <span>& gestion</span></div>
   ${fbStatus}
@@ -2172,15 +2175,15 @@ const OFFICIAL_MATCHES = [
   {id:'o85',matchNum:85,team1:'1B',team2:'3EFGIJ',flag1:'⚽',flag2:'⚽',date:'2026-07-02T23:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
   {id:'o86',matchNum:86,team1:'1J',team2:'2H',flag1:'⚽',flag2:'⚽',date:'2026-07-03T18:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
   {id:'o87',matchNum:87,team1:'1K',team2:'3DEIJL',flag1:'⚽',flag2:'⚽',date:'2026-07-03T21:30:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
-  {id:'o88',matchNum:88,team1:'2D',team2:'2G',flag1:'⚽',flag2:'⚽',date:'2026-07-03T14:00:00-04:00',phase:'8e de finale',status:'upcoming',score1:null,score2:null},
-  {id:'o89',matchNum:89,team1:'W74',team2:'W77',flag1:'⚽',flag2:'⚽',date:'2026-07-04T17:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
-  {id:'o90',matchNum:90,team1:'W73',team2:'W75',flag1:'⚽',flag2:'⚽',date:'2026-07-04T13:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
-  {id:'o91',matchNum:91,team1:'W76',team2:'W78',flag1:'⚽',flag2:'⚽',date:'2026-07-05T16:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
-  {id:'o92',matchNum:92,team1:'W79',team2:'W80',flag1:'⚽',flag2:'⚽',date:'2026-07-05T20:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
-  {id:'o93',matchNum:93,team1:'W83',team2:'W84',flag1:'⚽',flag2:'⚽',date:'2026-07-06T15:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
-  {id:'o94',matchNum:94,team1:'W81',team2:'W82',flag1:'⚽',flag2:'⚽',date:'2026-07-06T20:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
-  {id:'o95',matchNum:95,team1:'W86',team2:'W88',flag1:'⚽',flag2:'⚽',date:'2026-07-07T12:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
-  {id:'o96',matchNum:96,team1:'W85',team2:'W87',flag1:'⚽',flag2:'⚽',date:'2026-07-07T16:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o88',matchNum:88,team1:'2D',team2:'2G',flag1:'⚽',flag2:'⚽',date:'2026-07-03T14:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o89',matchNum:89,team1:'W74',team2:'W77',flag1:'⚽',flag2:'⚽',date:'2026-07-04T17:00:00-04:00',phase:'8e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o90',matchNum:90,team1:'W73',team2:'W75',flag1:'⚽',flag2:'⚽',date:'2026-07-04T13:00:00-04:00',phase:'8e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o91',matchNum:91,team1:'W76',team2:'W78',flag1:'⚽',flag2:'⚽',date:'2026-07-05T16:00:00-04:00',phase:'8e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o92',matchNum:92,team1:'W79',team2:'W80',flag1:'⚽',flag2:'⚽',date:'2026-07-05T20:00:00-04:00',phase:'8e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o93',matchNum:93,team1:'W83',team2:'W84',flag1:'⚽',flag2:'⚽',date:'2026-07-06T15:00:00-04:00',phase:'8e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o94',matchNum:94,team1:'W81',team2:'W82',flag1:'⚽',flag2:'⚽',date:'2026-07-06T20:00:00-04:00',phase:'8e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o95',matchNum:95,team1:'W86',team2:'W88',flag1:'⚽',flag2:'⚽',date:'2026-07-07T12:00:00-04:00',phase:'8e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o96',matchNum:96,team1:'W85',team2:'W87',flag1:'⚽',flag2:'⚽',date:'2026-07-07T16:00:00-04:00',phase:'8e de finale',status:'upcoming',score1:null,score2:null},
   {id:'o97',matchNum:97,team1:'W89',team2:'W90',flag1:'⚽',flag2:'⚽',date:'2026-07-09T16:00:00-04:00',phase:'Quarts',status:'upcoming',score1:null,score2:null},
   {id:'o98',matchNum:98,team1:'W93',team2:'W94',flag1:'⚽',flag2:'⚽',date:'2026-07-10T15:00:00-04:00',phase:'Quarts',status:'upcoming',score1:null,score2:null},
   {id:'o99',matchNum:99,team1:'W91',team2:'W92',flag1:'⚽',flag2:'⚽',date:'2026-07-11T17:00:00-04:00',phase:'Quarts',status:'upcoming',score1:null,score2:null},
