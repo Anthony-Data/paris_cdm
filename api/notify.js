@@ -37,13 +37,17 @@ webpush.setVapidDetails(
 // ── Handler principal ───────────────────────────────────────────────────────
 module.exports = async (req, res) => {
   // 1. Vérification du secret
-  const secret = req.headers['x-cron-secret'] || req.query.secret;
-  if (secret !== process.env.CRON_SECRET) {
+  // Vercel cron envoie : Authorization: Bearer <CRON_SECRET>
+  // Fallback : header x-cron-secret ou ?secret= (cron externe)
+  const authHeader = req.headers['authorization'];
+  const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  const secret = bearerToken || req.headers['x-cron-secret'] || req.query.secret;
+  if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
     return res.status(401).json({ error: 'Non autorisé — mauvais secret' });
   }
 
-  // 2. Vérification des variables d'environnement
-  const missing = ['VAPID_PUBLIC_KEY','VAPID_PRIVATE_KEY','FIREBASE_SERVICE_ACCOUNT','FIREBASE_DATABASE_URL','CRON_SECRET']
+  // 2. Vérification des variables d'environnement (CRON_SECRET exclu : optionnel)
+  const missing = ['VAPID_PUBLIC_KEY','VAPID_PRIVATE_KEY','FIREBASE_SERVICE_ACCOUNT','FIREBASE_DATABASE_URL']
     .filter(k => !process.env[k]);
   if (missing.length) {
     return res.status(500).json({ error: `Variables manquantes : ${missing.join(', ')}` });
@@ -60,7 +64,9 @@ module.exports = async (req, res) => {
 
     const shared = sharedSnap.val() || {};
     const subscriptions = subsSnap.val() || {};
-    const matches = shared.matches || [];
+    // Firebase peut retourner un objet à clés numériques au lieu d'un tableau
+    const rawMatches = shared.matches;
+    const matches = Array.isArray(rawMatches) ? rawMatches : Object.values(rawMatches || {});
     const pronos = shared.pronos || {};
     const now = new Date();
 
