@@ -1212,33 +1212,50 @@ async function fetchLiveScores() {
 // ── Simulation live (pour tester avant le 11 juin) ──────────────────────────
 // Simule un match qui commence, marque des buts toutes les 30s, puis se termine.
 function startSimulation(matchId) {
-  const m = state.matches.find(x => x.id === matchId);
-  if (!m) { toast('❌ Match introuvable'); return; }
-  if (_simInterval) { clearInterval(_simInterval); }
+  if (!state.matches.find(x => x.id === matchId)) { toast('❌ Match introuvable'); return; }
+  if (_simInterval) { clearInterval(_simInterval); _simInterval = null; }
 
+  // Init du match — on cherche par ID à chaque fois pour éviter les références périmées
+  const getM = () => state.matches.find(x => x.id === matchId);
+  let m = getM();
   m.status = 'live'; m.score1 = 0; m.score2 = 0;
-  save(); renderMatches();
+  save(); renderAll();
   toast(`🔴 Simulation démarrée : ${m.team1} vs ${m.team2}`);
 
+  // Séquence d'événements : [tick en secondes, s1, s2, terminé]
   const events = [
-    { delay: 10, action: () => { m.score1++; } },           // But équipe 1 à ~10s
-    { delay: 20, action: () => { m.score2++; } },           // But équipe 2 à ~20s
-    { delay: 30, action: () => { m.score1++; } },           // But équipe 1 à ~30s
-    { delay: 50, action: () => { m.score2++; m.score2++; } },// 2 buts équipe 2 à ~50s
-    { delay: 60, action: () => { m.status = 'finished'; stopSim(); } }, // Fin à ~60s
+    { tick: 10,  s1: 1, s2: 0, fin: false },  // But équipe 1
+    { tick: 20,  s1: 1, s2: 1, fin: false },  // But équipe 2
+    { tick: 30,  s1: 2, s2: 1, fin: false },  // But équipe 1
+    { tick: 50,  s1: 2, s2: 3, fin: false },  // Doublé équipe 2
+    { tick: 55,  s1: 2, s2: 3, fin: true  },  // Fin du match
   ];
 
   let tick = 0;
   _simInterval = setInterval(() => {
     tick++;
-    const ev = events.find(e => e.delay === tick);
-    if (ev) {
-      ev.action();
-      save(); renderMatches(); renderRanking();
-      if (m.status !== 'finished') toast(`⚽ But ! ${m.team1} ${m.score1}–${m.score2} ${m.team2}`);
-      else toast(`🏁 Fin de simulation : ${m.team1} ${m.score1}–${m.score2} ${m.team2}`);
+    const ev = events.find(e => e.tick === tick);
+    if (!ev) return;
+
+    // Toujours chercher le match dans le state courant (Firebase peut l'avoir remplacé)
+    m = getM();
+    if (!m) { stopSim(); return; }
+
+    m.score1 = ev.s1;
+    m.score2 = ev.s2;
+    m.status = ev.fin ? 'finished' : 'live';
+
+    save();
+    renderAll();
+
+    if (ev.fin) {
+      stopSim();
+      toast(`🏁 Fin ! ${m.team1} ${m.score1}–${m.score2} ${m.team2}`);
+      renderRanking();
+    } else {
+      toast(`⚽ But ! ${m.team1} ${m.score1}–${m.score2} ${m.team2}`);
     }
-  }, 1000); // 1 tick = 1 seconde (60s de simulation = ~1 mi-temps accélérée)
+  }, 1000);
 }
 
 function stopSim() {
