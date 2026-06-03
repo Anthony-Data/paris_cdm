@@ -1031,18 +1031,20 @@ function renderMatches() {
           pronoHtml = `<div class="prono-section"><p style="font-size:12px;color:var(--text3)">Aucun prono enregistré pour ce match</p></div>`;
         }
       }
+      // Filtrer uniquement les pronos de joueurs encore dans la liste
+      const validPronos = Object.entries(pronos).filter(([pid]) => getPlayerById(pid));
       let allPronosHtml = '';
-      if (canSeeAll && Object.keys(pronos).length>0) {
-        const tags = Object.entries(pronos).map(([pid, pr]) => {
+      if (canSeeAll && validPronos.length > 0) {
+        const tags = validPronos.map(([pid, pr]) => {
           const pl = getPlayerById(pid);
           const pts = m.score1!=null ? calcPoints(m.score1,m.score2,pr.s1,pr.s2,m.phase) : null;
           const label = pts!=null ? ptsLabel(pts,m.phase) : '';
           const ptsStr = pts!=null ? ` +${pts}` : '';
-          return `<span class="prono-tag ${label}">${pl?pl.prenom:'?'}: ${pr.s1}–${pr.s2}${ptsStr}</span>`;
+          return `<span class="prono-tag ${label}">${pl.prenom}: ${pr.s1}–${pr.s2}${ptsStr}</span>`;
         }).join('');
-        allPronosHtml = `<div class="pronos-reveal"><div class="pronos-reveal-title">Pronos (${Object.keys(pronos).length})</div><div class="prono-tags">${tags}</div></div>`;
-      } else if (!canSeeAll && Object.keys(pronos).length>0) {
-        allPronosHtml = `<div class="pronos-reveal"><div class="pronos-reveal-title">🔒 ${Object.keys(pronos).length} prono(s) — révélés au coup d'envoi</div></div>`;
+        allPronosHtml = `<div class="pronos-reveal"><div class="pronos-reveal-title">Pronos (${validPronos.length})</div><div class="prono-tags">${tags}</div></div>`;
+      } else if (!canSeeAll && validPronos.length > 0) {
+        allPronosHtml = `<div class="pronos-reveal"><div class="pronos-reveal-title">🔒 ${validPronos.length} prono(s) — révélés au coup d'envoi</div></div>`;
       }
       if (isAdmin() && state.players.length > 0) {
         const done    = state.players.filter(p => pronos[p.id]);
