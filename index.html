@@ -528,19 +528,19 @@ select.form-input { cursor: pointer; }
             <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px;">
               <div style="font-weight:600;color:var(--text);margin-bottom:8px;font-size:13px;"> iPhone / iPad</div>
               <div style="font-size:13px;color:var(--text2);line-height:1.8;">
-                <div style="margin-bottom:8px;padding:8px;background:var(--bg2);border-radius:6px;">
-                  <strong style="color:var(--gold)">① </strong>Ouvre cette page dans <strong style="color:var(--text)">Safari</strong> (l'icône boussole bleue)
+                <div style="margin-bottom:8px;padding:8px;background:#000;border-radius:6px;">
+                  <strong style="color:var(--gold)">① </strong>Ouvre cette page dans <strong style="color:var(--text)">Safari</strong>
                 </div>
-                <div style="margin-bottom:8px;padding:8px;background:var(--bg2);border-radius:6px;">
-                  <strong style="color:var(--gold)">② </strong>En bas à droite de l'écran, appuie sur les <strong style="color:var(--text)">⋯</strong> (trois points)
+                <div style="margin-bottom:8px;padding:8px;background:#000;border-radius:6px;">
+                  <strong style="color:var(--gold)">② </strong>En bas à droite de l'écran, appuie sur les <strong style="color:var(--text)">⋯</strong>
                 </div>
-                <div style="margin-bottom:8px;padding:8px;background:var(--bg2);border-radius:6px;">
-                  <strong style="color:var(--gold)">③ </strong>Appuie sur l'icône <strong style="color:var(--text)">Partager</strong> — c'est un carré avec une flèche qui pointe vers le haut <span style="font-size:18px;vertical-align:middle">⬆</span>
+                <div style="margin-bottom:8px;padding:8px;background:#000;border-radius:6px;">
+                  <strong style="color:var(--gold)">③ </strong>Appuie sur <strong style="color:var(--text)">Partager</strong> <svg style="vertical-align:middle;display:inline-block;margin-left:2px" width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 2.5l-4.5 4.5h3V15h3V7h3L12 2.5z"/><path d="M5 15v5h14v-5h-2v3H7v-3H5z"/></svg>
                 </div>
-                <div style="margin-bottom:8px;padding:8px;background:var(--bg2);border-radius:6px;">
-                  <strong style="color:var(--gold)">④ </strong>Fais <strong style="color:var(--text)">défiler vers le bas</strong> dans la liste et appuie sur <strong style="color:var(--text)">« + Sur l'écran d'accueil »</strong>
+                <div style="margin-bottom:8px;padding:8px;background:#000;border-radius:6px;">
+                  <strong style="color:var(--gold)">④ </strong>Fais <strong style="color:var(--text)">défiler vers le bas</strong> et appuie sur <strong style="color:var(--text)">« + Sur l'écran d'accueil »</strong>
                 </div>
-                <div style="padding:8px;background:var(--bg2);border-radius:6px;">
+                <div style="padding:8px;background:#000;border-radius:6px;">
                   <strong style="color:var(--gold)">⑤ </strong>Appuie sur <strong style="color:var(--text)">Ajouter</strong> en haut à droite — c'est fait ! 🎉
                 </div>
               </div>
@@ -548,12 +548,20 @@ select.form-input { cursor: pointer; }
             </div>
             <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:12px;">
               <div style="font-weight:600;color:var(--text);margin-bottom:6px;font-size:13px;">🤖 Android</div>
-              <ol style="font-size:13px;color:var(--text2);padding-left:18px;line-height:2;">
-                <li>Ouvre <strong style="color:var(--text)">Chrome</strong></li>
-                <li>Appuie sur les <strong style="color:var(--text)">3 points</strong> ⋮ en haut à droite</li>
-                <li>Choisis <strong style="color:var(--text)">Ajouter à l'écran d'accueil</strong></li>
-                <li>Appuie sur <strong style="color:var(--text)">Ajouter</strong></li>
-              </ol>
+              <div style="font-size:13px;color:var(--text2);line-height:1.8;">
+                <div style="margin-bottom:8px;padding:8px;background:#000;border-radius:6px;">
+                  <strong style="color:var(--gold)">① </strong>Ouvre <strong style="color:var(--text)">Chrome</strong>
+                </div>
+                <div style="margin-bottom:8px;padding:8px;background:#000;border-radius:6px;">
+                  <strong style="color:var(--gold)">② </strong>Appuie sur les <strong style="color:var(--text)">3 points</strong> ⋮ en haut à droite
+                </div>
+                <div style="margin-bottom:8px;padding:8px;background:#000;border-radius:6px;">
+                  <strong style="color:var(--gold)">③ </strong>Choisis <strong style="color:var(--text)">Ajouter à l'écran d'accueil</strong>
+                </div>
+                <div style="padding:8px;background:#000;border-radius:6px;">
+                  <strong style="color:var(--gold)">④ </strong>Appuie sur <strong style="color:var(--text)">Ajouter</strong>
+                </div>
+              </div>
               <div style="font-size:11px;color:var(--text3);margin-top:4px;">Compatible Chrome, Samsung Internet</div>
             </div>
           </div>
@@ -747,7 +755,7 @@ function initFirebase() {
         if (!state.lastRanks) state.lastRanks = {};
         if (!state.adminIds) state.adminIds = [];
         // Migration silencieuse : noms de phases + drapeaux corrompus
-        const phaseMap = {'32es':'32e de finale','16es':'16e de finale'};
+        const phaseMap = {'32es':'16e de finale','32e de finale':'16e de finale','16es':'8e de finale','16e de finale':'8e de finale','3e place':'3ème/4ème Place'};
         // Correction des drapeaux : Curaçao (🏝→🇨🇼) et Bosnie (corruption emoji)
         state.matches.forEach(m => {
           if (phaseMap[m.phase]) { m.phase = phaseMap[m.phase]; migrated = true; }
@@ -920,9 +928,9 @@ const _pendingEditValues = {};
 
 
 // ===== SCORING =====
-const PHASE_ORDER = ['Groupes','32e de finale','16e de finale','Quarts','Demies','3e place','Finale'];
+const PHASE_ORDER = ['Groupes','16e de finale','8e de finale','Quarts','Demies','3ème/4ème Place','Finale'];
 function phaseMultiplier(phase) {
-  return ['Quarts','Demies','3e place','Finale'].includes(phase) ? 2 : 1;
+  return ['Quarts','Demies','3ème/4ème Place','Finale'].includes(phase) ? 2 : 1;
 }
 function isKnockout(phase) { return phaseMultiplier(phase) > 1; }
 function calcPoints(r1, r2, p1, p2, phase) {
@@ -1012,7 +1020,7 @@ function renderMatches() {
             <label>Mon prono</label>
             <div class="prono-inputs">
               <span class="prono-saved">✓ ${myProno.s1}–${myProno.s2} ${ptsTag}</span>
-              ${canProno?`<button class="btn btn-ghost" onclick="editProno('${m.id}')">Modifier</button>`:''}
+              ${canProno?`<button class="btn btn-ghost" onclick="editProno('${m.id}')">Modifier</button><button class="btn btn-ghost" style="color:var(--red);border-color:var(--red)" onclick="resetProno('${m.id}')">✕</button>`:''}
             </div>
           </div>`;
         } else if (canProno) {
@@ -1063,9 +1071,13 @@ function renderMatches() {
       const deleteBtn = isAdmin()
         ? `<button onclick="deleteMatchById('${m.id}')" title="Supprimer ce match" style="position:absolute;top:8px;right:8px;background:none;border:none;cursor:pointer;color:var(--red);font-size:18px;line-height:1;padding:2px 5px;border-radius:4px;opacity:.7;transition:opacity .15s" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.7">✕</button>`
         : '';
+      const x2Badge = isKnockout(m.phase)
+        ? `<div style="text-align:center;margin-bottom:6px"><span style="background:var(--gold-dim);border:1px solid var(--gold);color:var(--gold);font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px;letter-spacing:1px">⚡ SCORE ×2 !</span></div>`
+        : '';
       html += `<div class="match-card ${m.status}" id="match_${m.id}">
         ${deleteBtn}
         <div class="match-header"><span class="match-info">${m.phase}</span>${statusHtml}</div>
+        ${x2Badge}
         <div class="match-teams">
           <div class="team-block"><span class="team-flag">${m.flag1||'🏳'}</span><div class="team-name">${m.team1}</div></div>
           ${scoreHtml}
@@ -1098,6 +1110,14 @@ function editProno(matchId) {
   if (existing) _pendingEditValues[matchId] = { s1: existing.s1, s2: existing.s2 };
   if (state.pronos[matchId]) delete state.pronos[matchId][myId];
   save(); renderMatches();
+}
+function resetProno(matchId) {
+  if (!confirm('Supprimer ton prono pour ce match ?')) return;
+  const myId = state.currentPlayer;
+  delete _pendingEditValues[matchId];
+  if (state.pronos[matchId]) delete state.pronos[matchId][myId];
+  save(); renderMatches(); renderRanking();
+  toast('🗑 Prono supprimé');
 }
 
 // ===== RANKING RENDER =====
@@ -1767,11 +1787,11 @@ function renderAdminPanel() {
       <div class="form-group"><label>Phase</label>
         <select class="form-input" id="mPhase">
           <option value="Groupes">Phase de groupes</option>
-          <option value="32e de finale">32e de finale</option>
           <option value="16e de finale">16e de finale</option>
+          <option value="8e de finale">8e de finale</option>
           <option value="Quarts">Quarts de finale</option>
           <option value="Demies">Demi-finales</option>
-          <option value="3e place">Match 3e place</option>
+          <option value="3ème/4ème Place">3ème/4ème Place</option>
           <option value="Finale">Finale</option>
         </select>
       </div>
@@ -2034,7 +2054,7 @@ function loadSampleData() {
     {id:'m9',team1:'1er Gr.A',team2:'2e Gr.B',flag1:'⚽',flag2:'⚽',date:d(10,21),phase:'Huitièmes',status:'upcoming',score1:null,score2:null},
     {id:'m10',team1:'QF W1',team2:'QF W2',flag1:'⚽',flag2:'⚽',date:d(16,21),phase:'Quarts',status:'upcoming',score1:null,score2:null},
     {id:'m11',team1:'SF W1',team2:'SF W2',flag1:'⚽',flag2:'⚽',date:d(21,21),phase:'Demies',status:'upcoming',score1:null,score2:null},
-    {id:'m12',team1:'Perdant SF1',team2:'Perdant SF2',flag1:'⚽',flag2:'⚽',date:d(24,18),phase:'3e place',status:'upcoming',score1:null,score2:null},
+    {id:'m12',team1:'Perdant SF1',team2:'Perdant SF2',flag1:'⚽',flag2:'⚽',date:d(24,18),phase:'3ème/4ème Place',status:'upcoming',score1:null,score2:null},
     {id:'m13',team1:'Finaliste 1',team2:'Finaliste 2',flag1:'🏆',flag2:'🏆',date:d(25,21),phase:'Finale',status:'upcoming',score1:null,score2:null},
   ];
   state.pronos = {
@@ -2137,22 +2157,22 @@ const OFFICIAL_MATCHES = [
   {id:'o70',matchNum:70,team1:'Jordanie',team2:'Argentine',flag1:'🇯🇴',flag2:'🇦🇷',date:'2026-06-27T22:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
   {id:'o71',matchNum:71,team1:'Colombie',team2:'Portugal',flag1:'🇨🇴',flag2:'🇵🇹',date:'2026-06-27T19:30:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
   {id:'o72',matchNum:72,team1:'Congo DR',team2:'Ouzbékistan',flag1:'🇨🇩',flag2:'🇺🇿',date:'2026-06-27T19:30:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
-  {id:'o73',matchNum:73,team1:'2A',team2:'2B',flag1:'⚽',flag2:'⚽',date:'2026-06-28T15:00:00-04:00',phase:'32e de finale',status:'upcoming',score1:null,score2:null},
-  {id:'o74',matchNum:74,team1:'1E',team2:'3ABCDF',flag1:'⚽',flag2:'⚽',date:'2026-06-29T16:30:00-04:00',phase:'32e de finale',status:'upcoming',score1:null,score2:null},
-  {id:'o75',matchNum:75,team1:'1F',team2:'2C',flag1:'⚽',flag2:'⚽',date:'2026-06-29T21:00:00-04:00',phase:'32e de finale',status:'upcoming',score1:null,score2:null},
-  {id:'o76',matchNum:76,team1:'1C',team2:'2F',flag1:'⚽',flag2:'⚽',date:'2026-06-29T13:00:00-04:00',phase:'32e de finale',status:'upcoming',score1:null,score2:null},
-  {id:'o77',matchNum:77,team1:'1I',team2:'3CDFGH',flag1:'⚽',flag2:'⚽',date:'2026-06-30T17:00:00-04:00',phase:'32e de finale',status:'upcoming',score1:null,score2:null},
-  {id:'o78',matchNum:78,team1:'2E',team2:'2I',flag1:'⚽',flag2:'⚽',date:'2026-06-30T13:00:00-04:00',phase:'32e de finale',status:'upcoming',score1:null,score2:null},
-  {id:'o79',matchNum:79,team1:'1A',team2:'3CEFHI',flag1:'⚽',flag2:'⚽',date:'2026-06-30T21:00:00-04:00',phase:'32e de finale',status:'upcoming',score1:null,score2:null},
-  {id:'o80',matchNum:80,team1:'1L',team2:'3EHIJK',flag1:'⚽',flag2:'⚽',date:'2026-07-01T12:00:00-04:00',phase:'32e de finale',status:'upcoming',score1:null,score2:null},
-  {id:'o81',matchNum:81,team1:'1D',team2:'3BEFIJ',flag1:'⚽',flag2:'⚽',date:'2026-07-01T20:00:00-04:00',phase:'32e de finale',status:'upcoming',score1:null,score2:null},
-  {id:'o82',matchNum:82,team1:'1G',team2:'3AEHIJ',flag1:'⚽',flag2:'⚽',date:'2026-07-01T16:00:00-04:00',phase:'32e de finale',status:'upcoming',score1:null,score2:null},
-  {id:'o83',matchNum:83,team1:'2K',team2:'2L',flag1:'⚽',flag2:'⚽',date:'2026-07-02T19:00:00-04:00',phase:'32e de finale',status:'upcoming',score1:null,score2:null},
-  {id:'o84',matchNum:84,team1:'1H',team2:'2J',flag1:'⚽',flag2:'⚽',date:'2026-07-02T15:00:00-04:00',phase:'32e de finale',status:'upcoming',score1:null,score2:null},
-  {id:'o85',matchNum:85,team1:'1B',team2:'3EFGIJ',flag1:'⚽',flag2:'⚽',date:'2026-07-02T23:00:00-04:00',phase:'32e de finale',status:'upcoming',score1:null,score2:null},
-  {id:'o86',matchNum:86,team1:'1J',team2:'2H',flag1:'⚽',flag2:'⚽',date:'2026-07-03T18:00:00-04:00',phase:'32e de finale',status:'upcoming',score1:null,score2:null},
-  {id:'o87',matchNum:87,team1:'1K',team2:'3DEIJL',flag1:'⚽',flag2:'⚽',date:'2026-07-03T21:30:00-04:00',phase:'32e de finale',status:'upcoming',score1:null,score2:null},
-  {id:'o88',matchNum:88,team1:'2D',team2:'2G',flag1:'⚽',flag2:'⚽',date:'2026-07-03T14:00:00-04:00',phase:'32e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o73',matchNum:73,team1:'2A',team2:'2B',flag1:'⚽',flag2:'⚽',date:'2026-06-28T15:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o74',matchNum:74,team1:'1E',team2:'3ABCDF',flag1:'⚽',flag2:'⚽',date:'2026-06-29T16:30:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o75',matchNum:75,team1:'1F',team2:'2C',flag1:'⚽',flag2:'⚽',date:'2026-06-29T21:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o76',matchNum:76,team1:'1C',team2:'2F',flag1:'⚽',flag2:'⚽',date:'2026-06-29T13:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o77',matchNum:77,team1:'1I',team2:'3CDFGH',flag1:'⚽',flag2:'⚽',date:'2026-06-30T17:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o78',matchNum:78,team1:'2E',team2:'2I',flag1:'⚽',flag2:'⚽',date:'2026-06-30T13:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o79',matchNum:79,team1:'1A',team2:'3CEFHI',flag1:'⚽',flag2:'⚽',date:'2026-06-30T21:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o80',matchNum:80,team1:'1L',team2:'3EHIJK',flag1:'⚽',flag2:'⚽',date:'2026-07-01T12:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o81',matchNum:81,team1:'1D',team2:'3BEFIJ',flag1:'⚽',flag2:'⚽',date:'2026-07-01T20:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o82',matchNum:82,team1:'1G',team2:'3AEHIJ',flag1:'⚽',flag2:'⚽',date:'2026-07-01T16:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o83',matchNum:83,team1:'2K',team2:'2L',flag1:'⚽',flag2:'⚽',date:'2026-07-02T19:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o84',matchNum:84,team1:'1H',team2:'2J',flag1:'⚽',flag2:'⚽',date:'2026-07-02T15:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o85',matchNum:85,team1:'1B',team2:'3EFGIJ',flag1:'⚽',flag2:'⚽',date:'2026-07-02T23:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o86',matchNum:86,team1:'1J',team2:'2H',flag1:'⚽',flag2:'⚽',date:'2026-07-03T18:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o87',matchNum:87,team1:'1K',team2:'3DEIJL',flag1:'⚽',flag2:'⚽',date:'2026-07-03T21:30:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
+  {id:'o88',matchNum:88,team1:'2D',team2:'2G',flag1:'⚽',flag2:'⚽',date:'2026-07-03T14:00:00-04:00',phase:'8e de finale',status:'upcoming',score1:null,score2:null},
   {id:'o89',matchNum:89,team1:'W74',team2:'W77',flag1:'⚽',flag2:'⚽',date:'2026-07-04T17:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
   {id:'o90',matchNum:90,team1:'W73',team2:'W75',flag1:'⚽',flag2:'⚽',date:'2026-07-04T13:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
   {id:'o91',matchNum:91,team1:'W76',team2:'W78',flag1:'⚽',flag2:'⚽',date:'2026-07-05T16:00:00-04:00',phase:'16e de finale',status:'upcoming',score1:null,score2:null},
@@ -2167,7 +2187,7 @@ const OFFICIAL_MATCHES = [
   {id:'o100',matchNum:100,team1:'W95',team2:'W96',flag1:'⚽',flag2:'⚽',date:'2026-07-11T21:00:00-04:00',phase:'Quarts',status:'upcoming',score1:null,score2:null},
   {id:'o101',matchNum:101,team1:'W97',team2:'W98',flag1:'⚽',flag2:'⚽',date:'2026-07-14T15:00:00-04:00',phase:'Demies',status:'upcoming',score1:null,score2:null},
   {id:'o102',matchNum:102,team1:'W99',team2:'W100',flag1:'⚽',flag2:'⚽',date:'2026-07-15T15:00:00-04:00',phase:'Demies',status:'upcoming',score1:null,score2:null},
-  {id:'o103',matchNum:103,team1:'Perdant SF1',team2:'Perdant SF2',flag1:'⚽',flag2:'⚽',date:'2026-07-18T17:00:00-04:00',phase:'3e place',status:'upcoming',score1:null,score2:null},
+  {id:'o103',matchNum:103,team1:'Perdant SF1',team2:'Perdant SF2',flag1:'⚽',flag2:'⚽',date:'2026-07-18T17:00:00-04:00',phase:'3ème/4ème Place',status:'upcoming',score1:null,score2:null},
   {id:'o104',matchNum:104,team1:'Finaliste 1',team2:'Finaliste 2',flag1:'🏆',flag2:'🏆',date:'2026-07-19T15:00:00-04:00',phase:'Finale',status:'upcoming',score1:null,score2:null},
 ];
 
