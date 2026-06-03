@@ -908,7 +908,8 @@ let state = {
   notifications: [],
   lastRanks: {},
   familyPhoto: null,
-  adminIds: [],  // IDs des administrateurs
+  adminIds: [],
+  forceOnboarding: {},
 };
 
 // ===== STORAGE =====
@@ -1727,11 +1728,23 @@ function removePlayer(id) {
 function renderPlayersList() {
   const c = document.getElementById('playersList');
   if (!state.players.length) { c.innerHTML = '<p style="color:var(--text3);font-size:12px">Aucun joueur</p>'; return; }
-  c.innerHTML = state.players.map(p =>
-    `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+  c.innerHTML = state.players.map(p => {
+    const pending = state.forceOnboarding && state.forceOnboarding[p.id];
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
       <span style="font-size:13px;font-weight:500">${playerFullName(p)}</span>
-      <button onclick="removePlayer('${p.id}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px;padding:2px 6px">×</button>
-    </div>`).join('');
+      <div style="display:flex;gap:6px;align-items:center">
+        <button onclick="resetOnboarding('${p.id}')" title="Réinitialiser le didacticiel" style="background:none;border:1px solid var(--border);color:${pending?'var(--gold)':'var(--text3)'};cursor:pointer;font-size:11px;padding:2px 7px;border-radius:6px;white-space:nowrap">${pending?'⏳ En attente':'🔄 Tuto'}</button>
+        <button onclick="removePlayer('${p.id}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px;padding:2px 6px">×</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function resetOnboarding(playerId) {
+  if (!state.forceOnboarding) state.forceOnboarding = {};
+  state.forceOnboarding[playerId] = Date.now();
+  save();
+  renderPlayersList();
+  toast('🔄 Didacticiel réinitialisé — actif à la prochaine ouverture');
 }
 function renderWhatsappLinks() {
   const c = document.getElementById('whatsappLinks');
@@ -2317,6 +2330,13 @@ const _OB_MAX = 4;
 function maybeShowOnboarding() {
   const myId = state.currentPlayer;
   if (!myId) return;
+  // Si l'admin a demandé une réinitialisation → on efface le localStorage et on supprime le flag
+  if (state.forceOnboarding && state.forceOnboarding[myId]) {
+    localStorage.removeItem('ob_done_' + myId);
+    localStorage.removeItem('ob_installed_' + myId);
+    delete state.forceOnboarding[myId];
+    save();
+  }
   if (localStorage.getItem('ob_done_' + myId)) return;
   const isInstalled = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
   if (isInstalled) localStorage.setItem('ob_installed_' + myId, '1');
