@@ -893,6 +893,8 @@ function initFirebase() {
         renderAll(); loadFamilyPhoto();
       }
       maybeShowOnboarding(); // toujours vérifier, même si loginScreen est affiché
+      scheduleNotifications(); // replanifie à chaque update Firebase (nouveaux matchs inclus)
+      scheduleFranceNotifs();
     });
     console.log('✅ Firebase connecté');
   } catch(e) {
