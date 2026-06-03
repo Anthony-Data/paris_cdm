@@ -1044,6 +1044,20 @@ function renderMatches() {
       } else if (!canSeeAll && Object.keys(pronos).length>0) {
         allPronosHtml = `<div class="pronos-reveal"><div class="pronos-reveal-title">🔒 ${Object.keys(pronos).length} prono(s) — révélés au coup d'envoi</div></div>`;
       }
+      if (isAdmin() && state.players.length > 0) {
+        const done    = state.players.filter(p => pronos[p.id]);
+        const missing = state.players.filter(p => !pronos[p.id]);
+        const doneHtml = done.map(p =>
+          `<span class="prono-tag exact" style="opacity:.85">✓ ${p.prenom}</span>`
+        ).join('');
+        const missHtml = missing.map(p =>
+          `<span class="prono-tag wrong" style="opacity:.7">✗ ${p.prenom}</span>`
+        ).join('');
+        allPronosHtml += `<div class="pronos-reveal" style="margin-top:6px;border-top:1px solid var(--border);padding-top:8px">
+          <div class="pronos-reveal-title">👑 Suivi admin — ${done.length}/${state.players.length} pronos</div>
+          <div class="prono-tags">${doneHtml}${missHtml}</div>
+        </div>`;
+      }
       const deleteBtn = isAdmin()
         ? `<button onclick="deleteMatchById('${m.id}')" title="Supprimer ce match" style="position:absolute;top:8px;right:8px;background:none;border:none;cursor:pointer;color:var(--red);font-size:18px;line-height:1;padding:2px 5px;border-radius:4px;opacity:.7;transition:opacity .15s" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.7">✕</button>`
         : '';
