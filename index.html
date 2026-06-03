@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="CdM 2026">
 <meta name="theme-color" content="#0a0f0a">
+<link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="logo.png">
 <link rel="icon" type="image/png" href="logo.png">
 <title>CdM 2026 — Paris en Famille</title>
@@ -621,26 +622,6 @@ select.form-input { cursor: pointer; }
 <div id="toast"></div>
 
 <script>
-// ===== PWA MANIFEST (inline) =====
-const manifestData = {
-  name: "CdM 2026 — Paris Famille",
-  short_name: "CdM 2026",
-  start_url: window.location.href.split('?')[0],
-  display: "standalone",
-  background_color: "#080808",
-  theme_color: "#080808",
-  icons: [
-    { src: "logo.png", sizes: "192x192", type: "image/png" },
-    { src: "logo.png", sizes: "512x512", type: "image/png" },
-    { src: "logo.png", sizes: "any", type: "image/png", purpose: "maskable any" }
-  ]
-};
-const blob = new Blob([JSON.stringify(manifestData)], {type:'application/json'});
-const manifestUrl = URL.createObjectURL(blob);
-const link = document.createElement('link');
-link.rel = 'manifest'; link.href = manifestUrl;
-document.head.appendChild(link);
-
 // ===== CONFIG =====
 const ADMIN_CODE = 'cdm2026admin';
 

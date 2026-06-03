@@ -1,0 +1,13 @@
+{
+  "name": "CdM 2026 — Paris Famille",
+  "short_name": "CdM 2026",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#080808",
+  "theme_color": "#080808",
+  "icons": [
+    { "src": "logo.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "logo.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "logo.png", "sizes": "any", "type": "image/png", "purpose": "maskable any" }
+  ]
+}
