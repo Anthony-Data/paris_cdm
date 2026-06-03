@@ -1,5 +1,5 @@
-const CACHE = 'cdm2026-v2';
-const ASSETS = ['./index.html'];
+const CACHE = 'cdm2026-v3';
+const ASSETS = ['./index.html', './logo.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
@@ -28,8 +28,8 @@ self.addEventListener('push', e => {
   const title = data.title || '⚽ CdM 2026';
   const options = {
     body: data.body || 'Rappel de match — donne ton prono !',
-    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⚽</text></svg>',
-    badge: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⚽</text></svg>',
+    icon: './logo.png',
+    badge: './logo.png',
     tag: data.tag || 'cdm-match',
     vibrate: [300, 150, 300],
     requireInteraction: true,
@@ -58,7 +58,7 @@ self.addEventListener('message', e => {
     const { title, body, tag } = e.data;
     self.registration.showNotification(title, {
       body,
-      icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⚽</text></svg>',
+      icon: './logo.png',
       tag: tag || 'cdm',
       vibrate: [300, 150, 300],
       requireInteraction: true,
