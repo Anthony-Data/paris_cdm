@@ -1569,11 +1569,6 @@ async function betaTestNotif() {
   state.matches.push(testMatch);
   save(); renderMatches();
 
-  // Le vrai système prend le relais :
-  // - scheduleNotifications() : setTimeout précis à 2 min (si app reste ouverte)
-  // - cron Vercel : push serveur quand le match passe à 1h (app fermée/verrouillée)
-  scheduleNotifications();
-
   // Nettoyage automatique après 15 min
   setTimeout(() => {
     if (_betaMatchId === testId) {
