@@ -888,17 +888,9 @@ function initFirebase() {
 
       _appReady = true;
       if (migrated) save();
-      // Si le joueur courant a été supprimé+recréé (ID introuvable) → déconnexion forcée
-      if (state.currentPlayer && !state.players.find(p => p.id === state.currentPlayer)) {
-        localStorage.removeItem('cdm2026_player');
-        state.currentPlayer = null;
-        document.getElementById('mainApp').style.display = 'none';
-        document.getElementById('loginScreen').style.display = 'flex';
-        toast('🔄 Ton compte a été réinitialisé — reconnecte-toi !');
-        return;
-      }
       if (document.getElementById('mainApp').style.display !== 'none') {
         renderAll(); loadFamilyPhoto();
+        maybeShowOnboarding(); // déclenche si admin a remis onboardingDone=false
       }
     });
     console.log('✅ Firebase connecté');
@@ -1749,18 +1741,10 @@ function renderPlayersList() {
 function resetPlayer(playerId) {
   const p = state.players.find(x => x.id === playerId);
   if (!p) return;
-  if (!confirm(`Supprimer et recréer "${playerFullName(p)}" ?\nSes pronos sont conservés.`)) return;
-  const prenom = p.prenom, nom = p.nom;
-  // Supprimer
-  state.players = state.players.filter(x => x.id !== playerId);
-  delete state.pronos[playerId];
-  state.adminIds = (state.adminIds || []).filter(id => id !== playerId);
-  // Recréer avec nouvel ID → déclenche le didacticiel à la prochaine connexion
-  const newId = 'p' + Date.now();
-  state.players.push({ id: newId, prenom, nom });
-  // Mettre à jour le lien de connexion (slug identique)
-  save(); renderPlayersList(); renderWhatsappLinks(); renderRanking();
-  toast(`🔄 ${prenom} recréé — le didacticiel s'affichera à sa prochaine connexion`);
+  p.onboardingDone = false;
+  save();
+  renderPlayersList();
+  toast(`🔄 Didacticiel réinitialisé pour ${p.prenom} — actif immédiatement sur tous ses appareils`);
 }
 function renderWhatsappLinks() {
   const c = document.getElementById('whatsappLinks');
@@ -2346,14 +2330,13 @@ const _OB_MAX = 4;
 function maybeShowOnboarding() {
   const myId = state.currentPlayer;
   if (!myId) return;
-  if (document.getElementById('onboardingOverlay').style.display !== 'none') return; // déjà affiché
-  if (localStorage.getItem('ob_done_' + myId)) return;
-  const isInstalled = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-  if (isInstalled) localStorage.setItem('ob_installed_' + myId, '1');
-  document.querySelectorAll('.ob-apple-logo').forEach(el => { el.innerHTML = _isIOS ? '&#xF8FF;' : '🍎'; });
+  if (document.getElementById('onboardingOverlay').style.display !== 'none') return;
   const p = getCurrentPlayer();
+  if (!p) return;
+  if (p.onboardingDone) return; // flag Firebase — vrai sur tous les appareils
+  document.querySelectorAll('.ob-apple-logo').forEach(el => { el.innerHTML = _isIOS ? '&#xF8FF;' : '🍎'; });
   const nameEl = document.getElementById('obWelcomeName');
-  if (nameEl && p) nameEl.textContent = p.prenom.toUpperCase();
+  if (nameEl) nameEl.textContent = p.prenom.toUpperCase();
   const ov = document.getElementById('onboardingOverlay');
   ov.style.display = 'flex';
   document.body.style.overflow = 'hidden';
@@ -2450,8 +2433,8 @@ async function obRequestNotif() {
 }
 
 function obFinish() {
-  const myId = state.currentPlayer;
-  localStorage.setItem('ob_done_' + myId, '1');
+  const p = getCurrentPlayer();
+  if (p) { p.onboardingDone = true; save(); }
   document.getElementById('onboardingOverlay').style.display = 'none';
   document.body.style.overflow = '';
 }
