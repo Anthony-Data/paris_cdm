@@ -442,18 +442,6 @@ select.form-input { cursor: pointer; }
 <!-- ===== ONBOARDING ===== -->
 <div id="onboardingOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:9999;overflow:hidden;flex-direction:column;">
 
-  <!-- Header fixe : ← Retour à gauche, dots au centre -->
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 8px;flex-shrink:0;">
-    <button id="obBackBtn" onclick="obBack()" style="background:none;border:none;color:var(--text3);font-size:14px;cursor:pointer;padding:6px 10px;border-radius:8px;transition:color .2s;visibility:hidden">← Retour</button>
-    <div style="display:flex;gap:8px;" id="obDots">
-      <div class="ob-dot active" id="dot1"></div>
-      <div class="ob-dot" id="dot2"></div>
-      <div class="ob-dot" id="dot3"></div>
-      <div class="ob-dot" id="dot4"></div>
-    </div>
-    <div style="width:70px"></div><!-- équilibre le header -->
-  </div>
-
   <!-- Carousel track : 4 slides côte à côte, chacune 100vw -->
   <div id="obTrack" style="display:flex;flex:1;will-change:transform;transition:transform .35s cubic-bezier(.4,0,.2,1);">
 
@@ -538,6 +526,18 @@ select.form-input { cursor: pointer; }
     </div>
 
   </div><!-- /obTrack -->
+
+  <!-- Barre du bas : dots au centre, ← Retour à gauche -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 16px 32px;flex-shrink:0;">
+    <button id="obBackBtn" onclick="obBack()" style="background:none;border:none;color:var(--text3);font-size:14px;cursor:pointer;padding:8px 12px;border-radius:8px;visibility:hidden">← Retour</button>
+    <div style="display:flex;gap:8px;" id="obDots">
+      <div class="ob-dot active" id="dot1"></div>
+      <div class="ob-dot" id="dot2"></div>
+      <div class="ob-dot" id="dot3"></div>
+      <div class="ob-dot" id="dot4"></div>
+    </div>
+    <div style="width:70px"></div>
+  </div>
 </div>
 
 <!-- ===== MAIN APP ===== -->
