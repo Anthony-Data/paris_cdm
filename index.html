@@ -450,7 +450,7 @@ select.form-input { cursor: pointer; }
       <div style="max-width:420px;margin:0 auto;">
         <div style="text-align:center;padding:20px 0 16px">
           <img src="logo.png" style="width:90px;border-radius:18px;margin-bottom:14px">
-          <div style="font-family:var(--font-display);font-size:28px;color:var(--gold);letter-spacing:2px">BIENVENUE !</div>
+          <div style="font-family:var(--font-display);font-size:28px;color:var(--gold);letter-spacing:2px">BIENVENUE <span id="obWelcomeName"></span> !</div>
           <div style="font-size:15px;color:var(--text2);margin-top:10px;line-height:1.6">Tu rejoins le pronostic<br>de la <strong style="color:var(--text)">Famille Dubois</strong> ⚽</div>
         </div>
         <div style="background:var(--surface);border-radius:var(--radius);padding:16px;margin-bottom:16px;font-size:13px;color:var(--text2);line-height:1.8">
@@ -2321,6 +2321,9 @@ function maybeShowOnboarding() {
   const isInstalled = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
   if (isInstalled) localStorage.setItem('ob_installed_' + myId, '1');
   document.querySelectorAll('.ob-apple-logo').forEach(el => { el.innerHTML = _isIOS ? '&#xF8FF;' : '🍎'; });
+  const p = getCurrentPlayer();
+  const nameEl = document.getElementById('obWelcomeName');
+  if (nameEl && p) nameEl.textContent = p.prenom.toUpperCase();
   const ov = document.getElementById('onboardingOverlay');
   ov.style.display = 'flex';
   document.body.style.overflow = 'hidden';
