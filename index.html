@@ -751,6 +751,10 @@ function initFirebase() {
         if (!state.notifications) state.notifications = [];
         if (!state.lastRanks) state.lastRanks = {};
         if (!state.adminIds) state.adminIds = [];
+        // Migration silencieuse des anciens noms de phases
+        const phaseMap = {'32es':'32e de finale','16es':'16e de finale'};
+        let migrated = false;
+        state.matches.forEach(m => { if (phaseMap[m.phase]) { m.phase = phaseMap[m.phase]; migrated = true; } });
         localStorage.setItem('cdm2026v2', JSON.stringify(data));
       } else if (!_appReady) {
         // Firebase vide (1ère connexion) → charger le calendrier officiel et sauver
@@ -763,6 +767,7 @@ function initFirebase() {
       }
 
       _appReady = true;
+      if (migrated) save(); // Écrit la migration dans Firebase
       if (document.getElementById('mainApp').style.display !== 'none') {
         renderAll(); loadFamilyPhoto();
       }
@@ -968,14 +973,16 @@ function renderMatches() {
     container.innerHTML = `<div class="empty"><div class="empty-icon">⚽</div><p>Aucun match</p></div>`;
     return;
   }
-  const byPhase = {};
-  matches.forEach(m => { if(!byPhase[m.phase]) byPhase[m.phase]=[]; byPhase[m.phase].push(m); });
-  const sortedPhases = Object.keys(byPhase).sort((a,b) => PHASE_ORDER.indexOf(a)-PHASE_ORDER.indexOf(b));
+  // Tri chronologique déjà appliqué — badge de phase à chaque changement
   let html = '';
-  sortedPhases.forEach(phase => {
-    const x = phaseMultiplier(phase);
-    html += `<div class="phase-badge${x>1?'':' normal'}">${phase}</div>`;
-    byPhase[phase].forEach(m => {
+  let lastPhase = null;
+  matches.forEach(m => {
+    if (m.phase !== lastPhase) {
+      const x = phaseMultiplier(m.phase);
+      html += `<div class="phase-badge${x>1?'':' normal'}">${m.phase}</div>`;
+      lastPhase = m.phase;
+    }
+    {
       const dt = new Date(m.date);
       const dateStr = dt.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
       const pronos = state.pronos[m.id] || {};
