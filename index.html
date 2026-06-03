@@ -1156,6 +1156,118 @@ function renderMiniRank(ranking) {
   }).join('');
 }
 
+// ===== LIVE SCORES =====
+// Compétition à suivre (WC = Coupe du Monde, CL = Champions League pour les tests)
+let LIVE_COMPETITION = 'WC';
+let _liveInterval = null;
+let _simInterval  = null;
+
+// Lance le polling toutes les 60s. Appelé au démarrage si des matchs sont "live".
+function startLivePolling() {
+  if (_liveInterval) return;
+  fetchLiveScores();
+  _liveInterval = setInterval(fetchLiveScores, 60_000);
+  console.log('🔴 Live polling démarré (60s)');
+}
+
+function stopLivePolling() {
+  if (!_liveInterval) return;
+  clearInterval(_liveInterval);
+  _liveInterval = null;
+  console.log('⏹ Live polling arrêté');
+}
+
+async function fetchLiveScores() {
+  try {
+    const res = await fetch(`/api/live?competition=${LIVE_COMPETITION}`);
+    if (!res.ok) { console.warn('Live API error', res.status); return; }
+    const { matches: liveMatches } = await res.json();
+    if (!liveMatches || liveMatches.length === 0) return;
+
+    let changed = false;
+    for (const live of liveMatches) {
+      // Cherche le match correspondant dans notre état par nom d'équipe (partiel, insensible à la casse)
+      const local = state.matches.find(m =>
+        m.team1.toLowerCase().includes(live.team1.toLowerCase().substring(0, 4)) &&
+        m.team2.toLowerCase().includes(live.team2.toLowerCase().substring(0, 4))
+      );
+      if (!local) continue;
+
+      const newStatus = live.status === 'halftime' ? 'live' : live.status;
+      if (local.score1 !== live.score1 || local.score2 !== live.score2 || local.status !== newStatus) {
+        local.score1  = live.score1;
+        local.score2  = live.score2;
+        local.status  = newStatus;
+        if (live.minute) local.minute = live.minute;
+        changed = true;
+        console.log(`⚽ Score mis à jour : ${local.team1} ${live.score1}-${live.score2} ${local.team2}`);
+      }
+    }
+    if (changed) { save(); renderMatches(); renderRanking(); }
+  } catch(e) {
+    console.warn('fetchLiveScores error:', e);
+  }
+}
+
+// ── Simulation live (pour tester avant le 11 juin) ──────────────────────────
+// Simule un match qui commence, marque des buts toutes les 30s, puis se termine.
+function startSimulation(matchId) {
+  const m = state.matches.find(x => x.id === matchId);
+  if (!m) { toast('❌ Match introuvable'); return; }
+  if (_simInterval) { clearInterval(_simInterval); }
+
+  m.status = 'live'; m.score1 = 0; m.score2 = 0;
+  save(); renderMatches();
+  toast(`🔴 Simulation démarrée : ${m.team1} vs ${m.team2}`);
+
+  const events = [
+    { delay: 10, action: () => { m.score1++; } },           // But équipe 1 à ~10s
+    { delay: 20, action: () => { m.score2++; } },           // But équipe 2 à ~20s
+    { delay: 30, action: () => { m.score1++; } },           // But équipe 1 à ~30s
+    { delay: 50, action: () => { m.score2++; m.score2++; } },// 2 buts équipe 2 à ~50s
+    { delay: 60, action: () => { m.status = 'finished'; stopSim(); } }, // Fin à ~60s
+  ];
+
+  let tick = 0;
+  _simInterval = setInterval(() => {
+    tick++;
+    const ev = events.find(e => e.delay === tick);
+    if (ev) {
+      ev.action();
+      save(); renderMatches(); renderRanking();
+      if (m.status !== 'finished') toast(`⚽ But ! ${m.team1} ${m.score1}–${m.score2} ${m.team2}`);
+      else toast(`🏁 Fin de simulation : ${m.team1} ${m.score1}–${m.score2} ${m.team2}`);
+    }
+  }, 1000); // 1 tick = 1 seconde (60s de simulation = ~1 mi-temps accélérée)
+}
+
+function stopSim() {
+  if (_simInterval) { clearInterval(_simInterval); _simInterval = null; }
+}
+
+function populateSimMatchSelect() {
+  const sel = document.getElementById('simMatchSelect');
+  if (!sel) return;
+  sel.innerHTML = state.matches.map(m =>
+    `<option value="${m.id}">${m.flag1||''} ${m.team1} vs ${m.team2} ${m.flag2||''}</option>`
+  ).join('') || '<option>Aucun match</option>';
+}
+
+function updateLiveStatusIndicator() {
+  const el = document.getElementById('liveStatus');
+  if (!el) return;
+  el.textContent = _liveInterval
+    ? '🔴 Polling actif — mise à jour toutes les 60s'
+    : '⏹ Polling inactif';
+  el.style.color = _liveInterval ? 'var(--green)' : 'var(--text3)';
+}
+
+// Démarre le polling si un match est déjà "live" au chargement de la page
+function checkAndStartLivePolling() {
+  if (state.matches.some(m => m.status === 'live')) startLivePolling();
+  else stopLivePolling();
+}
+
 // ===== NOTIFICATIONS =====
 async function requestNotifPermission() {
   if (!('Notification' in window)) { toast('❌ Non supporté sur ce navigateur'); return; }
@@ -1660,6 +1772,36 @@ function renderAdminPanel() {
       <button class="btn btn-danger" onclick="deleteMatch()" style="width:100%;margin-top:6px">🗑 Supprimer ce match</button>
     </div>
     <div class="admin-card">
+      <h3>🔴 Scores en direct</h3>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:10px;">
+        Connecté à football-data.org — mise à jour toutes les 60s.
+      </p>
+      <div class="form-group">
+        <label>Compétition à suivre</label>
+        <select class="form-input" id="liveCompSelect" onchange="LIVE_COMPETITION=this.value">
+          <option value="WC">🏆 Coupe du Monde 2026</option>
+          <option value="CL">⭐ Champions League (test)</option>
+          <option value="PL">🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League (test)</option>
+          <option value="FL1">🇫🇷 Ligue 1 (test)</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:10px;">
+        <button class="btn btn-primary" style="flex:1" onclick="startLivePolling();toast('🔴 Polling live démarré')">▶ Démarrer</button>
+        <button class="btn" style="flex:1;background:var(--card2)" onclick="stopLivePolling();toast('⏹ Polling arrêté')">⏹ Arrêter</button>
+      </div>
+      <div id="liveStatus" style="font-size:12px;color:var(--text3);margin-bottom:12px;">⏹ Polling inactif</div>
+      <hr style="border-color:var(--border);margin:10px 0">
+      <p style="font-size:12px;color:var(--gold);margin-bottom:8px;font-weight:600">🧪 Mode simulation (test avant le 11 juin)</p>
+      <div class="form-group">
+        <label>Match à simuler</label>
+        <select class="form-input" id="simMatchSelect"></select>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-primary" style="flex:1" onclick="startSimulation(document.getElementById('simMatchSelect').value)">▶ Lancer sim.</button>
+        <button class="btn btn-danger" style="flex:1" onclick="stopSim();const m=state.matches.find(x=>x.id===document.getElementById('simMatchSelect').value);if(m){m.status='upcoming';m.score1=null;m.score2=null;save();renderMatches();}toast('⏹ Simulation arrêtée')">⏹ Stopper</button>
+      </div>
+    </div>
+    <div class="admin-card">
       <h3>Photo de famille</h3>
       <p style="font-size:12px;color:var(--text3);margin-bottom:10px;">Seuls les admins peuvent changer la photo.</p>
       <div id="adminPhotoControls"></div>
@@ -1679,6 +1821,8 @@ function renderAdminPanel() {
   renderPlayersList(); populateUpdateMatchSelect(); renderWhatsappLinks();
   renderAdminPhotoControls();
   renderAdminsList();
+  populateSimMatchSelect();
+  updateLiveStatusIndicator();
 }
 function renderAdminsList() {
   const c = document.getElementById('adminsList');
@@ -1990,6 +2134,7 @@ document.getElementById('loginNom').addEventListener('keydown', e => { if (e.key
 // ===== INIT =====
 initFirebase();
 load();
+checkAndStartLivePolling();
 const autoLogged = checkUrlLogin();
 if (autoLogged || state.currentPlayer) {
   enterApp();
