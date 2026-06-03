@@ -292,6 +292,10 @@ header {
 .prono-saved.diff-win{ color: var(--gold); }
 .prono-saved.wrong   { color: var(--red); }
 
+/* ===== ONBOARDING ===== */
+.ob-dot { width:8px;height:8px;border-radius:50%;background:var(--border);transition:background .3s; }
+.ob-dot.active { background:var(--gold); }
+
 /* ===== PHASE BADGE ===== */
 .phase-badge { display: inline-block; font-family: var(--font-display); font-size: 13px; letter-spacing: 1px; background: var(--gold-dim); color: var(--gold); border: 1px solid rgba(255,214,0,.3); padding: 3px 12px; border-radius: 20px; margin-bottom: 10px; }
 .phase-badge.normal { background: var(--green-dim); color: var(--green); border-color: rgba(0,200,83,0.3); }
@@ -435,6 +439,94 @@ select.form-input { cursor: pointer; }
   </div>
 </div>
 
+<!-- ===== ONBOARDING ===== -->
+<div id="onboardingOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;overflow-y:auto;padding:24px 16px;">
+  <div style="max-width:420px;margin:0 auto;">
+    <!-- Step 1 : Bienvenue -->
+    <div class="ob-step" id="ob1">
+      <div style="text-align:center;padding:24px 0 16px">
+        <img src="logo.png" style="width:90px;border-radius:18px;margin-bottom:16px">
+        <div style="font-family:var(--font-display);font-size:28px;color:var(--gold);letter-spacing:2px">BIENVENUE !</div>
+        <div style="font-size:15px;color:var(--text2);margin-top:10px;line-height:1.6">Tu rejoins le pronostic<br>de la <strong style="color:var(--text)">Famille Dubois</strong> ⚽</div>
+      </div>
+      <div style="background:var(--surface);border-radius:var(--radius);padding:16px;margin-bottom:16px;font-size:13px;color:var(--text2);line-height:1.7">
+        <div style="margin-bottom:8px">🏆 Pronostique les scores de la <strong style="color:var(--text)">Coupe du Monde 2026</strong></div>
+        <div style="margin-bottom:8px">⚡ <strong style="color:var(--gold)">×2</strong> de points en quarts, demies et finale</div>
+        <div style="margin-bottom:8px">🎯 <strong style="color:#00c853">+5pts</strong> score exact · <strong style="color:#ff7800">+3pts</strong> écart · <strong style="color:var(--gold)">+2pts</strong> vainqueur · <strong style="color:var(--red)">0pt</strong> faux</div>
+        <div>📲 Avant tout : <strong style="color:var(--text)">installe l'app sur ton téléphone</strong> pour ne rien rater</div>
+      </div>
+      <button class="btn btn-primary" style="width:100%;padding:14px;font-size:16px" onclick="obNext(2)">Commencer →</button>
+    </div>
+
+    <!-- Step 2 : Installation -->
+    <div class="ob-step" id="ob2" style="display:none">
+      <div style="text-align:center;padding:16px 0 12px">
+        <div style="font-size:32px;margin-bottom:6px">📲</div>
+        <div style="font-family:var(--font-display);font-size:22px;color:var(--gold);letter-spacing:1px">INSTALLE L'APPLICATION</div>
+        <div style="font-size:13px;color:var(--text3);margin-top:6px">Obligatoire pour recevoir les notifications de match</div>
+      </div>
+      <div id="ob-install-status" style="text-align:center;padding:10px;margin-bottom:12px;border-radius:var(--radius);font-size:13px;font-weight:600;background:rgba(0,200,83,.1);color:#00c853;display:none">
+        ✅ App déjà installée !
+      </div>
+      <div style="background:var(--surface);border-radius:var(--radius);padding:14px;margin-bottom:10px;">
+        <div style="font-weight:600;color:var(--text);margin-bottom:10px;font-size:14px;">&#xF8FF; iPhone / iPad</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.8">
+          <div style="margin-bottom:6px;padding:8px;background:#000;border-radius:6px"><strong style="color:var(--gold)">① </strong>Ouvre dans <strong>Safari</strong></div>
+          <div style="margin-bottom:6px;padding:8px;background:#000;border-radius:6px"><strong style="color:var(--gold)">② </strong>Appuie sur <strong>⋯</strong> en bas à droite</div>
+          <div style="margin-bottom:6px;padding:8px;background:#000;border-radius:6px"><strong style="color:var(--gold)">③ </strong>Appuie sur <strong>Partager</strong> <svg style="vertical-align:middle" width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 2.5l-4.5 4.5h3V15h3V7h3L12 2.5z"/><path d="M5 15v5h14v-5h-2v2H7v-2H5z"/></svg></div>
+          <div style="padding:8px;background:#000;border-radius:6px"><strong style="color:var(--gold)">④ </strong>Choisis <strong>« + Sur l'écran d'accueil »</strong></div>
+        </div>
+      </div>
+      <div style="background:var(--surface);border-radius:var(--radius);padding:14px;margin-bottom:16px;">
+        <div style="font-weight:600;color:var(--text);margin-bottom:10px;font-size:14px;">🤖 Android</div>
+        <div style="font-size:13px;color:var(--text2);line-height:1.8">
+          <div style="margin-bottom:6px;padding:8px;background:#000;border-radius:6px"><strong style="color:var(--gold)">① </strong>Ouvre dans <strong>Chrome</strong></div>
+          <div style="margin-bottom:6px;padding:8px;background:#000;border-radius:6px"><strong style="color:var(--gold)">② </strong>Appuie sur <strong>⋮</strong> (3 points) en haut à droite</div>
+          <div style="padding:8px;background:#000;border-radius:6px"><strong style="color:var(--gold)">③ </strong>Choisis <strong>Ajouter à l'écran d'accueil</strong></div>
+        </div>
+      </div>
+      <button class="btn btn-primary" style="width:100%;padding:14px;font-size:15px;margin-bottom:10px" onclick="obConfirmInstall()">✅ C'est fait, j'ai installé l'app !</button>
+      <button class="btn btn-ghost" style="width:100%;font-size:12px;color:var(--text3)" onclick="obNext(3)">Passer (non recommandé)</button>
+    </div>
+
+    <!-- Step 3 : Notifications -->
+    <div class="ob-step" id="ob3" style="display:none">
+      <div style="text-align:center;padding:16px 0 12px">
+        <div style="font-size:32px;margin-bottom:6px">🔔</div>
+        <div style="font-family:var(--font-display);font-size:22px;color:var(--gold);letter-spacing:1px">ACTIVE LES NOTIFS</div>
+        <div style="font-size:13px;color:var(--text3);margin-top:6px">Reçois un rappel 1h avant chaque match</div>
+      </div>
+      <div style="background:var(--surface);border-radius:var(--radius);padding:16px;margin-bottom:16px;font-size:13px;color:var(--text2);line-height:1.7">
+        <div style="margin-bottom:8px">⏰ Rappel <strong style="color:var(--text)">1h avant</strong> chaque match si tu n'as pas encore parié</div>
+        <div style="margin-bottom:8px">🏁 Alerte quand un <strong style="color:var(--text)">score est mis à jour</strong></div>
+        <div>📊 Ton classement inclus dans chaque notification</div>
+      </div>
+      <button class="btn btn-primary" id="obNotifBtn" style="width:100%;padding:14px;font-size:15px;margin-bottom:10px" onclick="obRequestNotif()">🔔 Activer les notifications</button>
+      <button class="btn btn-ghost" style="width:100%;font-size:12px;color:var(--text3)" onclick="obNext(4)">Plus tard</button>
+    </div>
+
+    <!-- Step 4 : C'est parti -->
+    <div class="ob-step" id="ob4" style="display:none">
+      <div style="text-align:center;padding:32px 0">
+        <div style="font-size:56px;margin-bottom:12px">🏆</div>
+        <div style="font-family:var(--font-display);font-size:28px;color:var(--gold);letter-spacing:2px">C'EST PARTI !</div>
+        <div style="font-size:14px;color:var(--text2);margin-top:12px;line-height:1.7">
+          Bonne chance à toi —<br>que le meilleur pronostiqueur gagne ! 🎯
+        </div>
+      </div>
+      <button class="btn btn-primary" style="width:100%;padding:16px;font-size:17px" onclick="obFinish()">Voir les matchs ⚽</button>
+    </div>
+
+    <!-- Indicateur d'étapes -->
+    <div style="display:flex;justify-content:center;gap:8px;margin-top:20px" id="obDots">
+      <div class="ob-dot active" id="dot1"></div>
+      <div class="ob-dot" id="dot2"></div>
+      <div class="ob-dot" id="dot3"></div>
+      <div class="ob-dot" id="dot4"></div>
+    </div>
+  </div>
+</div>
+
 <!-- ===== MAIN APP ===== -->
 <div id="mainApp">
 <div id="app">
@@ -526,7 +618,7 @@ select.form-input { cursor: pointer; }
           <div id="pwaTutoContent" style="margin-top:10px;">
             <div id="pwaStatusLine" style="font-size:13px;margin-bottom:10px;"></div>
             <div style="background:var(--surface2);border-radius:var(--radius-sm);padding:12px;margin-bottom:8px;">
-              <div style="font-weight:600;color:var(--text);margin-bottom:8px;font-size:13px;"> iPhone / iPad</div>
+              <div style="font-weight:600;color:var(--text);margin-bottom:8px;font-size:13px;">&#xF8FF; iPhone / iPad</div>
               <div style="font-size:13px;color:var(--text2);line-height:1.8;">
                 <div style="margin-bottom:8px;padding:8px;background:#000;border-radius:6px;">
                   <strong style="color:var(--gold)">① </strong>Ouvre cette page dans <strong style="color:var(--text)">Safari</strong>
@@ -914,6 +1006,7 @@ function enterApp() {
   scheduleFranceNotifs();
   loadFamilyPhoto();
   checkPwaInstall();
+  maybeShowOnboarding();
   updateNotifStatus();
   // Si notifs déjà accordées, ré-enregistrer l'abonnement push au démarrage
   if (Notification.permission === 'granted') subscribeToPush();
@@ -1033,7 +1126,7 @@ function renderMatches() {
               <div class="prono-score-input">
                 <input type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" class="score-input" id="p1_${m.id}" placeholder=" " value="${_pendingEditValues[m.id]?.s1 ?? ''}" onfocus="this.select()" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,1);if(this.value)document.getElementById('p2_${m.id}')?.focus()">
                 <span class="prono-sep">–</span>
-                <input type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" class="score-input" id="p2_${m.id}" placeholder=" " value="${_pendingEditValues[m.id]?.s2 ?? ''}" onfocus="this.select()">
+                <input type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" class="score-input" id="p2_${m.id}" placeholder=" " value="${_pendingEditValues[m.id]?.s2 ?? ''}" onfocus="this.select()" onkeydown="if(event.key==='Enter')submitProno('${m.id}')">
               </div>
               <button class="btn btn-primary" onclick="submitProno('${m.id}')">Valider</button>
             </div>
@@ -2202,6 +2295,65 @@ if ('serviceWorker' in navigator) {
 // ===== KEYBOARD LOGIN =====
 document.getElementById('loginPrenom').addEventListener('keydown', e => { if (e.key==='Enter') document.getElementById('loginNom').focus(); });
 document.getElementById('loginNom').addEventListener('keydown', e => { if (e.key==='Enter') doLogin(); });
+
+// ===== ONBOARDING =====
+function maybeShowOnboarding() {
+  const myId = state.currentPlayer;
+  if (!myId) return;
+  const key = 'ob_done_' + myId;
+  if (localStorage.getItem(key)) return; // déjà vu
+  // Si déjà en mode standalone (PWA installée), sauter l'étape install
+  const isInstalled = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+  if (isInstalled) localStorage.setItem('ob_installed_' + myId, '1');
+  document.getElementById('onboardingOverlay').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+  obUpdateInstallStatus();
+}
+
+function obNext(step) {
+  document.querySelectorAll('.ob-step').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.ob-dot').forEach((d, i) => d.classList.toggle('active', i === step - 1));
+  document.getElementById('ob' + step).style.display = 'block';
+  document.getElementById('onboardingOverlay').scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function obUpdateInstallStatus() {
+  const myId = state.currentPlayer;
+  const isInstalled = window.matchMedia('(display-mode: standalone)').matches
+    || window.navigator.standalone
+    || localStorage.getItem('ob_installed_' + myId);
+  const el = document.getElementById('ob-install-status');
+  if (el && isInstalled) el.style.display = 'block';
+}
+
+function obConfirmInstall() {
+  const myId = state.currentPlayer;
+  localStorage.setItem('ob_installed_' + myId, '1');
+  obNext(3);
+}
+
+async function obRequestNotif() {
+  const btn = document.getElementById('obNotifBtn');
+  if (!('Notification' in window)) { obNext(4); return; }
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm === 'granted') {
+      await subscribeToPush();
+      btn.textContent = '✅ Notifications activées !';
+      btn.style.background = '#00c853';
+      setTimeout(() => obNext(4), 1000);
+    } else {
+      obNext(4);
+    }
+  } catch(e) { obNext(4); }
+}
+
+function obFinish() {
+  const myId = state.currentPlayer;
+  localStorage.setItem('ob_done_' + myId, '1');
+  document.getElementById('onboardingOverlay').style.display = 'none';
+  document.body.style.overflow = '';
+}
 
 // ===== INIT =====
 initFirebase();
