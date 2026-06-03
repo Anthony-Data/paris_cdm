@@ -890,6 +890,7 @@ function initFirebase() {
       if (migrated) save(); // Écrit la migration dans Firebase
       if (document.getElementById('mainApp').style.display !== 'none') {
         renderAll(); loadFamilyPhoto();
+        maybeShowOnboarding(); // re-vérifie si admin a demandé un reset
       }
     });
     console.log('✅ Firebase connecté');
@@ -2330,6 +2331,7 @@ const _OB_MAX = 4;
 function maybeShowOnboarding() {
   const myId = state.currentPlayer;
   if (!myId) return;
+  if (document.getElementById('onboardingOverlay').style.display !== 'none') return; // déjà affiché
   // Si l'admin a demandé une réinitialisation → on efface le localStorage et on supprime le flag
   if (state.forceOnboarding && state.forceOnboarding[myId]) {
     localStorage.removeItem('ob_done_' + myId);
