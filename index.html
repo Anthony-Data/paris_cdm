@@ -769,6 +769,7 @@ function getDeviceKey() {
 
 async function subscribeToPush() {
   if (!db || !state.currentPlayer) return;
+  if (getCurrentPlayer()?.notifDisabled) return; // révoqué par admin ou désactivé
   try {
     const reg = await navigator.serviceWorker.getRegistration();
     if (!reg) return;
@@ -1038,7 +1039,7 @@ function enterApp() {
   if (_appReady) maybeShowOnboarding();
   updateNotifStatus();
   // Si notifs déjà accordées, ré-enregistrer l'abonnement push au démarrage
-  if (Notification.permission === 'granted') subscribeToPush();
+  if (Notification.permission === 'granted' && !getCurrentPlayer()?.notifDisabled) subscribeToPush();
 }
 
 function getCurrentPlayer() {
@@ -1456,10 +1457,13 @@ async function requestNotifPermission() {
   const perm = await Notification.requestPermission();
   updateNotifStatus();
   if (perm === 'granted') {
+    // Effacer le flag de désactivation si l'utilisateur réactive
+    const cp = getCurrentPlayer();
+    if (cp?.notifDisabled) { cp.notifDisabled = false; save(); }
     toast('✅ Notifications activées !');
     addNotif('🎉 Notifications activées avec succès !');
     scheduleNotifications();
-    await subscribeToPush(); // Abonnement push serveur (téléphone verrouillé)
+    await subscribeToPush();
   } else {
     toast('❌ Permission refusée');
   }
@@ -1500,13 +1504,11 @@ async function disableNotifications() {
     }
   } catch(e) { console.warn('disableNotifications:', e); }
 
-  // Mettre à jour l'UI
-  const el  = document.getElementById('notifStatus');
-  const btn = document.getElementById('notifEnableBtn');
-  const dis = document.getElementById('notifDisableBtn');
-  if (el)  { el.textContent = '🔕 Notifications désactivées'; el.style.color = 'var(--text3)'; }
-  if (btn) { btn.textContent = '🔔 Réactiver les notifications'; btn.disabled = false; }
-  if (dis) dis.style.display = 'none';
+  // Persister le flag sur le joueur (empêche le re-abonnement au rechargement)
+  const cp = getCurrentPlayer();
+  if (cp) { cp.notifDisabled = true; save(); }
+
+  updateNotifStatus();
   toast('🔕 Notifications désactivées');
 }
 
@@ -1519,13 +1521,21 @@ function updateNotifStatus() {
     return;
   }
   const perm = Notification.permission;
+  const disableBtn = document.getElementById('notifDisableBtn');
   if (perm === 'granted') {
-    el.innerHTML = '✅ Notifications activées &nbsp;<button onclick="resubscribePush()" class="btn btn-ghost" style="font-size:11px;padding:3px 10px;">🔄 Mettre à jour l\'abonnement</button>';
-    el.style.color = 'var(--green)';
-    btn.textContent = '✅ Notifications actives';
-    btn.disabled = true;
-    const disableBtn = document.getElementById('notifDisableBtn');
-    if (disableBtn) disableBtn.style.display = '';
+    if (getCurrentPlayer()?.notifDisabled) {
+      el.textContent = '🔕 Notifications désactivées';
+      el.style.color = 'var(--text3)';
+      btn.textContent = '🔔 Réactiver les notifications';
+      btn.disabled = false;
+      if (disableBtn) disableBtn.style.display = 'none';
+    } else {
+      el.innerHTML = '✅ Notifications activées &nbsp;<button onclick="resubscribePush()" class="btn btn-ghost" style="font-size:11px;padding:3px 10px;">🔄 Mettre à jour l\'abonnement</button>';
+      el.style.color = 'var(--green)';
+      btn.textContent = '✅ Notifications actives';
+      btn.disabled = true;
+      if (disableBtn) disableBtn.style.display = '';
+    }
   } else if (perm === 'denied') {
     el.textContent = '❌ Permission refusée — autorise dans les réglages du navigateur';
     el.style.color = 'var(--red)';
@@ -1812,11 +1822,43 @@ function renderPlayersList() {
       <span style="font-size:13px;font-weight:500">${playerFullName(p)}</span>
       <div style="display:flex;gap:6px;align-items:center">
         <button onclick="resetPlayer('${p.id}')" title="Supprimer et recréer (réinitialise le didacticiel)" style="background:none;border:1px solid var(--border);color:var(--text3);cursor:pointer;font-size:11px;padding:2px 7px;border-radius:6px;white-space:nowrap">🔄 Tuto</button>
+        <button onclick="adminRevokeNotifs('${p.id}')" title="${p.notifDisabled ? 'Réactiver les notifications' : 'Révoquer les notifications (tous ses appareils)'}" style="background:none;border:1px solid var(--border);color:${p.notifDisabled ? 'var(--text3)' : 'var(--red)'};cursor:pointer;font-size:11px;padding:2px 7px;border-radius:6px;white-space:nowrap">${p.notifDisabled ? '🔔' : '🔕'}</button>
         <button onclick="removePlayer('${p.id}')" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:16px;padding:2px 6px">×</button>
       </div>
     </div>`;
   }).join('');
 }
+async function adminRevokeNotifs(playerId) {
+  const p = state.players.find(x => x.id === playerId);
+  if (!p) return;
+  const isRevoked = !!p.notifDisabled;
+  if (isRevoked) {
+    // Réactiver
+    p.notifDisabled = false;
+    save();
+    renderPlayersList();
+    toast(`🔔 Notifications réactivées pour ${p.prenom}`);
+    return;
+  }
+  if (!confirm(`Révoquer les notifications de ${p.prenom} ${p.nom} ?\nIl ne recevra plus aucun push sur aucun appareil.`)) return;
+  // Supprimer tous ses abonnements Firebase
+  if (db) {
+    try {
+      const snap = await db.ref('cdm2026/subscriptions').once('value');
+      const allSubs = snap.val() || {};
+      const ops = Object.entries(allSubs)
+        .filter(([key, v]) => (v.playerId || '') === playerId || key.startsWith(playerId + '_'))
+        .map(([key]) => db.ref(`cdm2026/subscriptions/${key}`).remove());
+      if (ops.length) await Promise.all(ops);
+    } catch(e) { console.warn('adminRevokeNotifs:', e); }
+  }
+  // Marquer le joueur comme révoqué
+  p.notifDisabled = true;
+  save();
+  renderPlayersList();
+  toast(`🔕 Notifications révoquées pour ${p.prenom} — aucun push ne lui sera envoyé`);
+}
+
 async function resetPlayer(playerId) {
   const p = state.players.find(x => x.id === playerId);
   if (!p) return;
