@@ -1,4 +1,4 @@
-const CACHE = 'cdm2026-v3';
+const CACHE = 'cdm2026-v4';
 const ASSETS = ['./index.html', './logo.png'];
 
 self.addEventListener('install', e => {
