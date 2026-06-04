@@ -680,7 +680,6 @@ select.form-input { cursor: pointer; }
           <p style="font-size:14px;color:var(--text2);margin-bottom:14px;">Reçois un rappel <strong style="color:var(--text)">1h avant chaque match</strong> si tu n'as pas encore parié. La notif inclut ton classement actuel.</p>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
             <button class="btn btn-primary" id="notifEnableBtn" onclick="requestNotifPermission()">🔔 Activer les notifications</button>
-            <button class="btn btn-ghost" onclick="testNotifNow()">🧪 Tester maintenant</button>
             <button class="btn btn-danger" id="notifDisableBtn" onclick="disableNotifications()" style="display:none">🔕 Désactiver</button>
           </div>
           <div id="notifStatus" style="font-size:12px;color:var(--text3);margin-top:10px;"></div>
@@ -1531,7 +1530,7 @@ function updateNotifStatus() {
       if (disableBtn) disableBtn.style.display = 'none';
     } else {
       el.innerHTML = '✅ Notifications activées &nbsp;<button onclick="resubscribePush()" class="btn btn-ghost" style="font-size:11px;padding:3px 10px;">🔄 Mettre à jour l\'abonnement</button>';
-      el.style.color = 'var(--green)';
+      el.style.color = '#4caf50';
       btn.textContent = '✅ Notifications actives';
       btn.disabled = true;
       if (disableBtn) disableBtn.style.display = '';
@@ -2110,8 +2109,8 @@ function renderAdminPanel() {
       <h3>Mettre à jour score</h3>
       <div class="form-group"><label>Match</label><select class="form-input" id="updateMatchSelect"></select></div>
       <div style="display:flex;gap:6px;">
-        <div class="form-group" style="flex:1"><label>Score 1</label><input type="number" class="form-input" id="uScore1" min="0" value="0"></div>
-        <div class="form-group" style="flex:1"><label>Score 2</label><input type="number" class="form-input" id="uScore2" min="0" value="0"></div>
+        <div class="form-group" style="flex:1"><label>Score 1</label><input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" class="form-input" id="uScore1" placeholder="0"></div>
+        <div class="form-group" style="flex:1"><label>Score 2</label><input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="2" class="form-input" id="uScore2" placeholder="0"></div>
       </div>
       <div class="form-group"><label>Statut</label>
         <select class="form-input" id="uStatus">
