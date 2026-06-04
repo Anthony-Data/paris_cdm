@@ -14,7 +14,7 @@ NAMES = {
   'MEX':'Mexique','RSA':'Afrique du Sud','KOR':'Corée du Sud','CZE':'Tchéquie',
   'CAN':'Canada','BIH':'Bosnie','QAT':'Qatar','SUI':'Suisse',
   'BRA':'Brésil','MAR':'Maroc','HAI':'Haïti','SCO':'Écosse','USA':'USA',
-  'PAR':'Paraguay','AUS':'Australie','TUR':'Türkiye','GER':'Allemagne',
+  'PAR':'Paraguay','AUS':'Australie','TUR':'Turquie','GER':'Allemagne',
   'CUW':'Curaçao','CIV':"Côte d'Ivoire",'ECU':'Équateur','NED':'Pays-Bas',
   'JPN':'Japon','SWE':'Suède','TUN':'Tunisie','KSA':'Arabie Saoudite',
   'URU':'Uruguay','ESP':'Espagne','CPV':'Cap-Vert','BEL':'Belgique',

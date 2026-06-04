@@ -888,6 +888,8 @@ function initFirebase() {
           if (m.team2 === 'Curaçao' && m.flag2 !== CW) { m.flag2 = CW; migrated = true; }
           if (m.team1 === 'Bosnie' && m.flag1 !== BA) { m.flag1 = BA; migrated = true; }
           if (m.team2 === 'Bosnie' && m.flag2 !== BA) { m.flag2 = BA; migrated = true; }
+          if (m.team1 === 'Türkiye') { m.team1 = 'Turquie'; migrated = true; }
+          if (m.team2 === 'Türkiye') { m.team2 = 'Turquie'; migrated = true; }
         });
         localStorage.setItem('cdm2026v2', JSON.stringify(data));
       } else if (!_appReady) {
