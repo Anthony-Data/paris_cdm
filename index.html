@@ -681,6 +681,7 @@ select.form-input { cursor: pointer; }
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
             <button class="btn btn-primary" id="notifEnableBtn" onclick="requestNotifPermission()">🔔 Activer les notifications</button>
             <button class="btn btn-ghost" onclick="testNotifNow()">🧪 Tester maintenant</button>
+            <button class="btn btn-danger" id="notifDisableBtn" onclick="disableNotifications()" style="display:none">🔕 Désactiver</button>
           </div>
           <div id="notifStatus" style="font-size:12px;color:var(--text3);margin-top:10px;"></div>
         </div>
@@ -1473,6 +1474,41 @@ async function resubscribePush() {
   toast('✅ Abonnement mis à jour — doublons supprimés');
 }
 
+async function disableNotifications() {
+  if (!confirm('Désactiver les notifications ? Tu ne recevras plus de rappel avant les matchs.')) return;
+  try {
+    // Désabonner du push manager navigateur
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg) {
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) await sub.unsubscribe();
+      }
+    }
+    // Supprimer l'abonnement de Firebase
+    if (db && state.currentPlayer) {
+      const snap = await db.ref('cdm2026/subscriptions').once('value');
+      const allSubs = snap.val() || {};
+      const ops = [];
+      for (const [key, val] of Object.entries(allSubs)) {
+        if ((val.playerId || key) === state.currentPlayer) {
+          ops.push(db.ref(`cdm2026/subscriptions/${key}`).remove());
+        }
+      }
+      if (ops.length) await Promise.all(ops);
+    }
+  } catch(e) { console.warn('disableNotifications:', e); }
+
+  // Mettre à jour l'UI
+  const el  = document.getElementById('notifStatus');
+  const btn = document.getElementById('notifEnableBtn');
+  const dis = document.getElementById('notifDisableBtn');
+  if (el)  { el.textContent = '🔕 Notifications désactivées'; el.style.color = 'var(--text3)'; }
+  if (btn) { btn.textContent = '🔔 Réactiver les notifications'; btn.disabled = false; }
+  if (dis) dis.style.display = 'none';
+  toast('🔕 Notifications désactivées');
+}
+
 function updateNotifStatus() {
   const el = document.getElementById('notifStatus');
   const btn = document.getElementById('notifEnableBtn');
@@ -1487,6 +1523,8 @@ function updateNotifStatus() {
     el.style.color = 'var(--green)';
     btn.textContent = '✅ Notifications actives';
     btn.disabled = true;
+    const disableBtn = document.getElementById('notifDisableBtn');
+    if (disableBtn) disableBtn.style.display = '';
   } else if (perm === 'denied') {
     el.textContent = '❌ Permission refusée — autorise dans les réglages du navigateur';
     el.style.color = 'var(--red)';
