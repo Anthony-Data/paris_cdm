@@ -1057,17 +1057,38 @@ function playerInitials(p) { return p ? (p.prenom[0] + (p.nom[0] || '')).toUpper
 // Stocke les scores précédents lors d'une modification de prono
 const _pendingEditValues = {};
 
-// Drapeaux : emoji sur iOS/Android, images sur Windows/Linux (pas de support emoji drapeaux)
+/// Drapeaux : emoji sur iOS/Android, images flagcdn.com sur Windows/Linux
 const _useFlagImages = /Windows NT|Linux x86_64/.test(navigator.userAgent) && !/Android/.test(navigator.userAgent);
+// Table explicite : tous les drapeaux du CdM 2026 + drapeaux de subdivision (Écosse, Angleterre, Pays de Galles)
+const _FLAG_MAP = {
+  '🇲🇽':'mx','🇿🇦':'za','🇰🇷':'kr','🇨🇿':'cz','🇨🇦':'ca','🇧🇦':'ba',
+  '🇶🇦':'qa','🇨🇭':'ch','🇧🇷':'br','🇲🇦':'ma','🇭🇹':'ht',
+  '🏴󠁧󠁢󠁳󠁣󠁴󠁿':'gb-sct',
+  '🇺🇸':'us','🇵🇾':'py','🇦🇺':'au','🇹🇷':'tr','🇩🇪':'de',
+  '🇨🇼':'cw','🇨🇮':'ci','🇪🇨':'ec','🇳🇱':'nl','🇯🇵':'jp',
+  '🇸🇪':'se','🇹🇳':'tn','🇸🇦':'sa','🇺🇾':'uy','🇪🇸':'es',
+  '🇨🇻':'cv','🇧🇪':'be','🇪🇬':'eg','🇮🇷':'ir','🇳🇿':'nz',
+  '🇫🇷':'fr','🇸🇳':'sn','🇮🇶':'iq','🇳🇴':'no','🇦🇷':'ar',
+  '🇩🇿':'dz','🇦🇹':'at','🇯🇴':'jo','🇵🇹':'pt','🇨🇩':'cd',
+  '🇺🇿':'uz','🇨🇴':'co',
+  '🏴󠁧󠁢󠁥󠁮󠁧󠁿':'gb-eng',
+  '🏴󠁧󠁢󠁷󠁬󠁳󠁿':'gb-wls',
+  '🇭🇷':'hr','🇬🇭':'gh','🇵🇦':'pa','🇬🇧':'gb',
+};
 function _flagCode(e) {
-  const c = [...(e||'')].map(x => x.codePointAt(0));
-  return c.length >= 2 && c[0] >= 0x1F1E6 && c[0] <= 0x1F1FF && c[1] >= 0x1F1E6 ? (String.fromCharCode(c[0]-0x1F1E6+65)+String.fromCharCode(c[1]-0x1F1E6+65)).toLowerCase() : '';
+  if (!e) return '';
+  if (_FLAG_MAP[e]) return _FLAG_MAP[e];
+  // Fallback : calcul dynamique pour les drapeaux standards non listés
+  const c = [...e].map(x => x.codePointAt(0));
+  if (c.length >= 2 && c[0] >= 0x1F1E6 && c[0] <= 0x1F1FF && c[1] >= 0x1F1E6 && c[1] <= 0x1F1FF)
+    return (String.fromCharCode(c[0]-0x1F1E6+65)+String.fromCharCode(c[1]-0x1F1E6+65)).toLowerCase();
+  return '';
 }
 function flagHtml(e) {
   if (!_useFlagImages) return e || '🏳';
   const code = _flagCode(e);
   if (!code) return e || '';
-  return `<img src="https://flagcdn.com/32x24/${code}.png" width="32" height="24" style="vertical-align:middle;border-radius:2px;object-fit:cover" loading="lazy" alt="${e||''}">`;
+  return `<img src="https://flagcdn.com/32x24/${code}.png" width="32" height="24" style="vertical-align:middle;border-radius:2px;object-fit:cover" loading="lazy" onerror="this.style.display='none'" alt="${e||''}">`;
 }
 
 
@@ -1152,7 +1173,18 @@ function renderMatches() {
   // Phase badge: start from last match of previous page to avoid duplicate badge
   const prevMatches = allMatches.slice(0, start);
   let lastPhase = prevMatches.length > 0 ? prevMatches[prevMatches.length - 1].phase : null;
-  let html = '';
+
+  // Helper : barre de pagination (top = sans scroll, bottom = avec scroll)
+  const _pg = (withScroll) => {
+    if (totalPages <= 1) return '';
+    const scroll = withScroll ? "window.scrollTo({top:0,behavior:'smooth'});" : '';
+    const prev = `<button class="btn btn-ghost" onclick="if(_matchPage>0){_matchPage--;renderMatches();${scroll}}" ${_matchPage===0?'disabled':''} style="font-size:13px;padding:6px 14px">◀</button>`;
+    const next = `<button class="btn btn-ghost" onclick="if(_matchPage<${totalPages-1}){_matchPage++;renderMatches();${scroll}}" ${_matchPage===totalPages-1?'disabled':''} style="font-size:13px;padding:6px 14px">▶</button>`;
+    const nums = Array.from({length:totalPages},(_,i)=>`<button class="btn ${i===_matchPage?'btn-primary':'btn-ghost'}" onclick="_matchPage=${i};renderMatches();${scroll}" style="font-size:12px;padding:5px 8px;min-width:30px">${i+1}</button>`).join('');
+    return `<div style="display:flex;justify-content:center;align-items:center;gap:4px;flex-wrap:wrap;padding:8px 0">${prev}${nums}${next}</div>`;
+  };
+
+  let html = _pg(false);
   matches.forEach(m => {
     if (m.phase !== lastPhase) {
       const x = phaseMultiplier(m.phase);
@@ -1253,13 +1285,7 @@ function renderMatches() {
       </div>`;
     }
   });
-  if (totalPages > 1) {
-    html += `<div style="display:flex;justify-content:center;align-items:center;gap:10px;margin-top:16px;padding-bottom:8px">
-      <button class="btn btn-ghost" onclick="if(_matchPage>0){_matchPage--;renderMatches();window.scrollTo({top:0,behavior:'smooth'});}" ${_matchPage===0?'disabled':''} style="font-size:13px;padding:7px 18px">◀</button>
-      <span style="font-size:12px;color:var(--text3)">${_matchPage+1} / ${totalPages}</span>
-      <button class="btn btn-ghost" onclick="if(_matchPage<${totalPages-1}){_matchPage++;renderMatches();window.scrollTo({top:0,behavior:'smooth'});}" ${_matchPage===totalPages-1?'disabled':''} style="font-size:13px;padding:7px 18px">▶</button>
-    </div>`;
-  }
+  html += _pg(true);
   container.innerHTML = html;
 }
 
