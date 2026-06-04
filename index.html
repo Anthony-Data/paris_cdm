@@ -1704,6 +1704,7 @@ function sendMatchReminder(m) {
   const title = `⚽ ${m.flag1||''} ${m.team1} vs ${m.team2} ${m.flag2||''}`;
   const body = `${p ? p.prenom + ', n' : 'N'}\'oublie pas ton prono pour le match ${m.team1} vs ${m.team2} !`;
   showPushNotification(title, body, m.id);
+  fetch('/api/notify').catch(() => {}); // push serveur vers tous les abonnés (téléphones verrouillés)
   addNotif(`⚽ N'oublie pas ton prono pour le match ${m.flag1||''} ${m.team1} vs ${m.team2} ${m.flag2||''} !${rankStr}`);
 }
 

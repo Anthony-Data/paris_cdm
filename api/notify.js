@@ -65,13 +65,14 @@ module.exports = async (req, res) => {
     //    (entre 0 et 7 min après l'heure de notif) et pas encore notifiés.
     //    → La notif arrive toujours à ~1h avant le match, indépendamment du cron.
     //    Le cron tourne toutes les 5 min ; fenêtre 7 min couvre le pire cas.
-    const WINDOW_MS = 7 * 60 * 1000;
+    const WINDOW_MS = 7 * 60 * 1000;  // jusqu'à 7 min après la marque 1h
+    const EARLY_MS  = 2 * 60 * 1000;  // tolère 2 min d'avance (appel client ou drift horloge)
     const targetMatches = matches.filter(m => {
       if (m.status !== 'upcoming') return false;
       if (notifsSent[m.id]) return false; // déjà envoyé
       const notifAt = new Date(m.date).getTime() - 60 * 60 * 1000; // pile 1h avant
       const msSince = now - notifAt;
-      return msSince >= 0 && msSince < WINDOW_MS;
+      return msSince >= -EARLY_MS && msSince < WINDOW_MS;
     });
 
     const subCount = Object.keys(subscriptions).length;
