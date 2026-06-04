@@ -238,9 +238,10 @@ header {
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .6; } }
 .match-teams { display: flex; align-items: center; gap: 8px; }
 .team-block { flex: 1; text-align: center; }
-.team-flag { font-size: 24px; display: block; margin-bottom: 3px; }
+.team-flag { font-size: 24px; display: block; margin-bottom: 3px; line-height: 1.2; }
+.team-flag img { width: 36px; height: 27px; border-radius: 3px; }
 .team-name { font-size: 14px; font-weight: 600; }
-@media (min-width: 480px) { .team-name { font-size: 17px; } .team-flag { font-size: 28px; } }
+@media (min-width: 480px) { .team-name { font-size: 17px; } .team-flag { font-size: 28px; } .team-flag img { width: 42px; height: 31px; } }
 .score-area {
   display: flex; align-items: center; gap: 6px;
   background: var(--bg2); border: 1px solid var(--border);
@@ -1054,6 +1055,19 @@ function playerInitials(p) { return p ? (p.prenom[0] + (p.nom[0] || '')).toUpper
 // Stocke les scores précédents lors d'une modification de prono
 const _pendingEditValues = {};
 
+// Drapeaux : emoji sur iOS/Android, images sur Windows/Linux (pas de support emoji drapeaux)
+const _useFlagImages = /Windows NT|Linux x86_64/.test(navigator.userAgent) && !/Android/.test(navigator.userAgent);
+function _flagCode(e) {
+  const c = [...(e||'')].map(x => x.codePointAt(0));
+  return c.length >= 2 && c[0] >= 0x1F1E6 && c[0] <= 0x1F1FF && c[1] >= 0x1F1E6 ? (String.fromCharCode(c[0]-0x1F1E6+65)+String.fromCharCode(c[1]-0x1F1E6+65)).toLowerCase() : '';
+}
+function flagHtml(e) {
+  if (!_useFlagImages) return e || '🏳';
+  const code = _flagCode(e);
+  if (!code) return e || '';
+  return `<img src="https://flagcdn.com/32x24/${code}.png" width="32" height="24" style="vertical-align:middle;border-radius:2px;object-fit:cover" loading="lazy" alt="${e||''}">`;
+}
+
 
 // ===== SCORING =====
 const PHASE_ORDER = ['Groupes','16e de finale','8e de finale','Quarts','Demies','3ème/4ème Place','Finale'];
@@ -1229,9 +1243,9 @@ function renderMatches() {
         <div class="match-header"><span class="match-info">${m.phase}</span>${statusHtml}</div>
         ${x2Badge}
         <div class="match-teams">
-          <div class="team-block"><span class="team-flag">${m.flag1||'🏳'}</span><div class="team-name">${m.team1}</div></div>
+          <div class="team-block"><span class="team-flag">${flagHtml(m.flag1||'🏳')}</span><div class="team-name">${m.team1}</div></div>
           ${scoreHtml}
-          <div class="team-block"><span class="team-flag">${m.flag2||'🏳'}</span><div class="team-name">${m.team2}</div></div>
+          <div class="team-block"><span class="team-flag">${flagHtml(m.flag2||'🏳')}</span><div class="team-name">${m.team2}</div></div>
         </div>
         ${pronoHtml}${allPronosHtml}
       </div>`;
