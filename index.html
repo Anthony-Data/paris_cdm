@@ -1809,10 +1809,21 @@ function addPlayer() {
   renderWhatsappLinks();
   toast(`✅ ${prenom} ${nom} ajouté !`);
 }
-function removePlayer(id) {
+async function removePlayer(id) {
   state.players = state.players.filter(p => p.id !== id);
   if (state.currentPlayer === id) state.currentPlayer = null;
   save(); renderPlayersList(); renderWhatsappLinks();
+  // Supprimer aussi les abonnements push Firebase de ce joueur
+  if (db) {
+    try {
+      const snap = await db.ref('cdm2026/subscriptions').once('value');
+      const allSubs = snap.val() || {};
+      const ops = Object.entries(allSubs)
+        .filter(([key, v]) => (v.playerId || '') === id || key.startsWith(id + '_'))
+        .map(([key]) => db.ref(`cdm2026/subscriptions/${key}`).remove());
+      if (ops.length) await Promise.all(ops);
+    } catch(e) { console.warn('removePlayer subs:', e); }
+  }
 }
 function renderPlayersList() {
   const c = document.getElementById('playersList');
@@ -1828,6 +1839,24 @@ function renderPlayersList() {
     </div>`;
   }).join('');
 }
+async function cleanupOrphanSubs() {
+  if (!db) return;
+  const activeIds = new Set(state.players.map(p => p.id));
+  try {
+    const snap = await db.ref('cdm2026/subscriptions').once('value');
+    const allSubs = snap.val() || {};
+    const ops = Object.entries(allSubs)
+      .filter(([, v]) => !v.playerId || !activeIds.has(v.playerId))
+      .map(([key]) => db.ref(`cdm2026/subscriptions/${key}`).remove());
+    if (ops.length) {
+      await Promise.all(ops);
+      toast(`🧹 ${ops.length} abonnement(s) orphelin(s) supprimé(s)`);
+    } else {
+      toast('✅ Aucun abonnement orphelin');
+    }
+  } catch(e) { toast('❌ Erreur : ' + e.message); }
+}
+
 async function adminRevokeNotifs(playerId) {
   const p = state.players.find(x => x.id === playerId);
   if (!p) return;
@@ -2028,6 +2057,7 @@ function renderAdminPanel() {
       </div>
       <button class="btn btn-primary" onclick="addPlayer()" style="width:100%;margin-bottom:12px">+ Ajouter</button>
       <div id="playersList"></div>
+      <button class="btn btn-ghost" onclick="cleanupOrphanSubs()" style="width:100%;margin-top:8px;font-size:12px;color:var(--text3)">🧹 Supprimer les abonnements sans joueur</button>
     </div>
     <div class="admin-card">
       <h3>Liens WhatsApp</h3>

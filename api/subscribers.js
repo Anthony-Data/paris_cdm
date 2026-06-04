@@ -126,7 +126,7 @@ module.exports = async (req, res) => {
     ? '<p style="color:#f66">Aucun abonné enregistré.</p>'
     : `<table>
     <thead>
-      <tr><th>#</th><th>Joueur</th><th>Appareil</th><th>Abonné le</th></tr>
+      <tr><th>#</th><th>Joueur</th><th>Appareil</th><th>Abonné le</th><th></th></tr>
     </thead>
     <tbody>
       ${subscribers.map((s, i) => `
@@ -135,6 +135,7 @@ module.exports = async (req, res) => {
         <td><span class="badge">✓</span> ${s.playerName}</td>
         <td class="device">${s.icon} ${s.device}</td>
         <td class="ts">${s.updatedAt}</td>
+        <td><a href="/api/delete-subscription?key=${encodeURIComponent(s.key)}" onclick="return confirm('Supprimer cet abonnement ?')" style="color:#f66;font-size:11px;text-decoration:none;">🗑 Supprimer</a></td>
       </tr>`).join('')}
     </tbody>
   </table>`}
