@@ -805,6 +805,7 @@ async function subscribeToPush() {
       playerName: p ? playerFullName(p) : 'Joueur',
       playerId: state.currentPlayer,
       updatedAt: Date.now(),
+      userAgent: navigator.userAgent,
     });
     console.log('✅ Abonnement push enregistré (' + subKey + '), anciens doublons supprimés : ' + deleteOps.length);
   } catch(e) {
@@ -1822,13 +1823,19 @@ async function resetPlayer(playerId) {
   if (!confirm(`Supprimer et recréer ${p.prenom} ${p.nom} ?\nSes abonnements aux notifications seront supprimés et le didacticiel sera réinitialisé.`)) return;
 
   // Supprimer ses abonnements push dans Firebase
+  // Double filtre : par champ playerId OU par préfixe de clé (ex: "p123_abc")
   if (db) {
-    const snap = await db.ref('cdm2026/subscriptions').once('value');
-    const allSubs = snap.val() || {};
-    const ops = Object.entries(allSubs)
-      .filter(([, v]) => (v.playerId || '') === playerId)
-      .map(([key]) => db.ref(`cdm2026/subscriptions/${key}`).remove());
-    if (ops.length) await Promise.all(ops);
+    try {
+      const snap = await db.ref('cdm2026/subscriptions').once('value');
+      const allSubs = snap.val() || {};
+      const ops = Object.entries(allSubs)
+        .filter(([key, v]) =>
+          (v.playerId || '') === playerId || key.startsWith(playerId + '_')
+        )
+        .map(([key]) => db.ref(`cdm2026/subscriptions/${key}`).remove());
+      if (ops.length) await Promise.all(ops);
+      console.log(`🗑 ${ops.length} abonnement(s) supprimé(s) pour ${playerId}`);
+    } catch(e) { console.warn('Erreur suppression abonnements:', e); }
   }
 
   // Supprimer puis recréer avec un nouvel ID (didacticiel vierge)
