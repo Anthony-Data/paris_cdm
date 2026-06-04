@@ -1,8 +1,7 @@
 {
   "version": 2,
   "functions": {
-    "api/notify.js": {
-      "maxDuration": 30
-    }
+    "api/notify.js":      { "maxDuration": 30 },
+    "api/subscribers.js": { "maxDuration": 10 }
   }
 }
