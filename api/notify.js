@@ -102,8 +102,10 @@ module.exports = async (req, res) => {
     let removed = 0;
 
     for (const match of targetMatches) {
-      // Marquer comme envoyé avant l'envoi pour éviter les doublons en cas de retry
-      await db.ref(`cdm2026/notifsSent/${match.id}`).set(now.toISOString());
+      // Transaction atomique : seul le premier appelant concurrent gagne le lock
+      const sentRef = db.ref(`cdm2026/notifsSent/${match.id}`);
+      const txResult = await sentRef.transaction(current => current ? undefined : now.toISOString());
+      if (!txResult.committed) { skipped++; continue; } // déjà envoyé par un autre appel concurrent
 
       for (const subData of Object.values(bestSubPerPlayer)) {
         if (pronos[match.id]?.[subData.playerId]) { skipped++; continue; }

@@ -778,13 +778,17 @@ async function subscribeToPush() {
     const deviceKey = getDeviceKey();
     const subKey = `${state.currentPlayer}_${deviceKey}`;
 
-    // Supprimer les anciens abonnements de ce joueur (évite les doublons Safari/PWA)
+    // Supprimer tout abonnement avec le même endpoint (même appareil, peu importe le joueur)
+    // ou même joueur sur un autre appareil → 1 seule subscription active par joueur×appareil
+    const subEndpoint = sub.endpoint;
     const existing = await db.ref('cdm2026/subscriptions').once('value');
     const allSubs = existing.val() || {};
     const deleteOps = [];
     for (const [key, val] of Object.entries(allSubs)) {
-      const pid = val.playerId || key;
-      if (pid === state.currentPlayer && key !== subKey) {
+      if (key === subKey) continue;
+      const sameEndpoint = val.subscription?.endpoint === subEndpoint;
+      const samePlayer   = (val.playerId || key) === state.currentPlayer;
+      if (sameEndpoint || samePlayer) {
         deleteOps.push(db.ref(`cdm2026/subscriptions/${key}`).remove());
       }
     }
