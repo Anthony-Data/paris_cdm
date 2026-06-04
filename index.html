@@ -19,9 +19,9 @@
 <style>
 :root {
   /* Thème FIFA World Cup 2026 — USA · Mexique · Canada */
-  --green: #C8102E; --green-dark: #9B0C22; --green-dim: #C8102E22;
+  --green: #B01C2C; --green-dark: #8A1220; --green-dim: #B01C2C22;
   --gold: #F5C518; --gold-dim: #F5C51833;
-  --red: #FF5252; --red-dim: #FF525222;
+  --red: #D44040; --red-dim: #D4404022;
   --bg: #0D1421; --bg2: #131C2E; --bg3: #192438;
   --surface: #1E2D47; --surface2: #243558;
   --border: #2D4166; --border2: #3A5280;
@@ -83,7 +83,7 @@ body::before {
   font-size: 22px; letter-spacing: 1px; cursor: pointer; margin-top: 8px;
   transition: background .15s; display: flex; align-items: center; justify-content: center; gap: 8px;
 }
-.login-btn:hover { background: #00e664; }
+.login-btn:hover { background: var(--green-dark); }
 .login-error { color: var(--red); font-size: 13px; margin-top: 10px; min-height: 18px; }
 .login-hint { margin-top: 16px; font-size: 12px; color: var(--text3); }
 .login-hint strong { color: var(--text2); }
@@ -270,7 +270,7 @@ header {
 /* ===== BUTTONS ===== */
 .btn { padding: 8px 16px; border-radius: var(--radius-sm); border: 1px solid; font-family: var(--font-body); font-size: 13px; font-weight: 500; cursor: pointer; transition: all .15s; }
 .btn-primary { background: var(--green); border-color: var(--green); color: #000; }
-.btn-primary:hover { background: #00e664; }
+.btn-primary:hover { background: var(--green-dark); border-color: var(--green-dark); }
 .btn-primary:disabled { opacity: .4; cursor: not-allowed; }
 .btn-ghost { background: transparent; border-color: var(--border2); color: var(--text2); }
 .btn-ghost:hover { background: var(--surface2); color: var(--text); }
@@ -2596,6 +2596,8 @@ async function obRequestNotif() {
       await subscribeToPush();
       btn.textContent = '✅ Notifications activées !';
       btn.style.background = '#00c853';
+      btn.style.borderColor = '#00c853';
+      btn.style.color = '#000';
       setTimeout(() => obNext(4), 1000);
     } else {
       obNext(4);
