@@ -1239,9 +1239,9 @@ function renderMatches() {
   });
   if (totalPages > 1) {
     html += `<div style="display:flex;justify-content:center;align-items:center;gap:10px;margin-top:16px;padding-bottom:8px">
-      <button class="btn btn-ghost" onclick="if(_matchPage>0){_matchPage--;renderMatches();}" ${_matchPage===0?'disabled':''} style="font-size:13px;padding:7px 18px">◀</button>
+      <button class="btn btn-ghost" onclick="if(_matchPage>0){_matchPage--;renderMatches();document.getElementById('matchesList').scrollIntoView({behavior:'smooth',block:'start'});}" ${_matchPage===0?'disabled':''} style="font-size:13px;padding:7px 18px">◀</button>
       <span style="font-size:12px;color:var(--text3)">${_matchPage+1} / ${totalPages}</span>
-      <button class="btn btn-ghost" onclick="if(_matchPage<${totalPages-1}){_matchPage++;renderMatches();}" ${_matchPage===totalPages-1?'disabled':''} style="font-size:13px;padding:7px 18px">▶</button>
+      <button class="btn btn-ghost" onclick="if(_matchPage<${totalPages-1}){_matchPage++;renderMatches();document.getElementById('matchesList').scrollIntoView({behavior:'smooth',block:'start'});}" ${_matchPage===totalPages-1?'disabled':''} style="font-size:13px;padding:7px 18px">▶</button>
     </div>`;
   }
   container.innerHTML = html;
