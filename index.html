@@ -412,8 +412,25 @@ select.form-input { cursor: pointer; }
 /* ===== FILTERS ===== */
 .filters { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
 .filter-btn { padding: 5px 13px; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--text2); font-size: 12px; cursor: pointer; font-family: var(--font-body); font-weight: 500; transition: all .15s; }
-.filter-btn.active { background: var(--green); border-color: var(--green); color: #000; }
+.filter-btn.active { background: var(--gold); border-color: var(--gold); color: #000; }
 .filter-btn:hover:not(.active) { border-color: var(--border2); color: var(--text); }
+
+/* ===== POULES ===== */
+.groups-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 24px; }
+@media (min-width: 600px) { .groups-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 960px) { .groups-grid { grid-template-columns: repeat(4, 1fr); } }
+.group-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.group-header { background: var(--gold-dim); color: var(--gold); font-family: var(--font-display); font-size: 15px; letter-spacing: 1px; padding: 7px 10px; border-bottom: 1px solid rgba(245,197,24,.25); text-align: center; }
+.group-table { width: 100%; border-collapse: collapse; }
+.group-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.group-table tr:last-child td { border-bottom: none; }
+.group-team-cell { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.group-team-flag { flex-shrink: 0; font-size: 15px; line-height: 1; display: flex; align-items: center; }
+.group-team-flag img { width: 20px; height: 15px; object-fit: cover; border-radius: 1px; }
+.group-team-name { font-size: 11.5px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+.group-pts { text-align: right; font-family: var(--font-display); font-size: 15px; color: var(--gold); padding-right: 4px; width: 24px; white-space: nowrap; }
+.group-played { text-align: center; font-size: 11px; color: var(--text3); width: 18px; }
+.group-quali td { border-left: 2px solid #00c853; }
 
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
@@ -584,6 +601,7 @@ select.form-input { cursor: pointer; }
   <div class="desktop-tabs" id="desktopTabs">
     <button class="tab-btn active" onclick="showTab('matches',this)">⚽ Matchs</button>
     <button class="tab-btn" onclick="showTab('classement',this)">🏆 Classement</button>
+    <button class="tab-btn" onclick="showTab('poules',this)">🗂 Poules</button>
     <button class="tab-btn" onclick="showTab('notifs',this)">🔔 Notifs</button>
     <button class="tab-btn" onclick="showTab('admin',this)">⚙️ Admin</button>
   </div>
@@ -717,6 +735,12 @@ select.form-input { cursor: pointer; }
       </div>
       <!-- ADMIN -->
       <div id="tab-admin" class="tab-pane"></div>
+
+      <!-- POULES -->
+      <div id="tab-poules" class="tab-pane">
+        <div class="section-title">Poules <span>CdM 2026</span></div>
+        <div class="groups-grid" id="groupsGrid"></div>
+      </div>
     </div>
 
     <!-- SIDEBAR (desktop only) -->
@@ -747,6 +771,10 @@ select.form-input { cursor: pointer; }
   <button class="bnav-btn" onclick="mobileTab('classement',this)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
     Classement
+  </button>
+  <button class="bnav-btn" onclick="mobileTab('poules',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    Poules
   </button>
   <button class="bnav-btn" onclick="mobileTab('notifs',this)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
@@ -1147,6 +1175,73 @@ function ptsLabel(pts, phase) {
   return 'wrong';
 }
 
+// ===== GROUPS / POULES =====
+const GROUPS = [
+  { name: 'A', teams: ['Mexique','Afrique du Sud','Corée du Sud','Rep. Tchèque'] },
+  { name: 'B', teams: ['Canada','Bosnie','Qatar','Suisse'] },
+  { name: 'C', teams: ['Brésil','Écosse','Haïti','Maroc'] },
+  { name: 'D', teams: ['Australie','Turquie','USA','Paraguay'] },
+  { name: 'E', teams: ['Allemagne',"Côte d'Ivoire",'Curaçao','Équateur'] },
+  { name: 'F', teams: ['Suède','Japon','Pays-Bas','Tunisie'] },
+  { name: 'G', teams: ['Belgique','Égypte','Iran','Nouvelle-Zélande'] },
+  { name: 'H', teams: ['Arabie Saoudite','Cap-Vert','Espagne','Uruguay'] },
+  { name: 'I', teams: ['Irak','France','Norvège','Sénégal'] },
+  { name: 'J', teams: ['Algérie','Argentine','Autriche','Jordanie'] },
+  { name: 'K', teams: ['Congo DR','Colombie','Ouzbékistan','Portugal'] },
+  { name: 'L', teams: ['Angleterre','Croatie','Ghana','Panama'] },
+];
+
+function getFlagForTeam(name) {
+  const m = state.matches.find(m => m.team1 === name || m.team2 === name);
+  if (!m) return '';
+  return m.team1 === name ? m.flag1 : m.flag2;
+}
+
+function getGroupStandings(teams) {
+  const stats = {};
+  teams.forEach(t => { stats[t] = {mp:0,w:0,d:0,l:0,gf:0,ga:0,pts:0}; });
+  state.matches
+    .filter(m => m.phase === 'Groupes' && m.score1 != null && teams.includes(m.team1) && teams.includes(m.team2))
+    .forEach(m => {
+      stats[m.team1].mp++; stats[m.team2].mp++;
+      stats[m.team1].gf += m.score1; stats[m.team1].ga += m.score2;
+      stats[m.team2].gf += m.score2; stats[m.team2].ga += m.score1;
+      if (m.score1 > m.score2) { stats[m.team1].w++; stats[m.team1].pts+=3; stats[m.team2].l++; }
+      else if (m.score1 < m.score2) { stats[m.team2].w++; stats[m.team2].pts+=3; stats[m.team1].l++; }
+      else { stats[m.team1].d++; stats[m.team1].pts++; stats[m.team2].d++; stats[m.team2].pts++; }
+    });
+  return teams.map(t => ({name:t,...stats[t]}))
+    .sort((a,b) => b.pts-a.pts || (b.gf-b.ga)-(a.gf-a.ga) || b.gf-a.gf);
+}
+
+function renderGroups() {
+  const container = document.getElementById('groupsGrid');
+  if (!container) return;
+  let html = '';
+  GROUPS.forEach(g => {
+    const standings = getGroupStandings(g.teams);
+    const hasPlayed = standings.some(s => s.mp > 0);
+    html += `<div class="group-card"><div class="group-header">GROUPE ${g.name}</div><table class="group-table"><tbody>`;
+    standings.forEach((t, i) => {
+      const flag = getFlagForTeam(t.name);
+      const flagEl = flagHtml(flag, t.name);
+      const quali = hasPlayed && i < 2 ? ' class="group-quali"' : '';
+      html += `<tr${quali}>
+        <td style="width:100%;padding-right:0">
+          <div class="group-team-cell">
+            <span class="group-team-flag">${flagEl}</span>
+            <span class="group-team-name">${t.name}</span>
+          </div>
+        </td>
+        ${hasPlayed ? `<td class="group-played">${t.mp}</td>` : ''}
+        <td class="group-pts">${t.pts}</td>
+      </tr>`;
+    });
+    html += '</tbody></table></div>';
+  });
+  container.innerHTML = html;
+}
+
 // ===== RANKING =====
 function getRanking() {
   const scores = {};
@@ -1224,11 +1319,11 @@ function renderMatches() {
   const _pg = (withScroll) => {
     if (totalPages <= 1) return '';
     const scroll = withScroll ? "window.scrollTo({top:0,behavior:'smooth'});" : '';
-    // Génère la liste des items (numéros de page 0-indexed + '…' pour les ellipses)
+    // Génère la liste des items : 2 premières + 2 dernières + current±1, ellipses entre
     const makePageItems = () => {
       const show = new Set();
-      for (let i = 0; i < Math.min(3, totalPages); i++) show.add(i);
-      for (let i = Math.max(0, totalPages-3); i < totalPages; i++) show.add(i);
+      for (let i = 0; i < Math.min(2, totalPages); i++) show.add(i);
+      for (let i = Math.max(0, totalPages-2); i < totalPages; i++) show.add(i);
       for (let i = Math.max(0, _matchPage-1); i <= Math.min(totalPages-1, _matchPage+1); i++) show.add(i);
       const sorted = [...show].sort((a,b) => a-b);
       const items = []; let prev = -1;
@@ -2431,6 +2526,7 @@ function showTab(id, btn) {
   if (btn) btn.classList.add('active');
   if (id==='matches') { autoMatchPage(); renderMatches(); }
   if (id==='classement') renderRanking();
+  if (id==='poules') renderGroups();
   if (id==='notifs') { renderNotifs(); updateNotifStatus(); }
   if (id==='admin') renderAdminPanel();
 }
@@ -2442,6 +2538,7 @@ function mobileTab(id, btn) {
   document.getElementById('desktopSidebar').style.display = id==='classement' ? 'block' : '';
   if (id==='matches') { autoMatchPage(); renderMatches(); }
   if (id==='classement') renderRanking();
+  if (id==='poules') renderGroups();
   if (id==='notifs') { renderNotifs(); updateNotifStatus(); }
   if (id==='admin') renderAdminPanel();
 }
@@ -2527,7 +2624,7 @@ function startAutoRefresh() {
 
 // ===== RENDER ALL =====
 function renderAll() {
-  renderMatches(); renderRanking(); renderNotifs(); renderAdminPanel();
+  renderMatches(); renderRanking(); renderGroups(); renderNotifs(); renderAdminPanel();
 }
 
 // ===== OFFICIAL MATCHES DATA (CdM 2026) =====
