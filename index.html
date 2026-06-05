@@ -2001,8 +2001,16 @@ async function serverTestPush() {
     const res = await fetch('/api/notify?force=1');
     const data = await res.json();
     if (res.ok) {
-      const msg = `✅ Push envoyé : ${data.sent} appareil(s) notifié(s), ${data.removed} mort(s) supprimé(s)`;
-      if (el) { el.textContent = msg; el.style.color = '#4caf50'; }
+      // Détail par appareil : type (apns/fcm), joueur, statut
+      const lines = [`✅ ${data.sent} envoyé(s), ${data.removed || 0} supprimé(s), ${data.failed || 0} échoué(s)`];
+      if (data.details) {
+        data.details.forEach(d => {
+          const icon = d.type === 'apns' ? '🍎' : d.type === 'fcm' ? '🤖' : '🌐';
+          const status = d.status === 'ok' ? '✓' : d.status === '410_removed' ? '✗ expiré' : `✗ ${d.status}`;
+          lines.push(`${icon} ${d.player || '?'} — ${status}${d.msg ? ' : ' + d.msg : ''}`);
+        });
+      }
+      if (el) { el.textContent = lines.join('\n'); el.style.color = '#4caf50'; }
       toast('📲 Push serveur envoyé !');
     } else {
       if (el) { el.textContent = `❌ Erreur serveur : ${data.error || res.status}`; el.style.color = 'var(--red)'; }

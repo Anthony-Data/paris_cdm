@@ -62,21 +62,31 @@ module.exports = async (req, res) => {
         tag: req.query.matchTag || 'server_test',
       });
       let sent = 0, removed = 0, failed = 0;
+      const details = [];
       const removals = [];
       for (const [subKey, subData] of Object.entries(subscriptions)) {
         if (!subData.subscription) continue;
+        const ep = subData.subscription.endpoint || '';
+        const type = ep.includes('web.push.apple.com') ? 'apns'
+                   : ep.includes('fcm.googleapis.com') || ep.includes('push.services.mozilla') ? 'fcm'
+                   : 'other';
         try {
           await webpush.sendNotification(subData.subscription, payload, PUSH_OPTS);
           sent++;
+          details.push({ type, player: subData.playerName, status: 'ok' });
         } catch (e) {
           if (e.statusCode === 410 || e.statusCode === 404) {
             removals.push(db.ref(`cdm2026/subscriptions/${subKey}`).remove());
             removed++;
-          } else { failed++; }
+            details.push({ type, player: subData.playerName, status: '410_removed' });
+          } else {
+            failed++;
+            details.push({ type, player: subData.playerName, status: `err_${e.statusCode}`, msg: e.body || e.message });
+          }
         }
       }
       if (removals.length) await Promise.all(removals);
-      return res.json({ mode: 'force_test', sent, removed, failed, subscribers: subCount });
+      return res.json({ mode: 'force_test', sent, removed, failed, subscribers: subCount, details });
     }
 
     // ── Mode match immédiat (?matchId=<id>) : même logique que le cron ──────
