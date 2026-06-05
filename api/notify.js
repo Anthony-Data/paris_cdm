@@ -139,19 +139,18 @@ module.exports = async (req, res) => {
     // Firebase peut retourner un objet à clés numériques au lieu d'un tableau
     const rawMatches = shared.matches;
     const matches = Array.isArray(rawMatches) ? rawMatches : Object.values(rawMatches || {});
-    const pronos = shared.pronos || {};
 
-    // Fenêtre large : GitHub Actions ne tourne pas toutes les 5 min en pratique (gaps 60-95 min).
-    // 55 min = notif arrive au pire 5 min avant le match (jamais après le coup d'envoi).
-    const WINDOW_MS = 55 * 60 * 1000;
-    const EARLY_MS  =  2 * 60 * 1000;
+    // Fenêtre : du moment où on est à 1h du match (±2 min) jusqu'au coup d'envoi.
+    // Pas de WINDOW_MS : le cron peut tourner n'importe quand dans cette heure, la notif part.
+    // La transaction Firebase garantit qu'on n'envoie qu'une seule fois par match.
+    const EARLY_MS = 2 * 60 * 1000;
     const targetMatches = matches.filter(m => {
       if (m.status !== 'upcoming') return false;
       if (notifsSent[m.id]) return false;
       const notifAt = new Date(m.date).getTime() - 60 * 60 * 1000;
       const msSince = now - notifAt;
-      // Ne jamais envoyer après le début du match
-      return msSince >= -EARLY_MS && msSince < WINDOW_MS && now < new Date(m.date).getTime();
+      return msSince >= -EARLY_MS && now < new Date(m.date).getTime();
+    });
     });
 
     if (!targetMatches.length) {
@@ -171,17 +170,14 @@ module.exports = async (req, res) => {
       const txResult = await sentRef.transaction(current => current ? undefined : now.toISOString());
       if (!txResult.committed) { skipped++; continue; }
 
-      // Envoyer à TOUS les appareils abonnés (iPhone + PC + Android, etc.)
-      // Chaque appareil a sa propre subscription — pas de dedup par joueur.
+      // Push à TOUS les abonnés sans exception (même logique que force=1 qui est fiable).
+      const payload = JSON.stringify({
+        title: `⚽ ${match.flag1 || ''} ${match.team1} vs ${match.team2} ${match.flag2 || ''}`.trim(),
+        body: `N'oublie pas ton prono pour le match ${match.team1} vs ${match.team2} !`,
+        tag: match.id,
+      });
       for (const [subKey, subData] of Object.entries(subscriptions)) {
         if (!subData.subscription) { skipped++; continue; }
-        if (pronos[match.id]?.[subData.playerId]) { skipped++; continue; }
-
-        const payload = JSON.stringify({
-          title: `⚽ ${match.flag1 || ''} ${match.team1} vs ${match.team2} ${match.flag2 || ''}`,
-          body: `${subData.playerName ? subData.playerName + ', n' : 'N'}'oublie pas ton prono pour le match ${match.team1} vs ${match.team2} !`,
-          tag: match.id,
-        });
 
         try {
           await webpush.sendNotification(subData.subscription, payload, PUSH_OPTS);
