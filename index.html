@@ -422,15 +422,21 @@ select.form-input { cursor: pointer; }
 .group-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
 .group-header { background: var(--gold-dim); color: var(--gold); font-family: var(--font-display); font-size: 15px; letter-spacing: 1px; padding: 7px 10px; border-bottom: 1px solid rgba(245,197,24,.25); text-align: center; }
 .group-table { width: 100%; border-collapse: collapse; }
-.group-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.group-table th { font-size: 9px; font-weight: 700; text-transform: uppercase; color: var(--text3); padding: 4px 3px; text-align: center; border-bottom: 1px solid var(--border); }
+.group-table th.group-th-team { text-align: left; padding-left: 6px; }
+.group-table th.group-th-pts { color: var(--gold); padding-right: 6px; }
+.group-table td { padding: 5px 3px; border-bottom: 1px solid var(--border); vertical-align: middle; font-size: 11px; }
 .group-table tr:last-child td { border-bottom: none; }
+.group-td-team { padding-left: 6px !important; padding-right: 2px !important; width: 100%; }
 .group-team-cell { display: flex; align-items: center; gap: 5px; min-width: 0; }
-.group-team-flag { flex-shrink: 0; font-size: 15px; line-height: 1; display: flex; align-items: center; }
-.group-team-flag img { width: 20px; height: 15px; object-fit: cover; border-radius: 1px; }
-.group-team-name { font-size: 11.5px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
-.group-pts { text-align: right; font-family: var(--font-display); font-size: 15px; color: var(--gold); padding-right: 4px; width: 24px; white-space: nowrap; }
-.group-played { text-align: center; font-size: 11px; color: var(--text3); width: 18px; }
+.group-team-flag { flex-shrink: 0; font-size: 14px; line-height: 1; display: flex; align-items: center; }
+.group-team-flag img { width: 18px; height: 14px; object-fit: cover; border-radius: 1px; }
+.group-team-name { font-size: 11px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+.group-stat { text-align: center; color: var(--text3); width: 18px; white-space: nowrap; }
+.group-pts { text-align: right; font-family: var(--font-display); font-size: 14px; color: var(--gold); padding-right: 6px !important; width: 22px; white-space: nowrap; }
 .group-quali td { border-left: 2px solid #00c853; }
+.stat-detail { display: none; }
+@media (min-width: 600px) { .stat-detail { display: table-cell; } }
 
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
@@ -1221,19 +1227,32 @@ function renderGroups() {
   GROUPS.forEach(g => {
     const standings = getGroupStandings(g.teams);
     const hasPlayed = standings.some(s => s.mp > 0);
-    html += `<div class="group-card"><div class="group-header">GROUPE ${g.name}</div><table class="group-table"><tbody>`;
+    html += `<div class="group-card">
+      <div class="group-header">GROUPE ${g.name}</div>
+      <table class="group-table">
+        <thead><tr>
+          <th class="group-th-team"></th>
+          <th class="group-stat">J</th>
+          <th class="group-stat stat-detail">G</th>
+          <th class="group-stat stat-detail">N</th>
+          <th class="group-stat stat-detail">P</th>
+          <th class="group-pts group-th-pts">Pts</th>
+        </tr></thead>
+        <tbody>`;
     standings.forEach((t, i) => {
-      const flag = getFlagForTeam(t.name);
-      const flagEl = flagHtml(flag, t.name);
+      const flagEl = flagHtml(getFlagForTeam(t.name), t.name);
       const quali = hasPlayed && i < 2 ? ' class="group-quali"' : '';
       html += `<tr${quali}>
-        <td style="width:100%;padding-right:0">
+        <td class="group-td-team">
           <div class="group-team-cell">
             <span class="group-team-flag">${flagEl}</span>
             <span class="group-team-name">${t.name}</span>
           </div>
         </td>
-        ${hasPlayed ? `<td class="group-played">${t.mp}</td>` : ''}
+        <td class="group-stat">${t.mp}</td>
+        <td class="group-stat stat-detail">${t.w}</td>
+        <td class="group-stat stat-detail">${t.d}</td>
+        <td class="group-stat stat-detail">${t.l}</td>
         <td class="group-pts">${t.pts}</td>
       </tr>`;
     });
