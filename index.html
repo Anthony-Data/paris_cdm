@@ -825,17 +825,18 @@ async function subscribeToPush() {
     let sub = await reg.pushManager.getSubscription();
 
     // Renouvellement quotidien : la subscription APNS (iOS) peut expirer silencieusement.
-    const tsKey = `cdm2026_sub_ts_${state.currentPlayer}`;
-    const lastTs = parseInt(localStorage.getItem(tsKey) || '0');
-    const hoursSince = (Date.now() - lastTs) / 3600000;
-
-    if (sub && hoursSince < 22) return; // subscription fraîche → rien à faire
-
-    if (sub && hoursSince >= 22) {
-      // Force renouvellement : ancien endpoint APNS potentiellement expiré
-      try { await sub.unsubscribe(); } catch(e) {}
-      sub = null;
-      console.log('🔄 Renouvellement subscription push (', Math.round(hoursSince), 'h écoulées)');
+    // Renouvellement forcé de l'endpoint APNS toutes les 22h (iOS)
+    // Le reste (save Firebase) s'exécute à chaque appel pour garder updatedAt frais
+    if (sub) {
+      const tsKey = `cdm2026_sub_ts_${state.currentPlayer}`;
+      const lastTs = parseInt(localStorage.getItem(tsKey) || '0');
+      const hoursSince = (Date.now() - lastTs) / 3600000;
+      if (hoursSince >= 22) {
+        try { await sub.unsubscribe(); } catch(e) {}
+        sub = null;
+        localStorage.setItem(tsKey, Date.now().toString());
+        console.log('🔄 Renouvellement endpoint APNS (', Math.round(hoursSince), 'h écoulées)');
+      }
     }
 
     if (!sub) {
@@ -872,8 +873,6 @@ async function subscribeToPush() {
       updatedAt: Date.now(),
       userAgent: navigator.userAgent,
     });
-    // Mémoriser le timestamp pour le renouvellement quotidien
-    localStorage.setItem(`cdm2026_sub_ts_${state.currentPlayer}`, Date.now().toString());
     console.log('✅ Abonnement push enregistré (' + subKey + '), anciens doublons supprimés : ' + deleteOps.length);
   } catch(e) {
     console.warn('Push subscription failed:', e);
