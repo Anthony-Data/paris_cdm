@@ -48,12 +48,18 @@ module.exports = async (req, res) => {
     const subscriptions = subsSnap.val() || {};
     const subCount = Object.keys(subscriptions).length;
 
-    // ── Mode test (?force=1) : push immédiat vers tous les abonnés ──────────
+    // ── Mode force (?force=1) : push immédiat vers tous les abonnés ──────────
+    // Accepte optionnellement team1/team2/flag1/flag2/matchTag pour notif match réelle
     if (req.query.force === '1') {
+      const hasMatch = req.query.team1 && req.query.team2;
       const payload = JSON.stringify({
-        title: '⚽ CdM 2026 — Test push serveur',
-        body: 'Si tu vois cette notification, le push serveur fonctionne !',
-        tag: 'server_test',
+        title: hasMatch
+          ? `⚽ ${req.query.flag1 || ''} ${req.query.team1} vs ${req.query.team2} ${req.query.flag2 || ''}`.trim()
+          : '⚽ CdM 2026 — Test push serveur',
+        body: hasMatch
+          ? `N'oublie pas ton prono pour le match ${req.query.team1} vs ${req.query.team2} !`
+          : 'Si tu vois cette notification, le push serveur fonctionne !',
+        tag: req.query.matchTag || 'server_test',
       });
       let sent = 0, removed = 0, failed = 0;
       const removals = [];
