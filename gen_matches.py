@@ -11,7 +11,7 @@ FLAGS = {
   'UZB':'🇺🇿','COL':'🇨🇴','ENG':'🏴󠁧󠁢󠁥󠁮󠁧󠁿','CRO':'🇭🇷','GHA':'🇬🇭','PAN':'🇵🇦',
 }
 NAMES = {
-  'MEX':'Mexique','RSA':'Afrique du Sud','KOR':'Corée du Sud','CZE':'Tchéquie',
+  'MEX':'Mexique','RSA':'Afrique du Sud','KOR':'Corée du Sud','CZE':'Rep. Tchèque',
   'CAN':'Canada','BIH':'Bosnie','QAT':'Qatar','SUI':'Suisse',
   'BRA':'Brésil','MAR':'Maroc','HAI':'Haïti','SCO':'Écosse','USA':'USA',
   'PAR':'Paraguay','AUS':'Australie','TUR':'Turquie','GER':'Allemagne',

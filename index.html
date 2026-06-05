@@ -238,10 +238,10 @@ header {
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .6; } }
 .match-teams { display: flex; align-items: center; gap: 8px; }
 .team-block { flex: 1; text-align: center; }
-.team-flag { font-size: 32px; display: block; margin-bottom: 4px; line-height: 1.2; }
-.team-flag img { width: 46px; height: 34px; border-radius: 3px; }
-.team-name { font-size: 16px; font-weight: 700; }
-@media (min-width: 480px) { .team-name { font-size: 18px; } .team-flag { font-size: 36px; } .team-flag img { width: 52px; height: 39px; } }
+.team-flag { font-size: 36px; display: block; margin-bottom: 4px; line-height: 1.2; }
+.team-flag img { width: 52px; height: 38px; border-radius: 3px; }
+.team-name { font-size: 17px; font-weight: 700; }
+@media (min-width: 480px) { .team-name { font-size: 20px; } .team-flag { font-size: 40px; } .team-flag img { width: 58px; height: 43px; } }
 .score-area {
   display: flex; align-items: center; gap: 6px;
   background: var(--bg2); border: 1px solid var(--border);
@@ -594,10 +594,19 @@ select.form-input { cursor: pointer; }
       <!-- MATCHS -->
       <div id="tab-matches" class="tab-pane active">
         <div class="filters">
-          <button class="filter-btn active" onclick="filterMatches('all',this)">Tous</button>
-          <button class="filter-btn" onclick="filterMatches('upcoming',this)">À venir</button>
-          <button class="filter-btn" onclick="filterMatches('live',this)">En direct</button>
-          <button class="filter-btn" onclick="filterMatches('finished',this)">Terminés</button>
+          <button class="filter-btn status-filter-btn active" onclick="filterMatches('all',this)">Tous</button>
+          <button class="filter-btn status-filter-btn" onclick="filterMatches('upcoming',this)">À venir</button>
+          <button class="filter-btn status-filter-btn" onclick="filterMatches('live',this)">En direct</button>
+          <button class="filter-btn status-filter-btn" onclick="filterMatches('finished',this)">Terminés</button>
+        </div>
+        <div class="filters" style="margin-top:6px">
+          <button class="filter-btn phase-filter-btn active" onclick="filterPhase('all',this)">Toutes</button>
+          <button class="filter-btn phase-filter-btn" onclick="filterPhase('Groupes',this)">Groupes</button>
+          <button class="filter-btn phase-filter-btn" onclick="filterPhase('16e de finale',this)">16e</button>
+          <button class="filter-btn phase-filter-btn" onclick="filterPhase('8e de finale',this)">8e</button>
+          <button class="filter-btn phase-filter-btn" onclick="filterPhase('Quarts',this)">Quarts</button>
+          <button class="filter-btn phase-filter-btn" onclick="filterPhase('Demies',this)">Demies</button>
+          <button class="filter-btn phase-filter-btn" onclick="filterPhase('Finale',this)">Finale</button>
         </div>
         <div id="matchesList"></div>
       </div>
@@ -895,6 +904,8 @@ function initFirebase() {
           if (m.team2 === 'Bosnie' && m.flag2 !== BA) { m.flag2 = BA; migrated = true; }
           if (m.team1 === 'Türkiye') { m.team1 = 'Turquie'; migrated = true; }
           if (m.team2 === 'Türkiye') { m.team2 = 'Turquie'; migrated = true; }
+          if (m.team1 === 'Tchéquie') { m.team1 = 'Rep. Tchèque'; migrated = true; }
+          if (m.team2 === 'Tchéquie') { m.team2 = 'Rep. Tchèque'; migrated = true; }
         });
         localStorage.setItem('cdm2026v2', JSON.stringify(data));
       } else if (!_appReady) {
@@ -1082,7 +1093,7 @@ const _FLAG_MAP = {
 };
 // Table nom de pays → code ISO (fallback si l'emoji Firebase ne matche pas)
 const _NAME_MAP = {
-  'Mexique':'mx','Afrique du Sud':'za','Corée du Sud':'kr','Tchéquie':'cz',
+  'Mexique':'mx','Afrique du Sud':'za','Corée du Sud':'kr','Tchéquie':'cz','Rep. Tchèque':'cz',
   'Canada':'ca','Bosnie':'ba','Qatar':'qa','Suisse':'ch','Brésil':'br',
   'Maroc':'ma','Haïti':'ht','Écosse':'gb-sct','USA':'us','Paraguay':'py',
   'Australie':'au','Turquie':'tr','Allemagne':'de','Curaçao':'cw',
@@ -1158,13 +1169,18 @@ function getRanking() {
 
 // ===== RENDER MATCHES =====
 let currentFilter = 'all';
+let currentPhaseFilter = 'all';
 let _matchPage = 0;
 const MATCH_PAGE_SIZE = 8;
 
 function autoMatchPage() {
-  if (currentFilter !== 'all') return;
+  if (currentFilter !== 'all' || currentPhaseFilter !== 'all') return;
   const all = [...state.matches].sort((a,b) => new Date(a.date)-new Date(b.date));
   if (!all.length) { _matchPage = 0; return; }
+  // Priorité : page avec match en direct
+  const liveIdx = all.findIndex(m => m.status === 'live');
+  if (liveIdx >= 0) { _matchPage = Math.floor(liveIdx / MATCH_PAGE_SIZE); return; }
+  // Sinon : page du prochain match à venir
   const now = new Date();
   const idx = all.findIndex(m => new Date(m.date) >= now);
   _matchPage = idx < 0 ? Math.max(0, Math.ceil(all.length / MATCH_PAGE_SIZE) - 1) : Math.floor(idx / MATCH_PAGE_SIZE);
@@ -1174,7 +1190,15 @@ function filterMatches(f, btn) {
   currentFilter = f;
   _matchPage = 0;
   if (f === 'all') autoMatchPage();
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.status-filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderMatches();
+}
+function filterPhase(p, btn) {
+  currentPhaseFilter = p;
+  _matchPage = 0;
+  if (p === 'all') autoMatchPage();
+  document.querySelectorAll('.phase-filter-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   renderMatches();
 }
@@ -1183,6 +1207,7 @@ function renderMatches() {
   const myId = state.currentPlayer;
   let allMatches = [...state.matches].sort((a,b) => new Date(a.date)-new Date(b.date));
   if (currentFilter !== 'all') allMatches = allMatches.filter(m => m.status === currentFilter);
+  if (currentPhaseFilter !== 'all') allMatches = allMatches.filter(m => m.phase === currentPhaseFilter);
   if (!allMatches.length) {
     container.innerHTML = `<div class="empty"><div class="empty-icon">⚽</div><p>Aucun match</p></div>`;
     return;
@@ -1195,14 +1220,36 @@ function renderMatches() {
   const prevMatches = allMatches.slice(0, start);
   let lastPhase = prevMatches.length > 0 ? prevMatches[prevMatches.length - 1].phase : null;
 
-  // Helper : barre de pagination (top = sans scroll, bottom = avec scroll)
+  // Helper : barre de pagination avec ellipsis intelligente
   const _pg = (withScroll) => {
     if (totalPages <= 1) return '';
     const scroll = withScroll ? "window.scrollTo({top:0,behavior:'smooth'});" : '';
-    const prev = `<button class="btn btn-ghost" onclick="if(_matchPage>0){_matchPage--;renderMatches();${scroll}}" ${_matchPage===0?'disabled':''} style="font-size:13px;padding:6px 14px">◀</button>`;
-    const next = `<button class="btn btn-ghost" onclick="if(_matchPage<${totalPages-1}){_matchPage++;renderMatches();${scroll}}" ${_matchPage===totalPages-1?'disabled':''} style="font-size:13px;padding:6px 14px">▶</button>`;
-    const nums = Array.from({length:totalPages},(_,i)=>`<button class="btn ${i===_matchPage?'btn-primary':'btn-ghost'}" onclick="_matchPage=${i};renderMatches();${scroll}" style="font-size:12px;padding:5px 8px;min-width:30px">${i+1}</button>`).join('');
-    return `<div style="display:flex;justify-content:center;align-items:center;gap:4px;flex-wrap:wrap;padding:8px 0">${prev}${nums}${next}</div>`;
+    // Génère la liste des items (numéros de page 0-indexed + '…' pour les ellipses)
+    const makePageItems = () => {
+      const show = new Set();
+      for (let i = 0; i < Math.min(3, totalPages); i++) show.add(i);
+      for (let i = Math.max(0, totalPages-3); i < totalPages; i++) show.add(i);
+      for (let i = Math.max(0, _matchPage-1); i <= Math.min(totalPages-1, _matchPage+1); i++) show.add(i);
+      const sorted = [...show].sort((a,b) => a-b);
+      const items = []; let prev = -1;
+      for (const p of sorted) {
+        if (p - prev > 1) items.push('…');
+        items.push(p); prev = p;
+      }
+      return items;
+    };
+    const numHtml = makePageItems().map(p =>
+      p === '…'
+        ? `<span style="color:var(--text3);font-size:13px;padding:0 2px;line-height:1;align-self:center">…</span>`
+        : `<button class="btn ${p===_matchPage?'btn-primary':'btn-ghost'}" onclick="_matchPage=${p};renderMatches();${scroll}" style="font-size:12px;padding:5px 8px;min-width:30px">${p+1}</button>`
+    ).join('');
+    const prev = _matchPage > 0
+      ? `<button class="btn btn-ghost" onclick="_matchPage--;renderMatches();${scroll}" style="font-size:13px;padding:6px 12px">◀</button>`
+      : '';
+    const next = _matchPage < totalPages - 1
+      ? `<button class="btn btn-ghost" onclick="_matchPage++;renderMatches();${scroll}" style="font-size:13px;padding:6px 12px">▶</button>`
+      : '';
+    return `<div style="display:flex;justify-content:center;align-items:center;gap:4px;padding:8px 0;overflow-x:auto;flex-wrap:nowrap">${prev}${numHtml}${next}</div>`;
   };
 
   let html = _pg(false);
@@ -2486,7 +2533,7 @@ function renderAll() {
 // ===== OFFICIAL MATCHES DATA (CdM 2026) =====
 const OFFICIAL_MATCHES = [
   {id:'o1',matchNum:1,team1:'Mexique',team2:'Afrique du Sud',flag1:'🇲🇽',flag2:'🇿🇦',date:'2026-06-11T15:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
-  {id:'o2',matchNum:2,team1:'Corée du Sud',team2:'Tchéquie',flag1:'🇰🇷',flag2:'🇨🇿',date:'2026-06-11T22:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o2',matchNum:2,team1:'Corée du Sud',team2:'Rep. Tchèque',flag1:'🇰🇷',flag2:'🇨🇿',date:'2026-06-11T22:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
   {id:'o3',matchNum:3,team1:'Canada',team2:'Bosnie',flag1:'🇨🇦',flag2:'🇧🇦',date:'2026-06-12T15:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
   {id:'o4',matchNum:4,team1:'USA',team2:'Paraguay',flag1:'🇺🇸',flag2:'🇵🇾',date:'2026-06-12T21:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
   {id:'o5',matchNum:5,team1:'Haïti',team2:'Écosse',flag1:'🇭🇹',flag2:'🏴󠁧󠁢󠁳󠁣󠁴󠁿',date:'2026-06-13T21:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
@@ -2509,7 +2556,7 @@ const OFFICIAL_MATCHES = [
   {id:'o22',matchNum:22,team1:'Angleterre',team2:'Croatie',flag1:'🏴󠁧󠁢󠁥󠁮󠁧󠁿',flag2:'🇭🇷',date:'2026-06-17T16:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
   {id:'o23',matchNum:23,team1:'Portugal',team2:'Congo DR',flag1:'🇵🇹',flag2:'🇨🇩',date:'2026-06-17T13:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
   {id:'o24',matchNum:24,team1:'Ouzbékistan',team2:'Colombie',flag1:'🇺🇿',flag2:'🇨🇴',date:'2026-06-17T22:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
-  {id:'o25',matchNum:25,team1:'Tchéquie',team2:'Afrique du Sud',flag1:'🇨🇿',flag2:'🇿🇦',date:'2026-06-18T12:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o25',matchNum:25,team1:'Rep. Tchèque',team2:'Afrique du Sud',flag1:'🇨🇿',flag2:'🇿🇦',date:'2026-06-18T12:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
   {id:'o26',matchNum:26,team1:'Suisse',team2:'Bosnie',flag1:'🇨🇭',flag2:'🇧🇦',date:'2026-06-18T15:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
   {id:'o27',matchNum:27,team1:'Canada',team2:'Qatar',flag1:'🇨🇦',flag2:'🇶🇦',date:'2026-06-18T18:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
   {id:'o28',matchNum:28,team1:'Mexique',team2:'Corée du Sud',flag1:'🇲🇽',flag2:'🇰🇷',date:'2026-06-18T21:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
@@ -2537,7 +2584,7 @@ const OFFICIAL_MATCHES = [
   {id:'o50',matchNum:50,team1:'Maroc',team2:'Haïti',flag1:'🇲🇦',flag2:'🇭🇹',date:'2026-06-24T18:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
   {id:'o51',matchNum:51,team1:'Suisse',team2:'Canada',flag1:'🇨🇭',flag2:'🇨🇦',date:'2026-06-24T15:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
   {id:'o52',matchNum:52,team1:'Bosnie',team2:'Qatar',flag1:'🇧🇦',flag2:'🇶🇦',date:'2026-06-24T15:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
-  {id:'o53',matchNum:53,team1:'Tchéquie',team2:'Mexique',flag1:'🇨🇿',flag2:'🇲🇽',date:'2026-06-24T21:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o53',matchNum:53,team1:'Rep. Tchèque',team2:'Mexique',flag1:'🇨🇿',flag2:'🇲🇽',date:'2026-06-24T21:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
   {id:'o54',matchNum:54,team1:'Afrique du Sud',team2:'Corée du Sud',flag1:'🇿🇦',flag2:'🇰🇷',date:'2026-06-24T21:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
   {id:'o55',matchNum:55,team1:'Curaçao',team2:"Côte d'Ivoire",flag1:'🇨🇼',flag2:'🇨🇮',date:'2026-06-25T16:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
   {id:'o56',matchNum:56,team1:'Équateur',team2:'Allemagne',flag1:'🇪🇨',flag2:'🇩🇪',date:'2026-06-25T16:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
