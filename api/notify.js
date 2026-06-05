@@ -24,6 +24,9 @@ function getDB() {
   return admin.database();
 }
 
+// urgency:high = APNS priority 10 → livraison immédiate même écran verrouillé
+const PUSH_OPTS = { urgency: 'high', TTL: 3600 };
+
 // ── Config VAPID ────────────────────────────────────────────────────────────
 webpush.setVapidDetails(
   'mailto:' + (process.env.VAPID_EMAIL || 'admin@paris-cdm.com'),
@@ -57,7 +60,7 @@ module.exports = async (req, res) => {
       for (const [subKey, subData] of Object.entries(subscriptions)) {
         if (!subData.subscription) continue;
         try {
-          await webpush.sendNotification(subData.subscription, payload);
+          await webpush.sendNotification(subData.subscription, payload, PUSH_OPTS);
           sent++;
         } catch (e) {
           if (e.statusCode === 410 || e.statusCode === 404) {
@@ -128,7 +131,7 @@ module.exports = async (req, res) => {
         });
 
         try {
-          await webpush.sendNotification(subData.subscription, payload);
+          await webpush.sendNotification(subData.subscription, payload, PUSH_OPTS);
           sent++;
         } catch (e) {
           if (e.statusCode === 410 || e.statusCode === 404) {

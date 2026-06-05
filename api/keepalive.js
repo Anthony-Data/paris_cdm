@@ -51,7 +51,7 @@ module.exports = async (req, res) => {
     for (const [subKey, subData] of Object.entries(subscriptions)) {
       if (!subData.subscription) continue;
       try {
-        await webpush.sendNotification(subData.subscription, payload);
+        await webpush.sendNotification(subData.subscription, payload, { urgency: 'high', TTL: 3600 });
         sent++;
       } catch (e) {
         if (e.statusCode === 410 || e.statusCode === 404) {

@@ -1,4 +1,4 @@
-const CACHE = 'cdm2026-v4';
+const CACHE = 'cdm2026-v5';
 const ASSETS = ['./index.html', './logo.png'];
 
 self.addEventListener('install', e => {
@@ -49,8 +49,7 @@ self.addEventListener('push', e => {
     icon: './logo.png',
     badge: './logo.png',
     tag: data.tag || 'cdm-match',
-    vibrate: [300, 150, 300],
-    requireInteraction: true,
+    // requireInteraction et vibrate ignorés/bloquants sur iOS — omis intentionnellement
     data: { url: self.registration.scope },
   };
 
