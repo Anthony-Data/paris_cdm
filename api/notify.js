@@ -145,18 +145,16 @@ module.exports = async (req, res) => {
 
     const shared = sharedSnap.val() || {};
     const notifsSent = sentSnap.val() || {};
-
-    // Firebase peut retourner un objet à clés numériques au lieu d'un tableau
     const rawMatches = shared.matches;
     const matches = Array.isArray(rawMatches) ? rawMatches : Object.values(rawMatches || {});
 
-    // Fenêtre : du moment où on est à 1h du match (±2 min) jusqu'au coup d'envoi.
-    // Pas de WINDOW_MS : le cron peut tourner n'importe quand dans cette heure, la notif part.
-    // La transaction Firebase garantit qu'on n'envoie qu'une seule fois par match.
+    // Fenêtre : 1h avant match ±2 min jusqu'au coup d'envoi.
+    // On inclut les matchs déjà "partiellement" envoyés (format objet) pour retry iOS.
+    // Format string (ancien) = entièrement envoyé → ignoré.
     const EARLY_MS = 2 * 60 * 1000;
     const targetMatches = matches.filter(m => {
       if (m.status !== 'upcoming') return false;
-      if (notifsSent[m.id]) return false;
+      if (typeof notifsSent[m.id] === 'string') return false; // ancien format = déjà envoyé
       const notifAt = new Date(m.date).getTime() - 60 * 60 * 1000;
       const msSince = now - notifAt;
       return msSince >= -EARLY_MS && now < new Date(m.date).getTime();
@@ -174,29 +172,34 @@ module.exports = async (req, res) => {
     let sent = 0, skipped = 0, removed = 0;
 
     for (const match of targetMatches) {
-      // Transaction atomique : seul le premier appelant concurrent gagne le lock
-      const sentRef = db.ref(`cdm2026/notifsSent/${match.id}`);
-      const txResult = await sentRef.transaction(current => current ? undefined : now.toISOString());
-      if (!txResult.committed) { skipped++; continue; }
+      // Tracking par abonné : { _at: ISO, subs: { subKey: 'ok'|'expired' } }
+      // Si un abonné a échoué (non-410), il n'est pas marqué → retry à la prochaine minute.
+      const sentData = notifsSent[match.id] || {};
+      const sentSubs = sentData.subs || {};
 
-      // Push à TOUS les abonnés sans exception (même logique que force=1 qui est fiable).
       const payload = JSON.stringify({
         title: `⚽ ${match.flag1 || ''} ${match.team1} vs ${match.team2} ${match.flag2 || ''}`.trim(),
         body: `N'oublie pas ton prono pour le match ${match.team1} vs ${match.team2} !`,
         tag: match.id,
       });
+
       for (const [subKey, subData] of Object.entries(subscriptions)) {
         if (!subData.subscription) { skipped++; continue; }
+        if (sentSubs[subKey] === 'ok' || sentSubs[subKey] === 'expired') { skipped++; continue; }
 
         try {
           await webpush.sendNotification(subData.subscription, payload, PUSH_OPTS);
+          await db.ref(`cdm2026/notifsSent/${match.id}/subs/${subKey}`).set('ok');
+          if (!sentData._at) await db.ref(`cdm2026/notifsSent/${match.id}/_at`).set(now.toISOString());
           sent++;
         } catch (e) {
           if (e.statusCode === 410 || e.statusCode === 404) {
+            await db.ref(`cdm2026/notifsSent/${match.id}/subs/${subKey}`).set('expired');
             await db.ref(`cdm2026/subscriptions/${subKey}`).remove();
             removed++;
           } else {
-            console.error(`APNS/push error [${subKey}]: HTTP ${e.statusCode} — ${e.message}`);
+            // Pas marqué → le prochain cron (dans 1 min) réessaiera pour cet abonné
+            console.error(`Push retry pending [${subKey}]: HTTP ${e.statusCode} — ${e.message}`);
             skipped++;
           }
         }
