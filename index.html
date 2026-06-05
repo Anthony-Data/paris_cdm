@@ -431,6 +431,8 @@ select.form-input { cursor: pointer; }
 .group-team-name { font-size: 11.5px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
 .group-pts { text-align: right; font-family: var(--font-display); font-size: 15px; color: var(--gold); padding-right: 8px !important; width: 26px; white-space: nowrap; }
 .group-quali td { border-left: 2px solid #00c853; }
+.group-quali-3rd td { border-left: 2px solid #ff7800; }
+.poules-sub { font-family: var(--font-display); font-size: 15px; letter-spacing: 1px; color: var(--gold); margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
 
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
@@ -739,7 +741,10 @@ select.form-input { cursor: pointer; }
       <!-- POULES -->
       <div id="tab-poules" class="tab-pane">
         <div class="section-title">Poules <span>CdM 2026</span></div>
+        <div class="poules-sub">Poules</div>
         <div class="groups-grid" id="groupsGrid"></div>
+        <div class="poules-sub" style="margin-top:20px">Classement meilleurs 3ème</div>
+        <div id="best3rdContainer"></div>
       </div>
     </div>
 
@@ -1217,15 +1222,30 @@ function getGroupStandings(teams) {
 function renderGroups() {
   const container = document.getElementById('groupsGrid');
   if (!container) return;
+
+  // Pré-calcul de tous les classements
+  const allStandings = GROUPS.map(g => ({ name: g.name, rows: getGroupStandings(g.teams) }));
+
+  // Top-8 des 3ème (pour liserai orange)
+  const thirds = allStandings
+    .filter(g => g.rows.length >= 3)
+    .map(g => ({ ...g.rows[2], group: g.name }))
+    .sort((a, b) => b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga) || b.gf - a.gf);
+  const top8 = new Set(thirds.slice(0, 8).map(t => t.name));
+  const anyPlayed = allStandings.some(g => g.rows.some(t => t.mp > 0));
+
   let html = '';
-  GROUPS.forEach(g => {
-    const standings = getGroupStandings(g.teams);
-    const hasPlayed = standings.some(s => s.mp > 0);
+  allStandings.forEach(g => {
+    const hasPlayed = g.rows.some(r => r.mp > 0);
     html += `<div class="group-card"><div class="group-header">GROUPE ${g.name}</div><table class="group-table"><tbody>`;
-    standings.forEach((t, i) => {
+    g.rows.forEach((t, i) => {
       const flagEl = flagHtml(getFlagForTeam(t.name), t.name);
-      const quali = hasPlayed && i < 2 ? ' class="group-quali"' : '';
-      html += `<tr${quali}>
+      let rowClass = '';
+      if (hasPlayed) {
+        if (i < 2) rowClass = ' class="group-quali"';
+        else if (i === 2 && top8.has(t.name)) rowClass = ' class="group-quali-3rd"';
+      }
+      html += `<tr${rowClass}>
         <td class="group-td-team">
           <div class="group-team-cell">
             <span class="group-team-flag">${flagEl}</span>
@@ -1237,6 +1257,46 @@ function renderGroups() {
     });
     html += '</tbody></table></div>';
   });
+  container.innerHTML = html;
+
+  renderBest3rdPlaces(thirds, anyPlayed);
+}
+
+function renderBest3rdPlaces(thirds, anyPlayed) {
+  const container = document.getElementById('best3rdContainer');
+  if (!container) return;
+  if (!anyPlayed) {
+    container.innerHTML = `<div style="text-align:center;padding:20px 0;color:var(--text3);font-size:13px">Le classement s'affichera après les premiers matchs de groupes</div>`;
+    return;
+  }
+  let html = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:8px">
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr>
+        <th style="width:36px;padding:8px 10px;text-align:left;font-size:10px;color:var(--text3);text-transform:uppercase;border-bottom:1px solid var(--border)">#</th>
+        <th style="width:40px;padding:8px 4px;text-align:center;font-size:10px;color:var(--text3);text-transform:uppercase;border-bottom:1px solid var(--border)">Grp</th>
+        <th style="padding:8px;text-align:left;font-size:10px;color:var(--text3);text-transform:uppercase;border-bottom:1px solid var(--border)">Équipe</th>
+        <th style="padding:8px 10px;text-align:right;font-size:10px;color:var(--gold);text-transform:uppercase;border-bottom:1px solid var(--border)">Pts</th>
+      </tr></thead><tbody>`;
+  thirds.forEach((t, i) => {
+    const flagEl = flagHtml(getFlagForTeam(t.name), t.name);
+    const quali = i < 8;
+    html += `<tr style="border-left:3px solid ${quali ? '#ff7800' : 'transparent'};border-bottom:1px solid var(--border)">
+      <td style="padding:7px 10px;font-family:var(--font-display);font-size:18px;color:${quali ? '#ff7800' : 'var(--text3)'}">${i + 1}</td>
+      <td style="padding:7px 4px;text-align:center">
+        <span style="background:var(--gold-dim);color:var(--gold);font-family:var(--font-display);font-size:11px;padding:2px 7px;border-radius:4px">${t.group}</span>
+      </td>
+      <td style="padding:7px 8px">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span style="font-size:14px;line-height:1;display:flex;align-items:center">${flagEl}</span>
+          <span style="font-weight:600;font-size:13px;color:var(--text)">${t.name}</span>
+          ${quali ? `<span style="font-size:10px;color:#ff7800;font-weight:700;letter-spacing:.5px">✓ QUALIFIÉ</span>` : ''}
+        </div>
+      </td>
+      <td style="padding:7px 10px;text-align:right;font-family:var(--font-display);font-size:20px;color:var(--gold)">${t.pts}</td>
+    </tr>`;
+  });
+  html += `</tbody></table></div>
+  <p style="font-size:11px;color:var(--text3);text-align:center;margin-bottom:16px">Les 8 meilleurs 3ème (sur 12) se qualifient pour les 16es de finale</p>`;
   container.innerHTML = html;
 }
 
