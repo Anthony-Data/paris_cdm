@@ -1112,6 +1112,15 @@ function enterApp() {
   if (Notification.permission === 'granted' && !getCurrentPlayer()?.notifDisabled) subscribeToPush();
 }
 
+// Mise à jour de l'abonnement au retour au premier plan (app en arrière-plan → foreground)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible'
+      && Notification.permission === 'granted'
+      && !getCurrentPlayer()?.notifDisabled) {
+    subscribeToPush();
+  }
+});
+
 function getCurrentPlayer() {
   return state.players.find(p => p.id === state.currentPlayer);
 }
