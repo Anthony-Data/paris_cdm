@@ -2330,7 +2330,7 @@ function copyLink(url, btn) {
   });
 }
 
-function addMatch() {
+async function addMatch() {
   const t1 = document.getElementById('mTeam1').value.trim();
   const t2 = document.getElementById('mTeam2').value.trim();
   const date = document.getElementById('mDate').value;
@@ -2344,15 +2344,15 @@ function addMatch() {
   ['mTeam1','mTeam2','mDate','mFlag1','mFlag2'].forEach(id => document.getElementById(id).value='');
   renderMatches(); populateUpdateMatchSelect();
   toast(`✅ Match ajouté`);
-  // Si le match est dans ~1h, envoyer la notif immédiatement à tous les appareils.
-  // On passe les données en paramètres (?force=1) pour éviter toute dépendance
-  // à la sync Firebase (save() est async — race condition si on lit depuis le serveur).
+  // Si le match est dans ~1h : même logique que betaTestNotif() qui fonctionne.
+  // await subscribeToPush() garantit l'abonnement frais ET laisse ~1s pour que
+  // Firebase propage l'écriture de save() avant que le serveur lise le match.
   const matchTs = new Date(date).getTime();
   const notifAt = matchTs - 60 * 60 * 1000;
   const nowMs = Date.now();
   if (nowMs >= notifAt - 2 * 60 * 1000 && nowMs < matchTs) {
-    const params = new URLSearchParams({ force: '1', team1: t1, team2: t2, flag1, flag2, matchTag: newMatchId });
-    fetch('/api/notify?' + params).catch(() => {});
+    await subscribeToPush();
+    fetch('/api/notify?matchId=' + encodeURIComponent(newMatchId)).catch(() => {});
   }
   if (typeof scheduleNotifications === 'function') scheduleNotifications();
 }
