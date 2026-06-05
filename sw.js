@@ -1,4 +1,4 @@
-const CACHE = 'cdm2026-v5';
+const CACHE = 'cdm2026-v6';
 const ASSETS = ['./index.html', './logo.png'];
 
 self.addEventListener('install', e => {
@@ -73,12 +73,13 @@ self.addEventListener('notificationclick', e => {
 self.addEventListener('message', e => {
   if (e.data?.type === 'SHOW_NOTIFICATION') {
     const { title, body, tag } = e.data;
+    // Pas de vibrate/requireInteraction : bloquants sur iOS écran verrouillé
     self.registration.showNotification(title, {
       body,
       icon: './logo.png',
+      badge: './logo.png',
       tag: tag || 'cdm',
-      vibrate: [300, 150, 300],
-      requireInteraction: true,
+      data: { url: self.registration.scope },
     });
   }
 });

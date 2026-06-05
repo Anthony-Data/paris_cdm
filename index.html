@@ -2106,24 +2106,24 @@ function scheduleNotifications() {
   });
 }
 
-// Affiche une notification via Service Worker (iOS/Android) ou Notification API (desktop)
+// Affiche une notification locale via Service Worker (fallback client-side).
+// Pas de vibrate/requireInteraction : bloquants sur iOS écran verrouillé.
+// Tag préfixé 'local_' pour ne pas entrer en conflit avec les server push (même match.id).
 async function showPushNotification(title, body, tag) {
   if (Notification.permission !== 'granted') return;
   const opts = {
     body,
-    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">⚽</text></svg>',
-    tag: tag || 'cdm-notif',
-    vibrate: [300, 150, 300],
-    requireInteraction: true,
+    icon: './logo.png',
+    badge: './logo.png',
+    tag: 'local_' + (tag || 'cdm-notif'),
+    data: { url: location.href },
   };
-  // Priorité au Service Worker (requis sur iOS, meilleur sur Android)
   try {
     if ('serviceWorker' in navigator) {
       const reg = await navigator.serviceWorker.getRegistration();
       if (reg) { await reg.showNotification(title, opts); return; }
     }
   } catch(e) {}
-  // Fallback desktop
   try { new Notification(title, opts); } catch(e) {}
 }
 
