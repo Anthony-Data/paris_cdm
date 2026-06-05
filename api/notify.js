@@ -151,7 +151,6 @@ module.exports = async (req, res) => {
       const msSince = now - notifAt;
       return msSince >= -EARLY_MS && now < new Date(m.date).getTime();
     });
-    });
 
     if (!targetMatches.length) {
       return res.json({
