@@ -824,38 +824,19 @@ async function subscribeToPush() {
   try {
     const reg = await navigator.serviceWorker.getRegistration();
     if (!reg) return;
-
-    const p = getCurrentPlayer();
-    const deviceKey = getDeviceKey();
-    const subKey = `${state.currentPlayer}_${deviceKey}`;
-
-    // Lire Firebase d'abord pour vérifier l'âge de l'abonnement stocké
-    const existing = await db.ref('cdm2026/subscriptions').once('value');
-    const allSubs = existing.val() || {};
-    const stored = allSubs[subKey];
-    const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
-    const needsRenewal = !stored || !stored.updatedAt || (Date.now() - stored.updatedAt) > TWO_HOURS_MS;
-
     let sub = await reg.pushManager.getSubscription();
-
-    // Forcer un renouvellement si l'abonnement dépasse 2h (token APNS potentiellement périmé)
-    if (sub && needsRenewal) {
-      try {
-        await sub.unsubscribe();
-        sub = null;
-      } catch(e) { console.warn('unsubscribe failed:', e); }
-    }
-
     if (!sub) {
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
       });
     }
-
-    // Supprimer uniquement les anciennes entrées avec le même endpoint exact
-    // (même navigateur qui se réabonne — NE PAS toucher les autres appareils du joueur)
+    const p = getCurrentPlayer();
+    const deviceKey = getDeviceKey();
+    const subKey = `${state.currentPlayer}_${deviceKey}`;
     const subEndpoint = sub.endpoint;
+    const existing = await db.ref('cdm2026/subscriptions').once('value');
+    const allSubs = existing.val() || {};
     const deleteOps = [];
     for (const [key, val] of Object.entries(allSubs)) {
       if (key === subKey) continue;
@@ -864,7 +845,6 @@ async function subscribeToPush() {
       }
     }
     if (deleteOps.length) await Promise.all(deleteOps);
-
     await db.ref(`cdm2026/subscriptions/${subKey}`).set({
       subscription: sub.toJSON(),
       playerName: p ? playerFullName(p) : 'Joueur',
@@ -2359,7 +2339,8 @@ function addMatch() {
   const flag1 = document.getElementById('mFlag1').value.trim()||'🏳';
   const flag2 = document.getElementById('mFlag2').value.trim()||'🏳';
   if (!t1||!t2||!date) { toast('❌ Équipes et date requis'); return; }
-  state.matches.push({ id:'m'+Date.now(), team1:t1, team2:t2, date, phase, flag1, flag2, status:'upcoming', score1:null, score2:null });
+  const dateUTC = new Date(date).toISOString();
+  state.matches.push({ id:'m'+Date.now(), team1:t1, team2:t2, date:dateUTC, phase, flag1, flag2, status:'upcoming', score1:null, score2:null });
   save();
   ['mTeam1','mTeam2','mDate','mFlag1','mFlag2'].forEach(id => document.getElementById(id).value='');
   renderMatches(); populateUpdateMatchSelect();

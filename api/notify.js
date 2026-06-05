@@ -89,6 +89,31 @@ module.exports = async (req, res) => {
       return res.json({ mode: 'force_test', sent, removed, failed, subscribers: subCount, details });
     }
 
+    // ── Mode keepalive (?keepalive=1) : maintient la connexion APNS chaude ───
+    // À appeler toutes les 15-20 min via cron-job.com pour garantir la livraison
+    // sur écran verrouillé iOS (connexion APNS dormante = notification différée).
+    if (req.query.keepalive === '1') {
+      const payload = JSON.stringify({ type: 'keepalive' });
+      let sent = 0, removed = 0;
+      const removals = [];
+      for (const [subKey, subData] of Object.entries(subscriptions)) {
+        if (!subData.subscription) continue;
+        const ep = subData.subscription.endpoint || '';
+        if (!ep.includes('web.push.apple.com')) continue; // iOS seulement
+        try {
+          await webpush.sendNotification(subData.subscription, payload, PUSH_OPTS);
+          sent++;
+        } catch (e) {
+          if (e.statusCode === 410 || e.statusCode === 404) {
+            removals.push(db.ref(`cdm2026/subscriptions/${subKey}`).remove());
+            removed++;
+          }
+        }
+      }
+      if (removals.length) await Promise.all(removals);
+      return res.json({ mode: 'keepalive', sent, removed, subscribers: subCount });
+    }
+
     // ── Mode match immédiat (?matchId=<id>) : même logique que le cron ──────
     // mais pour un match spécifique, sans vérification de fenêtre temporelle.
     // Utilisé par betaTestNotif() et par tout appelant connaissant l'heure exacte.
