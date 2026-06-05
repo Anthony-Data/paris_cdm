@@ -820,27 +820,14 @@ function getDeviceKey() {
 
 async function subscribeToPush() {
   if (!db || !state.currentPlayer) return;
-  if (getCurrentPlayer()?.notifDisabled) return; // révoqué par admin ou désactivé
+  if (getCurrentPlayer()?.notifDisabled) return;
   try {
     const reg = await navigator.serviceWorker.getRegistration();
     if (!reg) return;
     let sub = await reg.pushManager.getSubscription();
 
-    // Renouvellement quotidien : la subscription APNS (iOS) peut expirer silencieusement.
-    // Renouvellement forcé de l'endpoint APNS toutes les 22h (iOS)
-    // Le reste (save Firebase) s'exécute à chaque appel pour garder updatedAt frais
-    if (sub) {
-      const tsKey = `cdm2026_sub_ts_${state.currentPlayer}`;
-      const lastTs = parseInt(localStorage.getItem(tsKey) || '0');
-      const hoursSince = (Date.now() - lastTs) / 3600000;
-      if (hoursSince >= 22) {
-        try { await sub.unsubscribe(); } catch(e) {}
-        sub = null;
-        localStorage.setItem(tsKey, Date.now().toString());
-        console.log('🔄 Renouvellement endpoint APNS (', Math.round(hoursSince), 'h écoulées)');
-      }
-    }
-
+    // Si pas de subscription active (expirée ou jamais créée), on en crée une nouvelle.
+    // La gestion des subs expirées côté serveur est assurée par le keepalive (cleanup 410).
     if (!sub) {
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
@@ -851,9 +838,8 @@ async function subscribeToPush() {
     const deviceKey = getDeviceKey();
     const subKey = `${state.currentPlayer}_${deviceKey}`;
 
-    // Supprimer uniquement les anciennes entrées ayant exactement le même endpoint
-    // (même navigateur qui se réabonne avec un nouvel objet PushSubscription).
-    // NE PAS supprimer les autres appareils du même joueur : chaque appareil garde son propre sub.
+    // Supprimer uniquement les anciennes entrées avec le même endpoint exact
+    // (même navigateur qui se réabonne — NE PAS toucher les autres appareils du joueur)
     const subEndpoint = sub.endpoint;
     const existing = await db.ref('cdm2026/subscriptions').once('value');
     const allSubs = existing.val() || {};
@@ -866,7 +852,6 @@ async function subscribeToPush() {
     }
     if (deleteOps.length) await Promise.all(deleteOps);
 
-    // Enregistrer l'abonnement courant
     await db.ref(`cdm2026/subscriptions/${subKey}`).set({
       subscription: sub.toJSON(),
       playerName: p ? playerFullName(p) : 'Joueur',
@@ -874,7 +859,7 @@ async function subscribeToPush() {
       updatedAt: Date.now(),
       userAgent: navigator.userAgent,
     });
-    console.log('✅ Abonnement push enregistré (' + subKey + '), anciens doublons supprimés : ' + deleteOps.length);
+    console.log('✅ Abonnement push enregistré (' + subKey + ')');
   } catch(e) {
     console.warn('Push subscription failed:', e);
   }
