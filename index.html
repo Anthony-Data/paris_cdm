@@ -1925,11 +1925,13 @@ async function betaTestNotif() {
   if (Notification.permission !== 'granted') { toast('❌ Active les notifications d\'abord'); return; }
   if (_betaMatchId) cancelBetaTest();
 
+  // S'assurer que l'abonnement est bien enregistré avant d'envoyer
   await subscribeToPush();
 
   const now = new Date();
-  const matchTime = new Date(now.getTime() + 61 * 60 * 1000); // dans 61 min
-  const notifTime = new Date(matchTime.getTime() - 60 * 60 * 1000); // = now + 2 min
+  // Match fictif dans 61 min — mais la notif est envoyée immédiatement via ?matchId=
+  // (plus d'attente du cron, même comportement que la vraie notif 1h avant)
+  const matchTime = new Date(now.getTime() + 61 * 60 * 1000);
   const testId = 'beta_' + Date.now();
   _betaMatchId = testId;
 
@@ -1941,7 +1943,8 @@ async function betaTestNotif() {
   };
 
   state.matches.push(testMatch);
-  save(); renderMatches();
+  save();
+  renderMatches();
 
   // Nettoyage automatique après 15 min
   setTimeout(() => {
@@ -1953,15 +1956,25 @@ async function betaTestNotif() {
   }, 15 * 60 * 1000);
 
   const betaStatus = document.getElementById('betaStatus');
-  if (betaStatus) {
-    betaStatus.textContent = `✅ Match créé — notification attendue vers ${notifTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
-    betaStatus.style.color = 'var(--green)';
-  }
+  if (betaStatus) { betaStatus.textContent = '⏳ Envoi du push serveur…'; betaStatus.style.color = 'var(--text3)'; }
   document.getElementById('betaStartBtn').style.display = 'none';
   document.getElementById('betaCancelBtn').style.display = 'block';
 
-  toast('🧪 Match test créé — notif dans ~2 min');
-  addNotif(`🧪 Bêta test : match à ${matchTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} — notif prévue à ${notifTime.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`);
+  // Appel immédiat au serveur avec le matchId — même logique que la vraie notif 1h avant,
+  // sans dépendre du cron GitHub Actions (throttlé à ~1/heure en réalité)
+  try {
+    const res = await fetch('/api/notify?matchId=' + encodeURIComponent(testId));
+    const data = await res.json();
+    const msg = res.ok
+      ? `✅ Push envoyé : ${data.sent} appareil(s), ${data.skipped} ignoré(s)${data.removed ? ', ' + data.removed + ' mort(s) supprimé(s)' : ''}`
+      : `❌ Erreur : ${data.error || res.status}`;
+    if (betaStatus) { betaStatus.textContent = msg; betaStatus.style.color = res.ok ? '#4caf50' : 'var(--red)'; }
+    toast(res.ok ? '📲 Push serveur envoyé !' : '❌ Erreur push serveur');
+    addNotif(`🧪 Bêta test push serveur — ${msg}`);
+  } catch(e) {
+    if (betaStatus) { betaStatus.textContent = '❌ Erreur réseau'; betaStatus.style.color = 'var(--red)'; }
+    toast('❌ Erreur réseau');
+  }
 }
 
 async function betaTestImmediate() {

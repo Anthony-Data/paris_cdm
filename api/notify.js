@@ -48,7 +48,7 @@ module.exports = async (req, res) => {
     const subscriptions = subsSnap.val() || {};
     const subCount = Object.keys(subscriptions).length;
 
-    // ── Mode test forcé (?force=1) : push immédiat vers tous les abonnés ──────
+    // ── Mode test (?force=1) : push immédiat vers tous les abonnés ──────────
     if (req.query.force === '1') {
       const payload = JSON.stringify({
         title: '⚽ CdM 2026 — Test push serveur',
@@ -71,6 +71,52 @@ module.exports = async (req, res) => {
       }
       if (removals.length) await Promise.all(removals);
       return res.json({ mode: 'force_test', sent, removed, failed, subscribers: subCount });
+    }
+
+    // ── Mode match immédiat (?matchId=<id>) : même logique que le cron ──────
+    // mais pour un match spécifique, sans vérification de fenêtre temporelle.
+    // Utilisé par betaTestNotif() et par tout appelant connaissant l'heure exacte.
+    if (req.query.matchId) {
+      const [sharedSnap2, sentSnap2] = await Promise.all([
+        db.ref('cdm2026/shared').once('value'),
+        db.ref('cdm2026/notifsSent').once('value'),
+      ]);
+      const shared2 = sharedSnap2.val() || {};
+      const notifsSent2 = sentSnap2.val() || {};
+      const pronos2 = shared2.pronos || {};
+      const rawMatches2 = shared2.matches;
+      const matches2 = Array.isArray(rawMatches2) ? rawMatches2 : Object.values(rawMatches2 || {});
+      const match = matches2.find(m => m.id === req.query.matchId);
+      if (!match) return res.status(404).json({ error: 'Match introuvable : ' + req.query.matchId });
+      if (notifsSent2[match.id]) return res.json({ mode: 'matchId', skipped: 1, reason: 'already_sent' });
+
+      const sentRef2 = db.ref(`cdm2026/notifsSent/${match.id}`);
+      const tx2 = await sentRef2.transaction(cur => cur ? undefined : new Date().toISOString());
+      if (!tx2.committed) return res.json({ mode: 'matchId', skipped: 1, reason: 'race_condition' });
+
+      let sent = 0, skipped = 0, removed = 0;
+      for (const [subKey, subData] of Object.entries(subscriptions)) {
+        if (!subData.subscription) { skipped++; continue; }
+        if (pronos2[match.id]?.[subData.playerId]) { skipped++; continue; }
+        const payload = JSON.stringify({
+          title: `⚽ ${match.flag1 || ''} ${match.team1} vs ${match.team2} ${match.flag2 || ''}`,
+          body: `${subData.playerName ? subData.playerName + ', n' : 'N'}'oublie pas ton prono pour le match ${match.team1} vs ${match.team2} !`,
+          tag: match.id,
+        });
+        try {
+          await webpush.sendNotification(subData.subscription, payload, PUSH_OPTS);
+          sent++;
+        } catch (e) {
+          if (e.statusCode === 410 || e.statusCode === 404) {
+            await db.ref(`cdm2026/subscriptions/${subKey}`).remove();
+            removed++;
+          } else {
+            console.error(`APNS error [${subKey}]: HTTP ${e.statusCode} — ${e.message}`);
+            skipped++;
+          }
+        }
+      }
+      return res.json({ mode: 'matchId', match: match.id, sent, skipped, removed });
     }
 
     const now = new Date();
