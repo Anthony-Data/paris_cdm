@@ -2,10 +2,10 @@ name: Push Notifications Cron
 
 on:
   schedule:
-    # Toutes les 5 minutes — déclenche l'envoi des notifs de match côté serveur
-    # (remplace Vercel Cron, indisponible sur plan Hobby)
+    # Planifié toutes les 5 min — GitHub Actions throttle en pratique à ~1/h.
+    # La fenêtre côté serveur est élargie à 55 min pour compenser.
     - cron: '*/5 * * * *'
-  workflow_dispatch: # permet un déclenchement manuel depuis GitHub Actions
+  workflow_dispatch:
 
 jobs:
   notify:
@@ -13,8 +13,9 @@ jobs:
     steps:
       - name: Appel API notify (push notifications matchs)
         run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ secrets.VERCEL_APP_URL }}/api/notify")
+          STATUS=$(curl -s -o /tmp/resp.json -w "%{http_code}" "${{ secrets.VERCEL_APP_URL }}/api/notify")
           echo "HTTP status: $STATUS"
+          echo "Réponse: $(cat /tmp/resp.json)"
           if [ "$STATUS" -ge 500 ]; then
             echo "Erreur serveur ($STATUS)" && exit 1
           fi

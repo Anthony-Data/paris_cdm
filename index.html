@@ -1098,19 +1098,22 @@ function enterApp() {
   if (Notification.permission === 'granted' && !getCurrentPlayer()?.notifDisabled) subscribeToPush();
 }
 
-// Mise à jour de l'abonnement au retour au premier plan (app en arrière-plan → foreground)
-// visibilitychange = changement d'onglet/focus ; pageshow = retour depuis cache iOS (plus fiable)
+// Au retour au premier plan : rafraîchit l'abonnement ET déclenche /api/notify côté serveur.
+// Si le cron GitHub Actions a raté la fenêtre (gaps réels 60-95 min),
+// l'ouverture de l'app par n'importe quel joueur rattrape la notification manquée.
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible'
       && Notification.permission === 'granted'
       && !getCurrentPlayer()?.notifDisabled) {
     subscribeToPush();
+    fetch('/api/notify').catch(() => {});
   }
 });
 window.addEventListener('pageshow', () => {
   if (Notification.permission === 'granted'
       && !getCurrentPlayer()?.notifDisabled) {
     subscribeToPush();
+    fetch('/api/notify').catch(() => {});
   }
 });
 

@@ -89,16 +89,17 @@ module.exports = async (req, res) => {
     const matches = Array.isArray(rawMatches) ? rawMatches : Object.values(rawMatches || {});
     const pronos = shared.pronos || {};
 
-    // Sélection des matchs : fenêtre [-2 min, +7 min] autour de la marque 1h avant.
-    // Le cron tourne toutes les 5 min ; fenêtre 7 min couvre le pire cas.
-    const WINDOW_MS = 7 * 60 * 1000;
-    const EARLY_MS  = 2 * 60 * 1000;
+    // Fenêtre large : GitHub Actions ne tourne pas toutes les 5 min en pratique (gaps 60-95 min).
+    // 55 min = notif arrive au pire 5 min avant le match (jamais après le coup d'envoi).
+    const WINDOW_MS = 55 * 60 * 1000;
+    const EARLY_MS  =  2 * 60 * 1000;
     const targetMatches = matches.filter(m => {
       if (m.status !== 'upcoming') return false;
       if (notifsSent[m.id]) return false;
       const notifAt = new Date(m.date).getTime() - 60 * 60 * 1000;
       const msSince = now - notifAt;
-      return msSince >= -EARLY_MS && msSince < WINDOW_MS;
+      // Ne jamais envoyer après le début du match
+      return msSince >= -EARLY_MS && msSince < WINDOW_MS && now < new Date(m.date).getTime();
     });
 
     if (!targetMatches.length) {
@@ -137,7 +138,10 @@ module.exports = async (req, res) => {
           if (e.statusCode === 410 || e.statusCode === 404) {
             await db.ref(`cdm2026/subscriptions/${subKey}`).remove();
             removed++;
-          } else { skipped++; }
+          } else {
+            console.error(`APNS/push error [${subKey}]: HTTP ${e.statusCode} — ${e.message}`);
+            skipped++;
+          }
         }
       }
     }
