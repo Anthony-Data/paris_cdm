@@ -825,17 +825,17 @@ async function subscribeToPush() {
     let sub = await reg.pushManager.getSubscription();
 
     // Renouvellement quotidien : la subscription APNS (iOS) peut expirer silencieusement.
-    // Si elle a plus de 22h, on force un unsubscribe + re-subscribe pour obtenir
-    // un endpoint APNS frais, même sans action de l'utilisateur.
-    if (sub) {
-      const tsKey = `cdm2026_sub_ts_${state.currentPlayer}`;
-      const lastTs = parseInt(localStorage.getItem(tsKey) || '0');
-      const hoursSince = (Date.now() - lastTs) / 3600000;
-      if (hoursSince >= 22) {
-        try { await sub.unsubscribe(); } catch(e) {}
-        sub = null;
-        console.log('🔄 Renouvellement subscription push (', Math.round(hoursSince), 'h écoulées)');
-      }
+    const tsKey = `cdm2026_sub_ts_${state.currentPlayer}`;
+    const lastTs = parseInt(localStorage.getItem(tsKey) || '0');
+    const hoursSince = (Date.now() - lastTs) / 3600000;
+
+    if (sub && hoursSince < 22) return; // subscription fraîche → rien à faire
+
+    if (sub && hoursSince >= 22) {
+      // Force renouvellement : ancien endpoint APNS potentiellement expiré
+      try { await sub.unsubscribe(); } catch(e) {}
+      sub = null;
+      console.log('🔄 Renouvellement subscription push (', Math.round(hoursSince), 'h écoulées)');
     }
 
     if (!sub) {
