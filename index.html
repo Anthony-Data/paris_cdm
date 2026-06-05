@@ -1113,9 +1113,16 @@ function enterApp() {
 }
 
 // Mise à jour de l'abonnement au retour au premier plan (app en arrière-plan → foreground)
+// visibilitychange = changement d'onglet/focus ; pageshow = retour depuis cache iOS (plus fiable)
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible'
       && Notification.permission === 'granted'
+      && !getCurrentPlayer()?.notifDisabled) {
+    subscribeToPush();
+  }
+});
+window.addEventListener('pageshow', () => {
+  if (Notification.permission === 'granted'
       && !getCurrentPlayer()?.notifDisabled) {
     subscribeToPush();
   }

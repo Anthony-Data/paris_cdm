@@ -2,6 +2,7 @@
   "version": 2,
   "functions": {
     "api/notify.js":               { "maxDuration": 30 },
+    "api/keepalive.js":            { "maxDuration": 30 },
     "api/subscribers.js":          { "maxDuration": 10 },
     "api/delete-subscription.js":  { "maxDuration": 10 }
   }

@@ -25,6 +25,23 @@ self.addEventListener('push', e => {
   let data = {};
   try { data = e.data ? e.data.json() : {}; } catch(err) {}
 
+  // Keepalive : juste pour maintenir l'endpoint APNS en vie
+  // iOS exige une notification visible — on utilise un tag fixe pour écraser la précédente
+  if (data.type === 'keepalive') {
+    e.waitUntil(
+      self.registration.showNotification('⚽ CdM 2026', {
+        body: 'Notifications actives',
+        icon: './logo.png',
+        badge: './logo.png',
+        tag: 'keepalive',
+        silent: true,
+        renotify: false,
+        data: { url: self.registration.scope },
+      })
+    );
+    return;
+  }
+
   const title = data.title || '⚽ CdM 2026';
   const options = {
     body: data.body || 'Rappel de match — donne ton prono !',
