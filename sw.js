@@ -28,13 +28,14 @@ self.addEventListener('push', e => {
   // Keepalive : juste pour maintenir l'endpoint APNS en vie
   // iOS exige une notification visible — on utilise un tag fixe pour écraser la précédente
   if (data.type === 'keepalive') {
+    // iOS exige une notification visible pour tout push event (pas de silent push).
+    // On utilise tag:'keepalive' pour qu'elle remplace la précédente dans le centre de notifs.
     e.waitUntil(
       self.registration.showNotification('⚽ CdM 2026', {
         body: 'Notifications actives',
         icon: './logo.png',
         badge: './logo.png',
         tag: 'keepalive',
-        silent: true,
         renotify: false,
         data: { url: self.registration.scope },
       })

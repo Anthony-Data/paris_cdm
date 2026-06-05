@@ -729,8 +729,10 @@ select.form-input { cursor: pointer; }
           </div>
           <p style="font-size:13px;color:var(--text2);margin-bottom:12px;">Crée un match fictif dans 61 min. La notification partira automatiquement pile à 1h avant le coup d'envoi</p>
           <button id="betaStartBtn" class="btn btn-gold" onclick="betaTestNotif()" style="width:100%">🧪 Créer match test (notif dans ~1 min)</button>
+          <button onclick="serverTestPush()" class="btn btn-ghost" style="width:100%;margin-top:8px">📲 Test push serveur immédiat</button>
+          <button onclick="checkPushEndpoint()" class="btn btn-ghost" style="width:100%;margin-top:6px;font-size:12px;opacity:.8">📡 Vérifier endpoint (APNS/FCM ?)</button>
           <button id="betaCancelBtn" class="btn btn-danger" onclick="cancelBetaTest()" style="width:100%;margin-top:8px;display:none">✕ Annuler le beta test</button>
-          <div id="betaStatus" style="font-size:12px;color:var(--text3);margin-top:8px;line-height:1.6"></div>
+          <div id="betaStatus" style="font-size:12px;color:var(--text3);margin-top:8px;line-height:1.6;white-space:pre-wrap"></div>
         </div>
 
         <div id="notifsList"></div>
@@ -849,17 +851,16 @@ async function subscribeToPush() {
     const deviceKey = getDeviceKey();
     const subKey = `${state.currentPlayer}_${deviceKey}`;
 
-    // Supprimer tout abonnement avec le même endpoint (même appareil, peu importe le joueur)
-    // ou même joueur sur un autre appareil → 1 seule subscription active par joueur×appareil
+    // Supprimer uniquement les anciennes entrées ayant exactement le même endpoint
+    // (même navigateur qui se réabonne avec un nouvel objet PushSubscription).
+    // NE PAS supprimer les autres appareils du même joueur : chaque appareil garde son propre sub.
     const subEndpoint = sub.endpoint;
     const existing = await db.ref('cdm2026/subscriptions').once('value');
     const allSubs = existing.val() || {};
     const deleteOps = [];
     for (const [key, val] of Object.entries(allSubs)) {
       if (key === subKey) continue;
-      const sameEndpoint = val.subscription?.endpoint === subEndpoint;
-      const samePlayer   = (val.playerId || key) === state.currentPlayer;
-      if (sameEndpoint || samePlayer) {
+      if (val.subscription?.endpoint === subEndpoint) {
         deleteOps.push(db.ref(`cdm2026/subscriptions/${key}`).remove());
       }
     }
@@ -1988,6 +1989,54 @@ async function betaTestImmediate() {
   const el = document.getElementById('betaStatus');
   if (el) { el.textContent = '⚡ Notification envoyée !'; el.style.color = 'var(--gold)'; }
   toast('📲 Notification envoyée !');
+}
+
+// Test push serveur immédiat — appelle /api/notify?force=1 pour vérifier que le serveur
+// peut envoyer une vraie notification iOS/Android sans attendre le cron
+async function serverTestPush() {
+  const el = document.getElementById('betaStatus');
+  if (el) { el.textContent = '⏳ Envoi push serveur en cours…'; el.style.color = 'var(--text3)'; }
+  try {
+    const res = await fetch('/api/notify?force=1');
+    const data = await res.json();
+    if (res.ok) {
+      const msg = `✅ Push envoyé : ${data.sent} appareil(s) notifié(s), ${data.removed} mort(s) supprimé(s)`;
+      if (el) { el.textContent = msg; el.style.color = '#4caf50'; }
+      toast('📲 Push serveur envoyé !');
+    } else {
+      if (el) { el.textContent = `❌ Erreur serveur : ${data.error || res.status}`; el.style.color = 'var(--red)'; }
+      toast('❌ Erreur push serveur');
+    }
+  } catch(e) {
+    if (el) { el.textContent = '❌ Erreur réseau'; el.style.color = 'var(--red)'; }
+    toast('❌ Erreur réseau');
+  }
+}
+
+// Affiche le type d'endpoint actuel (APNS = iOS, FCM = Chrome/Android)
+// Indispensable pour diagnostiquer si l'abonnement iOS est bien enregistré
+async function checkPushEndpoint() {
+  const el = document.getElementById('betaStatus');
+  try {
+    const reg = await navigator.serviceWorker?.getRegistration();
+    const sub = await reg?.pushManager?.getSubscription();
+    if (!sub) {
+      toast('❌ Aucune subscription push sur cet appareil');
+      if (el) { el.textContent = '❌ Pas de subscription push active sur cet appareil'; el.style.color = 'var(--red)'; }
+      return;
+    }
+    const url = sub.endpoint;
+    const type = url.includes('apple.com')   ? '✅ APNS — iOS Safari (correct !)'
+               : url.includes('google') || url.includes('firebase') ? '✅ FCM — Chrome / Android'
+               : url.includes('mozilla.com') ? '✅ Mozilla — Firefox'
+               : '⚠️ Endpoint inconnu';
+    const short = url.length > 70 ? url.slice(0, 70) + '…' : url;
+    if (el) { el.textContent = `📡 ${type}\n${short}`; el.style.color = 'var(--text2)'; }
+    console.log('[Push endpoint]', url);
+    toast(`📡 ${type}`);
+  } catch(e) {
+    toast('❌ Erreur lecture endpoint');
+  }
 }
 
 function addNotif(message) {
