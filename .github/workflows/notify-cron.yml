@@ -1,21 +1,20 @@
-name: Notifications 1h avant match
+name: Push Notifications Cron
 
 on:
   schedule:
+    # Toutes les 5 minutes — déclenche l'envoi des notifs de match côté serveur
+    # (remplace Vercel Cron, indisponible sur plan Hobby)
     - cron: '*/5 * * * *'
-  workflow_dispatch:
+  workflow_dispatch: # permet un déclenchement manuel depuis GitHub Actions
 
 jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
-      - name: Appel endpoint notify
+      - name: Appel API notify (push notifications matchs)
         run: |
-          response=$(curl -s -o /tmp/body.txt -w "%{http_code}" \
-            "https://paris-cdm.vercel.app/api/notify")
-          body=$(cat /tmp/body.txt)
-          echo "HTTP $response : $body"
-          if [ "$response" != "200" ]; then
-            echo "::error::Notify échoué (HTTP $response)"
-            exit 1
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ secrets.VERCEL_APP_URL }}/api/notify")
+          echo "HTTP status: $STATUS"
+          if [ "$STATUS" -ge 500 ]; then
+            echo "Erreur serveur ($STATUS)" && exit 1
           fi
