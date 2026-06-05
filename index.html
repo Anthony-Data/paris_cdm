@@ -2338,11 +2338,15 @@ function addMatch() {
   const flag1 = document.getElementById('mFlag1').value.trim()||'🏳';
   const flag2 = document.getElementById('mFlag2').value.trim()||'🏳';
   if (!t1||!t2||!date) { toast('❌ Équipes et date requis'); return; }
-  state.matches.push({ id:'m'+Date.now(), team1:t1, team2:t2, date, phase, flag1, flag2, status:'upcoming', score1:null, score2:null });
+  const newMatchId = 'm' + Date.now();
+  state.matches.push({ id: newMatchId, team1:t1, team2:t2, date, phase, flag1, flag2, status:'upcoming', score1:null, score2:null });
   save();
   ['mTeam1','mTeam2','mDate','mFlag1','mFlag2'].forEach(id => document.getElementById(id).value='');
   renderMatches(); populateUpdateMatchSelect();
   toast(`✅ Match ajouté`);
+  // Trigger server push if match is now ~1h away (server enforces the time window)
+  fetch('/api/notify?matchId=' + encodeURIComponent(newMatchId)).catch(() => {});
+  if (typeof scheduleNotifications === 'function') scheduleNotifications();
 }
 function populateUpdateMatchSelect() {
   const sel = document.getElementById('updateMatchSelect');

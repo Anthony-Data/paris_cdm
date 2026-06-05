@@ -90,6 +90,18 @@ module.exports = async (req, res) => {
       if (!match) return res.status(404).json({ error: 'Match introuvable : ' + req.query.matchId });
       if (notifsSent2[match.id]) return res.json({ mode: 'matchId', skipped: 1, reason: 'already_sent' });
 
+      // Respect same time window as cron: notify only when match is ~1h away
+      const now2 = new Date();
+      const notifAt2 = new Date(match.date).getTime() - 60 * 60 * 1000;
+      const msSince2 = now2.getTime() - notifAt2;
+      const WINDOW_MS2 = 55 * 60 * 1000;
+      const EARLY_MS2  =  2 * 60 * 1000;
+      const inWindow = msSince2 >= -EARLY_MS2 && msSince2 < WINDOW_MS2 && now2 < new Date(match.date);
+      if (!inWindow) {
+        const minUntilNotif = Math.round((notifAt2 - now2.getTime()) / 60000);
+        return res.json({ mode: 'matchId', skipped: 1, reason: 'not_in_window', minUntilNotif });
+      }
+
       const sentRef2 = db.ref(`cdm2026/notifsSent/${match.id}`);
       const tx2 = await sentRef2.transaction(cur => cur ? undefined : new Date().toISOString());
       if (!tx2.committed) return res.json({ mode: 'matchId', skipped: 1, reason: 'race_condition' });
