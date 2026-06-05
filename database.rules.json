@@ -1,0 +1,18 @@
+{
+  "rules": {
+    "cdm2026": {
+      "shared": {
+        ".read": true,
+        ".write": true
+      },
+      "subscriptions": {
+        ".read": true,
+        ".write": true
+      },
+      "notifsSent": {
+        ".read": true,
+        ".write": true
+      }
+    }
+  }
+}
