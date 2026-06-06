@@ -1212,8 +1212,12 @@ const GROUPS = [
 
 function getFlagForTeam(name) {
   const m = state.matches.find(m => m.team1 === name || m.team2 === name);
-  if (!m) return '';
-  return m.team1 === name ? m.flag1 : m.flag2;
+  if (m) return m.team1 === name ? m.flag1 : m.flag2;
+  const code = _NAME_MAP[name];
+  if (code && /^[a-z]{2}$/.test(code))
+    return String.fromCodePoint(0x1F1E6 + code.charCodeAt(0) - 97) +
+           String.fromCodePoint(0x1F1E6 + code.charCodeAt(1) - 97);
+  return '';
 }
 
 function getGroupStandings(teams) {
