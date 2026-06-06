@@ -1163,10 +1163,23 @@ function _flagCode(e, name) {
     return (String.fromCharCode(c[0]-0x1F1E6+65)+String.fromCharCode(c[1]-0x1F1E6+65)).toLowerCase();
   return '';
 }
+function _repairFlag(e, name) {
+  // Vérifie que l'emoji est bien 2 indicateurs régionaux valides (U+1F1E6–U+1F1FF)
+  const pts = e ? [...e].map(x => x.codePointAt(0)) : [];
+  const valid = pts.length === 2 && pts.every(p => p >= 0x1F1E6 && p <= 0x1F1FF);
+  if (valid) return e;
+  // Emoji corrompu → reconstruire depuis _NAME_MAP si code 2 lettres connu
+  const code = _NAME_MAP[name];
+  if (code && /^[a-z]{2}$/.test(code))
+    return String.fromCodePoint(0x1F1E6 + code.charCodeAt(0) - 97) +
+           String.fromCodePoint(0x1F1E6 + code.charCodeAt(1) - 97);
+  return e || '';
+}
 function flagHtml(e, name) {
-  if (!_useFlagImages) return e || '🏳';
-  const code = _flagCode(e, name);
-  if (!code) return e || '';
+  const safeE = _repairFlag(e, name);
+  if (!_useFlagImages) return safeE || '🏳';
+  const code = _flagCode(safeE, name);
+  if (!code) return safeE || '';
   return `<img src="https://flagcdn.com/32x24/${code}.png" width="32" height="24" style="vertical-align:middle;border-radius:2px;object-fit:cover" loading="lazy" onerror="this.style.display='none'" alt="${name||e||''}">`;
 }
 
