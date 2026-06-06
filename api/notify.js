@@ -173,23 +173,6 @@ module.exports = async (req, res) => {
     const rawMatches = shared.matches;
     const matches = Array.isArray(rawMatches) ? rawMatches : Object.values(rawMatches || {});
 
-    // ── Keepalive automatique 5 min avant la notif → connexion APNS chaude ──
-    // Envoyé uniquement aux abonnés iOS (APNS), silencieux et fermé par le SW.
-    const prewarmMatches = matches.filter(m => {
-      if (m.status !== 'upcoming') return false;
-      const prewarmAt = new Date(m.date).getTime() - 65 * 60 * 1000;
-      const msSince = now - prewarmAt;
-      return msSince >= 0 && msSince < 2 * 60 * 1000;
-    });
-    if (prewarmMatches.length) {
-      const kPayload = JSON.stringify({ type: 'keepalive' });
-      for (const [, subData] of Object.entries(subscriptions)) {
-        if (!subData.subscription?.endpoint?.includes('web.push.apple.com')) continue;
-        try { await webpush.sendNotification(subData.subscription, kPayload, PUSH_OPTS); }
-        catch (_) {}
-      }
-    }
-
     // Fenêtre : 1h avant match ±2 min jusqu'au coup d'envoi.
     const EARLY_MS = 2 * 60 * 1000;
     const targetMatches = matches.filter(m => {
