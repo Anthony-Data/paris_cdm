@@ -89,6 +89,40 @@ module.exports = async (req, res) => {
       return res.json({ mode: 'force_test', sent, removed, failed, subscribers: subCount, details });
     }
 
+    // ── Mode fin de match (?finished=1) : résultat envoyé à tous les abonnés ──
+    if (req.query.finished === '1') {
+      const { team1, team2, score1, score2, flag1, flag2, matchId } = req.query;
+      if (!team1 || !team2 || score1 === undefined || score2 === undefined) {
+        return res.status(400).json({ error: 'Paramètres manquants (team1, team2, score1, score2)' });
+      }
+      const dedupKey = `fin_${matchId || team1 + team2}`;
+      const alreadySent = await db.ref(`cdm2026/notifsSent/${dedupKey}`).once('value');
+      if (alreadySent.val()) return res.json({ mode: 'finished', skipped: 1, reason: 'already_sent' });
+      await db.ref(`cdm2026/notifsSent/${dedupKey}`).set(new Date().toISOString());
+
+      const payload = JSON.stringify({
+        title: `🏁 ${flag1 || ''} ${team1} ${score1} – ${score2} ${team2} ${flag2 || ''}`.trim(),
+        body: `Le match est terminé ! Viens voir ton score 🏆`,
+        tag: dedupKey,
+      });
+      let sent = 0, removed = 0;
+      const removals = [];
+      for (const [subKey, subData] of Object.entries(subscriptions)) {
+        if (!subData.subscription) continue;
+        try {
+          await webpush.sendNotification(subData.subscription, payload, PUSH_OPTS);
+          sent++;
+        } catch (e) {
+          if (e.statusCode === 410 || e.statusCode === 404) {
+            removals.push(db.ref(`cdm2026/subscriptions/${subKey}`).remove());
+            removed++;
+          }
+        }
+      }
+      if (removals.length) await Promise.all(removals);
+      return res.json({ mode: 'finished', sent, removed });
+    }
+
     // ── Mode keepalive (?keepalive=1) : maintient la connexion APNS chaude ───
     // À appeler toutes les 15-20 min via cron-job.com pour garantir la livraison
     // sur écran verrouillé iOS (connexion APNS dormante = notification différée).

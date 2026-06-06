@@ -2369,10 +2369,15 @@ function deleteMatch() {
   toast(`🗑 Match supprimé`);
 }
 async function notifyMatchFinished(m) {
-  const title = `🏁 ${m.flag1||''} ${m.team1} ${m.score1} – ${m.score2} ${m.team2} ${m.flag2||''}`;
-  const body = `Le match est terminé ! Viens voir ton score 🏆`;
-  await showPushNotification(title, body, 'fin_' + m.id);
   addNotif(`🏁 ${m.team1} ${m.score1}–${m.score2} ${m.team2} — Match terminé ! Viens voir ton score.`);
+  const params = new URLSearchParams({
+    finished: '1',
+    matchId: m.id,
+    team1: m.team1, team2: m.team2,
+    score1: m.score1, score2: m.score2,
+    flag1: m.flag1 || '', flag2: m.flag2 || '',
+  });
+  fetch('/api/notify?' + params).catch(() => {});
 }
 function updateMatchScore() {
   const id = document.getElementById('updateMatchSelect').value;
