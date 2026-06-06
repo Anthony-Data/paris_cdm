@@ -1236,18 +1236,32 @@ function getFlagForTeam(name) {
 function getGroupStandings(teams) {
   const stats = {};
   teams.forEach(t => { stats[t] = {mp:0,w:0,d:0,l:0,gf:0,ga:0,pts:0}; });
-  state.matches
-    .filter(m => m.phase === 'Groupes' && m.score1 != null && teams.includes(m.team1) && teams.includes(m.team2))
-    .forEach(m => {
-      stats[m.team1].mp++; stats[m.team2].mp++;
-      stats[m.team1].gf += m.score1; stats[m.team1].ga += m.score2;
-      stats[m.team2].gf += m.score2; stats[m.team2].ga += m.score1;
-      if (m.score1 > m.score2) { stats[m.team1].w++; stats[m.team1].pts+=3; stats[m.team2].l++; }
-      else if (m.score1 < m.score2) { stats[m.team2].w++; stats[m.team2].pts+=3; stats[m.team1].l++; }
-      else { stats[m.team1].d++; stats[m.team1].pts++; stats[m.team2].d++; stats[m.team2].pts++; }
-    });
+  const h2h = {};
+  const groupMatches = state.matches
+    .filter(m => m.phase === 'Groupes' && m.score1 != null && teams.includes(m.team1) && teams.includes(m.team2));
+  groupMatches.forEach(m => {
+    stats[m.team1].mp++; stats[m.team2].mp++;
+    stats[m.team1].gf += m.score1; stats[m.team1].ga += m.score2;
+    stats[m.team2].gf += m.score2; stats[m.team2].ga += m.score1;
+    if (m.score1 > m.score2) { stats[m.team1].w++; stats[m.team1].pts+=3; stats[m.team2].l++; }
+    else if (m.score1 < m.score2) { stats[m.team2].w++; stats[m.team2].pts+=3; stats[m.team1].l++; }
+    else { stats[m.team1].d++; stats[m.team1].pts++; stats[m.team2].d++; stats[m.team2].pts++; }
+    // Confrontation directe
+    if (!h2h[m.team1]) h2h[m.team1] = {};
+    if (!h2h[m.team2]) h2h[m.team2] = {};
+    if (m.score1 > m.score2) { h2h[m.team1][m.team2] = (h2h[m.team1][m.team2]||0)+3; }
+    else if (m.score1 < m.score2) { h2h[m.team2][m.team1] = (h2h[m.team2][m.team1]||0)+3; }
+    else { h2h[m.team1][m.team2] = (h2h[m.team1][m.team2]||0)+1; h2h[m.team2][m.team1] = (h2h[m.team2][m.team1]||0)+1; }
+  });
   return teams.map(t => ({name:t,...stats[t]}))
-    .sort((a,b) => b.pts-a.pts || (b.gf-b.ga)-(a.gf-a.ga) || b.gf-a.gf);
+    .sort((a,b) => {
+      if (b.pts !== a.pts) return b.pts - a.pts;
+      const diffA = a.gf - a.ga, diffB = b.gf - b.ga;
+      if (diffB !== diffA) return diffB - diffA;
+      const h2hDiff = (h2h[b.name]?.[a.name] || 0) - (h2h[a.name]?.[b.name] || 0);
+      if (h2hDiff !== 0) return h2hDiff;
+      return b.gf - a.gf;
+    });
 }
 
 function renderGroups() {
