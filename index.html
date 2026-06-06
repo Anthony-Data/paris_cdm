@@ -2134,11 +2134,7 @@ function sendMatchReminder(m) {
   const myRank = myId ? ranking.findIndex(r=>r.id===myId)+1 : 0;
   const myScore = myId ? ranking.find(r=>r.id===myId) : null;
   const rankStr = myId ? ` | Classement : #${myRank} (${myScore?myScore.pts:0}pts)` : '';
-  const p = getCurrentPlayer();
-  const title = `⚽ ${m.flag1||''} ${m.team1} vs ${m.team2} ${m.flag2||''}`;
-  const body = `${p ? p.prenom + ', n' : 'N'}\'oublie pas ton prono pour le match ${m.team1} vs ${m.team2} !`;
-  showPushNotification(title, body, m.id);
-  fetch('/api/notify').catch(() => {}); // push serveur vers tous les abonnés (téléphones verrouillés)
+  // Pas de notification locale — le cron serveur envoie la notif personnalisée à chaque abonné
   addNotif(`⚽ N'oublie pas ton prono pour le match ${m.flag1||''} ${m.team1} vs ${m.team2} ${m.flag2||''} !${rankStr}`);
 }
 

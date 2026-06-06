@@ -217,15 +217,18 @@ module.exports = async (req, res) => {
       const sentData = notifsSent[match.id] || {};
       const sentSubs = sentData.subs || {};
 
-      const payload = JSON.stringify({
-        title: `⚽ ${match.flag1 || ''} ${match.team1} vs ${match.team2} ${match.flag2 || ''}`.trim(),
-        body: `N'oublie pas ton prono pour le match ${match.team1} vs ${match.team2} !`,
-        tag: match.id,
-      });
+      const matchTitle = `⚽ ${match.flag1 || ''} ${match.team1} vs ${match.team2} ${match.flag2 || ''}`.trim();
 
       for (const [subKey, subData] of Object.entries(subscriptions)) {
         if (!subData.subscription) { skipped++; continue; }
         if (sentSubs[subKey] === 'ok' || sentSubs[subKey] === 'expired') { skipped++; continue; }
+
+        const name = subData.playerName || '';
+        const payload = JSON.stringify({
+          title: matchTitle,
+          body: `${name ? name + ', n' : 'N'}'oublie pas ton prono pour le match ${match.team1} vs ${match.team2} !`,
+          tag: match.id,
+        });
 
         try {
           await webpush.sendNotification(subData.subscription, payload, PUSH_OPTS);
