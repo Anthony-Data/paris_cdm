@@ -1262,7 +1262,15 @@ function renderGroups() {
     .filter(g => g.rows.length >= 3)
     .map(g => ({ ...g.rows[2], group: g.name }))
     .sort((a, b) => b.pts - a.pts || (b.gf - b.ga) - (a.gf - a.ga) || b.gf - a.gf);
-  const top8 = new Set(thirds.slice(0, 8).map(t => t.name));
+  const MATCHES_PER_GROUP = 6;
+  const allGroupsDone = allStandings.every(g =>
+    g.rows.reduce((sum, t) => sum + t.mp, 0) / 2 >= MATCHES_PER_GROUP
+  );
+  const top8 = new Set(
+    allGroupsDone
+      ? thirds.slice(0, 8).map(t => t.name)
+      : thirds.map(t => t.name)
+  );
   const anyPlayed = allStandings.some(g => g.rows.some(t => t.mp > 0));
 
   let html = '';
