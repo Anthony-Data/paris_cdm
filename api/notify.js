@@ -170,6 +170,7 @@ module.exports = async (req, res) => {
 
     const shared = sharedSnap.val() || {};
     const notifsSent = sentSnap.val() || {};
+    const pronos = shared.pronos || {};
     const rawMatches = shared.matches;
     const matches = Array.isArray(rawMatches) ? rawMatches : Object.values(rawMatches || {});
 
@@ -205,6 +206,7 @@ module.exports = async (req, res) => {
       for (const [subKey, subData] of Object.entries(subscriptions)) {
         if (!subData.subscription) { skipped++; continue; }
         if (sentSubs[subKey] === 'ok' || sentSubs[subKey] === 'expired') { skipped++; continue; }
+        if (pronos[match.id]?.[subData.playerId]) { skipped++; continue; }
 
         const name = (subData.playerName || '').split(' ')[0];
         const payload = JSON.stringify({
