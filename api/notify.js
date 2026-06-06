@@ -223,7 +223,7 @@ module.exports = async (req, res) => {
         if (!subData.subscription) { skipped++; continue; }
         if (sentSubs[subKey] === 'ok' || sentSubs[subKey] === 'expired') { skipped++; continue; }
 
-        const name = subData.playerName || '';
+        const name = (subData.playerName || '').split(' ')[0];
         const payload = JSON.stringify({
           title: matchTitle,
           body: `${name ? name + ', n' : 'N'}'oublie pas ton prono pour le match ${match.team1} vs ${match.team2} !`,
