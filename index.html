@@ -1973,7 +1973,12 @@ function startLivePolling(manual) {
 }
 
 function stopLivePolling(manual) {
-  if (manual) _pollPaused = true;
+  if (manual) {
+    _pollPaused = true;
+    // Nettoyage de l'affichage transitoire : la minute disparaît des cartes
+    state.matches.forEach(m => { delete m.displayClock; delete m.minute; });
+    renderMatches();
+  }
   if (!_liveInterval) return;
   clearInterval(_liveInterval);
   _liveInterval = null;
@@ -3310,6 +3315,14 @@ const OFFICIAL_MATCHES = [
 // ===== SERVICE WORKER (push notifs background) =====
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(()=>{});
+  // Quand un nouveau service worker prend le contrôle, recharge une fois la page
+  // pour servir le code à jour (sinon l'app reste sur l'ancienne version cachée).
+  let _swReloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (_swReloaded) return;
+    _swReloaded = true;
+    window.location.reload();
+  });
 }
 
 // ===== KEYBOARD LOGIN =====
