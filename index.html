@@ -1117,6 +1117,8 @@ function getCurrentPlayer() {
 }
 function getPlayerById(id) { return state.players.find(p => p.id === id); }
 function playerFullName(p) { return p ? p.prenom + ' ' + p.nom : ''; }
+// Compte technique « User Admin » : utilisé sur PC, ne parie jamais → jamais classé
+function isRankingExcluded(p) { return p && normalize(playerFullName(p)) === 'user admin'; }
 function playerInitials(p) { return p ? (p.prenom[0] + (p.nom[0] || '')).toUpperCase() : '?'; }
 
 // Stocke les scores précédents lors d'une modification de prono
@@ -1358,7 +1360,7 @@ function renderBest3rdPlaces(thirds, anyPlayed) {
 // ===== RANKING =====
 function getRanking() {
   const scores = {};
-  const visiblePlayers = state.players.filter(p => !p.hiddenFromNonAdmins || isAdmin());
+  const visiblePlayers = state.players.filter(p => (!p.hiddenFromNonAdmins || isAdmin()) && !isRankingExcluded(p));
   visiblePlayers.forEach(p => { scores[p.id] = { id: p.id, pts: 0, exact: 0 }; });
   state.matches.forEach(m => {
     if (!['finished','live'].includes(m.status) || m.score1==null) return;
@@ -1529,8 +1531,9 @@ function renderMatches() {
         allPronosHtml = `<div class="pronos-reveal"><div class="pronos-reveal-title">🔒 ${validPronos.length} prono(s) — révélés au coup d'envoi</div></div>`;
       }
       if (isAdmin() && state.players.length > 0) {
-        const done    = state.players.filter(p => pronos[p.id]);
-        const missing = state.players.filter(p => !pronos[p.id]);
+        const rankedPlayers = state.players.filter(p => !isRankingExcluded(p));
+        const done    = rankedPlayers.filter(p => pronos[p.id]);
+        const missing = rankedPlayers.filter(p => !pronos[p.id]);
         const doneHtml = done.map(p =>
           `<span class="prono-tag exact" style="opacity:.85">✓ ${p.prenom}</span>`
         ).join('');
@@ -1538,7 +1541,7 @@ function renderMatches() {
           `<span class="prono-tag wrong" style="opacity:.7">✗ ${p.prenom}</span>`
         ).join('');
         allPronosHtml += `<div class="pronos-reveal" style="margin-top:6px;border-top:1px solid var(--border);padding-top:8px">
-          <div class="pronos-reveal-title">👑 Suivi admin — ${done.length}/${state.players.length} pronos</div>
+          <div class="pronos-reveal-title">👑 Suivi admin — ${done.length}/${rankedPlayers.length} pronos</div>
           <div class="prono-tags">${doneHtml}${missHtml}</div>
         </div>`;
       }
