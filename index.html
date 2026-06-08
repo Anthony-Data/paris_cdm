@@ -1473,10 +1473,19 @@ function _groupComplete(groupTeams) {
   return done >= 6; // 4 équipes = 6 matchs
 }
 function _matchByNum(n) { return state.matches.find(m => m.matchNum === n); }
-// Vainqueur/perdant d'un match à élimination directe (terminé, non nul)
+const _KO_PHASES = ['16e de finale','8e de finale','Quarts','Demies','3ème/4ème Place','Finale'];
+function isEliminationMatch(m) {
+  return m && (_KO_PHASES.includes(m.phase) || (m.matchNum >= 73 && m.matchNum <= 104));
+}
+// Vainqueur/perdant d'un match à élimination directe (terminé)
+// En cas de nul, utilise m.penWinner (1|2) renseigné par l'admin pour les t.a.b.
 function _koWinnerLoser(m) {
   if (!m || m.status !== 'finished' || m.score1 == null || m.score2 == null) return null;
-  if (m.score1 === m.score2) return null; // tirs au but inconnus → indécidable
+  if (m.score1 === m.score2) {
+    if (m.penWinner === 1) return { winner: m.team1, loser: m.team2 };
+    if (m.penWinner === 2) return { winner: m.team2, loser: m.team1 };
+    return null; // nul sans vainqueur t.a.b. renseigné → indécidable
+  }
   return m.score1 > m.score2 ? { winner: m.team1, loser: m.team2 } : { winner: m.team2, loser: m.team1 };
 }
 // Attribution des 8 meilleurs 3èmes aux créneaux 3XXXX (bipartite matching)
@@ -2663,6 +2672,40 @@ function populateUpdateMatchSelect() {
   const sel = document.getElementById('updateMatchSelect');
   if (!sel) return;
   sel.innerHTML = state.matches.map(m => `<option value="${m.id}">${m.team1} vs ${m.team2} (${m.phase})</option>`).join('')||'<option>Aucun match</option>';
+  onUpdateMatchSelect();
+}
+// À la sélection d'un match : pré-remplit scores/statut et prépare le champ t.a.b.
+function onUpdateMatchSelect() {
+  const id = document.getElementById('updateMatchSelect')?.value;
+  const m = state.matches.find(x => x.id === id);
+  if (!m) return;
+  const s1 = document.getElementById('uScore1'), s2 = document.getElementById('uScore2'), st = document.getElementById('uStatus');
+  if (s1) s1.value = m.score1 != null ? m.score1 : '';
+  if (s2) s2.value = m.score2 != null ? m.score2 : '';
+  if (st) st.value = m.status || 'upcoming';
+  const pw = document.getElementById('uPenWinner');
+  if (pw) pw.value = m.penWinner ? String(m.penWinner) : '';
+  refreshPenWinnerUI();
+}
+// Affiche le sélecteur de vainqueur t.a.b. uniquement pour un match éliminatoire à égalité
+function refreshPenWinnerUI() {
+  const row = document.getElementById('uPenRow');
+  if (!row) return;
+  const id = document.getElementById('updateMatchSelect')?.value;
+  const m = state.matches.find(x => x.id === id);
+  const s1 = parseInt(document.getElementById('uScore1')?.value);
+  const s2 = parseInt(document.getElementById('uScore2')?.value);
+  const draw = !isNaN(s1) && !isNaN(s2) && s1 === s2;
+  if (m && isEliminationMatch(m) && draw) {
+    const memo = {};
+    const d1 = koDisplay(m.team1, m.flag1, memo), d2 = koDisplay(m.team2, m.flag2, memo);
+    const o1 = document.getElementById('uPenOpt1'), o2 = document.getElementById('uPenOpt2');
+    if (o1) o1.textContent = (d1.ph ? m.team1 : d1.name) + ' (t.a.b.)';
+    if (o2) o2.textContent = (d2.ph ? m.team2 : d2.name) + ' (t.a.b.)';
+    row.style.display = '';
+  } else {
+    row.style.display = 'none';
+  }
 }
 function deleteMatchById(id) {
   const m = state.matches.find(x => x.id === id);
@@ -2705,8 +2748,15 @@ function updateMatchScore() {
   if (!m) { toast('❌ Match introuvable'); return; }
   const wasFinished = m.status === 'finished';
   m.score1=s1; m.score2=s2; m.status=status;
+  // Vainqueur aux tirs au but (uniquement pertinent pour un nul en élimination directe)
+  const penVal = document.getElementById('uPenWinner')?.value;
+  if (isEliminationMatch(m) && s1 === s2 && (penVal === '1' || penVal === '2')) {
+    m.penWinner = parseInt(penVal);
+  } else {
+    delete m.penWinner;
+  }
   if (status === 'finished' && !wasFinished) notifyMatchFinished(m);
-  save(); renderMatches(); renderRanking();
+  save(); renderMatches(); renderRanking(); renderElimination();
   toast(`✅ Score mis à jour : ${s1}–${s2}`);
 }
 
@@ -2834,16 +2884,23 @@ function renderAdminPanel() {
     </div>
     <div class="admin-card">
       <h3>Mettre à jour score</h3>
-      <div class="form-group"><label>Match</label><select class="form-input" id="updateMatchSelect"></select></div>
+      <div class="form-group"><label>Match</label><select class="form-input" id="updateMatchSelect" onchange="onUpdateMatchSelect()"></select></div>
       <div style="display:flex;gap:6px;">
-        <div class="form-group" style="flex:1"><label>Score 1</label><input type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" class="form-input" id="uScore1" placeholder="0" oninput="if(this.value)document.getElementById('uScore2').focus()"></div>
-        <div class="form-group" style="flex:1"><label>Score 2</label><input type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" class="form-input" id="uScore2" placeholder="0"></div>
+        <div class="form-group" style="flex:1"><label>Score 1</label><input type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" class="form-input" id="uScore1" placeholder="0" oninput="if(this.value)document.getElementById('uScore2').focus();refreshPenWinnerUI()"></div>
+        <div class="form-group" style="flex:1"><label>Score 2</label><input type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" class="form-input" id="uScore2" placeholder="0" oninput="refreshPenWinnerUI()"></div>
       </div>
       <div class="form-group"><label>Statut</label>
         <select class="form-input" id="uStatus">
           <option value="upcoming">À venir</option>
           <option value="live">En direct</option>
           <option value="finished">Terminé</option>
+        </select>
+      </div>
+      <div class="form-group" id="uPenRow" style="display:none"><label>🥅 Vainqueur aux tirs au but</label>
+        <select class="form-input" id="uPenWinner">
+          <option value="">— (match nul, pas de t.a.b.)</option>
+          <option value="1" id="uPenOpt1">Équipe 1</option>
+          <option value="2" id="uPenOpt2">Équipe 2</option>
         </select>
       </div>
       <button class="btn btn-primary" onclick="updateMatchScore()" style="width:100%">Mettre à jour</button>
