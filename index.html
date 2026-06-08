@@ -1226,6 +1226,62 @@ function ptsLabel(pts, phase) {
   return 'wrong';
 }
 
+// ===== VENUES (stades officiels CdM 2026 par numéro de match) =====
+const VENUES = {
+  1:{v:'Estadio Azteca',c:'Mexico'},2:{v:'Estadio Akron',c:'Guadalajara'},
+  3:{v:'BMO Field',c:'Toronto'},4:{v:'SoFi Stadium',c:'Los Angeles'},
+  5:{v:'MetLife Stadium',c:'New York'},6:{v:'BC Place',c:'Vancouver'},
+  7:{v:'Gillette Stadium',c:'Boston'},8:{v:"Levi's Stadium",c:'San Francisco'},
+  9:{v:'NRG Stadium',c:'Houston'},10:{v:'Lincoln Financial Field',c:'Philadelphie'},
+  11:{v:'AT&T Stadium',c:'Dallas'},12:{v:'Estadio BBVA',c:'Monterrey'},
+  13:{v:'Mercedes-Benz Stadium',c:'Atlanta'},14:{v:'Lumen Field',c:'Seattle'},
+  15:{v:'Hard Rock Stadium',c:'Miami'},16:{v:'SoFi Stadium',c:'Los Angeles'},
+  17:{v:'MetLife Stadium',c:'New York'},18:{v:'Gillette Stadium',c:'Boston'},
+  19:{v:'Arrowhead Stadium',c:'Kansas City'},20:{v:"Levi's Stadium",c:'San Francisco'},
+  21:{v:'NRG Stadium',c:'Houston'},22:{v:'AT&T Stadium',c:'Dallas'},
+  23:{v:'BMO Field',c:'Toronto'},24:{v:'Estadio Azteca',c:'Mexico'},
+  25:{v:'Mercedes-Benz Stadium',c:'Atlanta'},26:{v:'SoFi Stadium',c:'Los Angeles'},
+  27:{v:'BC Place',c:'Vancouver'},28:{v:'Estadio Akron',c:'Guadalajara'},
+  29:{v:'Lumen Field',c:'Seattle'},30:{v:'Gillette Stadium',c:'Boston'},
+  31:{v:'Lincoln Financial Field',c:'Philadelphie'},32:{v:"Levi's Stadium",c:'San Francisco'},
+  33:{v:'NRG Stadium',c:'Houston'},34:{v:'BMO Field',c:'Toronto'},
+  35:{v:'Arrowhead Stadium',c:'Kansas City'},36:{v:'Estadio BBVA',c:'Monterrey'},
+  37:{v:'Mercedes-Benz Stadium',c:'Atlanta'},38:{v:'SoFi Stadium',c:'Los Angeles'},
+  39:{v:'Hard Rock Stadium',c:'Miami'},40:{v:'BC Place',c:'Vancouver'},
+  41:{v:'AT&T Stadium',c:'Dallas'},42:{v:'Lincoln Financial Field',c:'Philadelphie'},
+  43:{v:'MetLife Stadium',c:'New York'},44:{v:"Levi's Stadium",c:'San Francisco'},
+  45:{v:'NRG Stadium',c:'Houston'},46:{v:'Gillette Stadium',c:'Boston'},
+  47:{v:'BMO Field',c:'Toronto'},48:{v:'Estadio Akron',c:'Guadalajara'},
+  49:{v:'Mercedes-Benz Stadium',c:'Atlanta'},50:{v:'Hard Rock Stadium',c:'Miami'},
+  51:{v:'BC Place',c:'Vancouver'},52:{v:'Lumen Field',c:'Seattle'},
+  53:{v:'Estadio Azteca',c:'Mexico'},54:{v:'Estadio BBVA',c:'Monterrey'},
+  55:{v:'MetLife Stadium',c:'New York'},56:{v:'Lincoln Financial Field',c:'Philadelphie'},
+  57:{v:'Arrowhead Stadium',c:'Kansas City'},58:{v:'AT&T Stadium',c:'Dallas'},
+  59:{v:'SoFi Stadium',c:'Los Angeles'},60:{v:"Levi's Stadium",c:'San Francisco'},
+  61:{v:'Gillette Stadium',c:'Boston'},62:{v:'BMO Field',c:'Toronto'},
+  63:{v:'BC Place',c:'Vancouver'},64:{v:'Lumen Field',c:'Seattle'},
+  65:{v:'Estadio Akron',c:'Guadalajara'},66:{v:'NRG Stadium',c:'Houston'},
+  67:{v:'MetLife Stadium',c:'New York'},68:{v:'Lincoln Financial Field',c:'Philadelphie'},
+  69:{v:'Hard Rock Stadium',c:'Miami'},70:{v:'Mercedes-Benz Stadium',c:'Atlanta'},
+  71:{v:'AT&T Stadium',c:'Dallas'},72:{v:'Arrowhead Stadium',c:'Kansas City'},
+  73:{v:'SoFi Stadium',c:'Los Angeles'},74:{v:'Gillette Stadium',c:'Boston'},
+  75:{v:'Estadio BBVA',c:'Monterrey'},76:{v:'NRG Stadium',c:'Houston'},
+  77:{v:'MetLife Stadium',c:'New York'},78:{v:'AT&T Stadium',c:'Dallas'},
+  79:{v:'Estadio Azteca',c:'Mexico'},80:{v:'Mercedes-Benz Stadium',c:'Atlanta'},
+  81:{v:"Levi's Stadium",c:'San Francisco'},82:{v:'Lumen Field',c:'Seattle'},
+  83:{v:'BMO Field',c:'Toronto'},84:{v:'SoFi Stadium',c:'Los Angeles'},
+  85:{v:'BC Place',c:'Vancouver'},86:{v:'Hard Rock Stadium',c:'Miami'},
+  87:{v:'Arrowhead Stadium',c:'Kansas City'},88:{v:'AT&T Stadium',c:'Dallas'},
+  89:{v:'Lincoln Financial Field',c:'Philadelphie'},90:{v:'NRG Stadium',c:'Houston'},
+  91:{v:'MetLife Stadium',c:'New York'},92:{v:'Estadio Azteca',c:'Mexico'},
+  93:{v:'AT&T Stadium',c:'Dallas'},94:{v:'Lumen Field',c:'Seattle'},
+  95:{v:'Mercedes-Benz Stadium',c:'Atlanta'},96:{v:'BC Place',c:'Vancouver'},
+  97:{v:'Gillette Stadium',c:'Boston'},98:{v:'SoFi Stadium',c:'Los Angeles'},
+  99:{v:'Arrowhead Stadium',c:'Kansas City'},100:{v:'Hard Rock Stadium',c:'Miami'},
+  101:{v:'AT&T Stadium',c:'Dallas'},102:{v:'Mercedes-Benz Stadium',c:'Atlanta'},
+  103:{v:'Hard Rock Stadium',c:'Miami'},104:{v:'MetLife Stadium',c:'New York'},
+};
+
 // ===== GROUPS / POULES =====
 const GROUPS = [
   { name: 'A', teams: ['Mexique','Afrique du Sud','Corée du Sud','Rep. Tchèque'] },
@@ -1491,9 +1547,9 @@ function renderMatches() {
       const myProno = myId ? pronos[myId] : null;
       const canSeeAll = m.status==='live'||m.status==='finished';
       const canProno = m.status==='upcoming';
-      const clockStr = m.displayClock || (m.minute ? m.minute + "'" : null);
+      const clockStr = m.displayClock || (m.minute ? m.minute+"'" : null);
       let statusHtml = m.status==='live'
-        ? `<span class="match-status status-live">⏱${clockStr ? ' ' + clockStr : ' En direct'}</span>`
+        ? `<span class="match-status status-live">⏱${clockStr ? ' '+clockStr : ' En direct'}</span>`
         : m.status==='finished'
           ? `<span class="match-status status-finished">Terminé</span>`
           : `<span class="match-status status-upcoming">${dateStr}</span>`;
@@ -1567,9 +1623,8 @@ function renderMatches() {
       const x2Badge = isKnockout(m.phase)
         ? `<div style="text-align:center;margin-bottom:6px"><span style="background:var(--gold-dim);border:1px solid var(--gold);color:var(--gold);font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px;letter-spacing:1px">⚡ SCORE ×2 !</span></div>`
         : '';
-      const venueHtml = m.venue
-        ? `<div style="text-align:center;font-size:10px;color:var(--text3);margin:-4px 0 8px;letter-spacing:.3px">📍 ${m.venue}${m.city ? ', ' + m.city : ''}</div>`
-        : '';
+      const _vd = VENUES[m.matchNum] || (m.venue ? {v:m.venue,c:m.city||null} : null);
+      const venueHtml = _vd ? `<div style="text-align:center;font-size:10px;color:var(--text3);margin:-4px 0 8px;letter-spacing:.3px">📍 ${_vd.v}, ${_vd.c}</div>` : '';
       html += `<div class="match-card ${m.status}" id="match_${m.id}">
         ${deleteBtn}
         <div class="match-header"><span class="match-info">${m.phase}</span>${statusHtml}</div>
