@@ -446,7 +446,7 @@ select.form-input { cursor: pointer; }
   <div class="login-box">
     <span class="login-ball">⚽</span>
     <div class="login-title">CDM<span>2026</span></div>
-    <div class="login-sub">Paris en famille</div>
+    <div class="login-sub">Paris Family Dubois</div>
     <div class="login-field">
       <label>Prénom</label>
       <input type="text" class="login-input" id="loginPrenom" placeholder="Jean" autocomplete="given-name" autocapitalize="words">
@@ -457,7 +457,9 @@ select.form-input { cursor: pointer; }
     </div>
     <button class="login-btn" onclick="doLogin()">Entrer ⚽</button>
     <div class="login-error" id="loginError"></div>
-    <div class="login-hint">Pas encore inscrit ? <a href="https://wa.me/33777382706" target="_blank" style="color:var(--gold);text-decoration:none;font-weight:700">📲 Contacte l'admin</a> pour être ajouté à la liste.</div>
+    <div class="login-hint">Pas encore inscrit ? Clique sur le bouton ci-dessous 👇 pour me contacter et être ajouté à la liste.<br>
+      <a href="https://wa.me/33777382706" target="_blank" style="display:inline-block;margin-top:10px;padding:9px 18px;background:var(--gold);color:#000;border-radius:9px;text-decoration:none;font-weight:700">📲 Contacte Antho</a>
+    </div>
   </div>
 </div>
 
@@ -497,7 +499,7 @@ select.form-input { cursor: pointer; }
           <div style="font-weight:600;color:var(--text);margin-bottom:10px;font-size:14px;"><span class="ob-apple-logo"></span> iPhone / iPad</div>
           <div style="font-size:13px;color:var(--text2);line-height:1.8">
             <div style="margin-bottom:6px;padding:8px;background:#000;border-radius:6px"><strong style="color:var(--gold)">① </strong>Ouvre dans <strong>Safari</strong></div>
-            <div style="margin-bottom:6px;padding:8px;background:#000;border-radius:6px"><strong style="color:var(--gold)">② </strong>Appuie sur <strong>⋯</strong> en bas à droite</div>
+            <div style="margin-bottom:6px;padding:8px;background:#000;border-radius:6px"><strong style="color:var(--gold)">② </strong>Appuie sur <strong>⋯</strong> en bas à droite <span style="color:var(--text3);font-size:11px">— si tu ne vois pas les <strong>⋯</strong>, passe directement à l'étape ③</span></div>
             <div style="margin-bottom:6px;padding:8px;background:#000;border-radius:6px"><strong style="color:var(--gold)">③ </strong>Appuie sur <strong>Partager</strong> <svg style="vertical-align:middle" width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 2.5l-4.5 4.5h3V15h3V7h3L12 2.5z"/><path d="M5 15v5h14v-5h-2v2H7v-2H5z"/></svg></div>
             <div style="padding:8px;background:#000;border-radius:6px"><strong style="color:var(--gold)">④ </strong>Choisis <strong>« + Sur l'écran d'accueil »</strong></div>
           </div>
@@ -572,7 +574,7 @@ select.form-input { cursor: pointer; }
   <header>
     <div class="logo-area">
       <h1>CDM<span>2026</span></h1>
-      <p id="headerSub">Paris en famille</p>
+      <p id="headerSub">Paris Family Dubois</p>
     </div>
     <div class="header-right">
       <div class="live-dot" id="liveIndicator">LIVE</div>
@@ -1016,7 +1018,7 @@ function doLogin() {
   const fullName = prenom + ' ' + nom;
   const found = state.players.find(p => normalize(p.prenom + ' ' + p.nom) === normalize(fullName));
   if (!found && state.players.length > 0) {
-    err.textContent = '❌ Joueur non trouvé. Contacte l\'admin.';
+    err.textContent = '❌ Joueur non trouvé. Contacte Antho.';
     return;
   }
   if (!found) {
