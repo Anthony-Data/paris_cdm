@@ -473,6 +473,9 @@ select.form-input { cursor: pointer; }
 <!-- ===== ONBOARDING ===== -->
 <div id="onboardingOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:9999;overflow:hidden;flex-direction:column;padding-top:env(safe-area-inset-top,20px);box-sizing:border-box;">
 
+  <!-- Croix de fermeture : visible uniquement en mode 'Revoir le tuto' -->
+  <button id="obCloseBtn" onclick="obClose()" title="Fermer" style="display:none;position:absolute;top:calc(env(safe-area-inset-top,20px) + 8px);right:14px;z-index:10000;background:rgba(255,255,255,.1);border:1px solid var(--border2);color:var(--text);width:34px;height:34px;border-radius:50%;font-size:20px;line-height:1;cursor:pointer;align-items:center;justify-content:center;">×</button>
+
   <!-- Carousel track : 4 slides côte à côte, chacune 100vw -->
   <div id="obTrack" style="display:flex;flex:1;will-change:transform;transition:transform .35s cubic-bezier(.4,0,.2,1);">
 
@@ -2961,8 +2964,16 @@ function maybeShowOnboarding(force) {
   const ov = document.getElementById('onboardingOverlay');
   ov.style.display = 'flex';
   document.body.style.overflow = 'hidden';
+  // Croix de fermeture uniquement en mode 'Revoir le tuto' (force), pas à la 1re connexion
+  const closeBtn = document.getElementById('obCloseBtn');
+  if (closeBtn) closeBtn.style.display = force ? 'flex' : 'none';
   obUpdateInstallStatus();
   obGoto(1, false);
+}
+
+function obClose() {
+  document.getElementById('onboardingOverlay').style.display = 'none';
+  document.body.style.overflow = '';
 }
 
 function obGoto(step, animate) {
