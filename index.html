@@ -1491,8 +1491,9 @@ function renderMatches() {
       const myProno = myId ? pronos[myId] : null;
       const canSeeAll = m.status==='live'||m.status==='finished';
       const canProno = m.status==='upcoming';
+      const clockStr = m.displayClock || (m.minute ? m.minute + "'" : null);
       let statusHtml = m.status==='live'
-        ? `<span class="match-status status-live">⏱ En direct</span>`
+        ? `<span class="match-status status-live">⏱${clockStr ? ' ' + clockStr : ' En direct'}</span>`
         : m.status==='finished'
           ? `<span class="match-status status-finished">Terminé</span>`
           : `<span class="match-status status-upcoming">${dateStr}</span>`;
@@ -1566,10 +1567,13 @@ function renderMatches() {
       const x2Badge = isKnockout(m.phase)
         ? `<div style="text-align:center;margin-bottom:6px"><span style="background:var(--gold-dim);border:1px solid var(--gold);color:var(--gold);font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px;letter-spacing:1px">⚡ SCORE ×2 !</span></div>`
         : '';
+      const venueHtml = m.venue
+        ? `<div style="text-align:center;font-size:10px;color:var(--text3);margin:-4px 0 8px;letter-spacing:.3px">📍 ${m.venue}${m.city ? ', ' + m.city : ''}</div>`
+        : '';
       html += `<div class="match-card ${m.status}" id="match_${m.id}">
         ${deleteBtn}
         <div class="match-header"><span class="match-info">${m.phase}</span>${statusHtml}</div>
-        ${x2Badge}
+        ${venueHtml}${x2Badge}
         <div class="match-teams">
           <div class="team-block"><span class="team-flag">${flagHtml(m.flag1, m.team1)}</span><div class="team-name">${m.team1}</div></div>
           ${scoreHtml}
@@ -1714,15 +1718,18 @@ async function fetchLiveScores() {
   try {
     const res = await fetch(`/api/live?competition=${LIVE_COMPETITION}`);
     if (!res.ok) { console.warn('Live API error', res.status); return; }
-    const { matches: liveMatches } = await res.json();
-    if (!liveMatches || liveMatches.length === 0) return;
+    const body = await res.json();
+    // Accepte tableau direct (ESPN) ou objet { matches: [] } (ancien format)
+    const liveMatches = Array.isArray(body) ? body : (body.matches || []);
+    if (!liveMatches.length) return;
 
     let changed = false;
     for (const live of liveMatches) {
-      // Cherche le match correspondant dans notre état par nom d'équipe (partiel, insensible à la casse)
+      // Correspondance par nom exact (ESPN renvoie déjà en français), puis partielle
       const local = state.matches.find(m =>
-        m.team1.toLowerCase().includes(live.team1.toLowerCase().substring(0, 4)) &&
-        m.team2.toLowerCase().includes(live.team2.toLowerCase().substring(0, 4))
+        (m.team1 === live.team1 && m.team2 === live.team2) ||
+        (m.team1.toLowerCase().includes(live.team1.toLowerCase().substring(0, 4)) &&
+         m.team2.toLowerCase().includes(live.team2.toLowerCase().substring(0, 4)))
       );
       if (!local) continue;
 
@@ -1731,10 +1738,13 @@ async function fetchLiveScores() {
         local.score1  = live.score1;
         local.score2  = live.score2;
         local.status  = newStatus;
-        if (live.minute) local.minute = live.minute;
         changed = true;
         console.log(`⚽ Score mis à jour : ${local.team1} ${live.score1}-${live.score2} ${local.team2}`);
       }
+      // Mise à jour minute et stade (pas besoin de save() — données transitoires)
+      if (live.displayClock) local.displayClock = live.displayClock;
+      else if (live.minute)  local.minute = live.minute;
+      if (live.venue && !local.venue) { local.venue = live.venue; local.city = live.city || null; changed = true; }
     }
     if (changed) { save(); renderMatches(); renderRanking(); }
   } catch(e) {
