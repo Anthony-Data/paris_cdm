@@ -57,6 +57,7 @@ const ESPN_TO_FR = {
   'Uruguay': 'Uruguay',
   'Iran': 'Iran',
   'New Zealand': 'Nouvelle-Zélande',
+  'Northern Ireland': 'Irlande du Nord',
   'France': 'France',
   'Iraq': 'Irak',
   'Norway': 'Norvège',
@@ -82,8 +83,14 @@ function toFr(name) {
 }
 
 function normalizeEspnStatus(statusName) {
-  if (statusName === 'STATUS_IN_PROGRESS') return 'live';
   if (statusName === 'STATUS_HALFTIME') return 'halftime';
+  // Tous les états de jeu en cours → live
+  if ([
+    'STATUS_IN_PROGRESS', 'STATUS_FIRST_HALF', 'STATUS_SECOND_HALF',
+    'STATUS_END_OF_REGULATION', 'STATUS_OVERTIME', 'STATUS_FIRST_EXTRA_TIME',
+    'STATUS_SECOND_EXTRA_TIME', 'STATUS_END_OF_EXTRATIME', 'STATUS_SHOOTOUT',
+    'STATUS_END_OF_EXTRA_TIME',
+  ].includes(statusName)) return 'live';
   if (['STATUS_FINAL', 'STATUS_FULL_TIME', 'STATUS_AWARDED'].includes(statusName)) return 'finished';
   return 'upcoming';
 }

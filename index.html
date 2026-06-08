@@ -1948,8 +1948,15 @@ function renderMiniRank(ranking) {
 // ===== LIVE SCORES =====
 // Compétition à suivre (WC = Coupe du Monde, CL = Champions League pour les tests)
 let LIVE_COMPETITION = 'WC';
+let LIVE_LEAGUE = 'fifa.world'; // slug ESPN (fifa.friendly pour tester les amicaux)
 let _liveInterval = null;
 let _simInterval  = null;
+
+// Sélecteur admin : règle la ligue ESPN + le code football-data de secours
+function onLiveCompChange(v) {
+  if (v === 'FRIENDLY') { LIVE_LEAGUE = 'fifa.friendly'; LIVE_COMPETITION = 'WC'; }
+  else { LIVE_LEAGUE = 'fifa.world'; LIVE_COMPETITION = v; }
+}
 
 // Lance le polling toutes les 60s. Appelé au démarrage si des matchs sont "live".
 function startLivePolling() {
@@ -1968,7 +1975,7 @@ function stopLivePolling() {
 
 async function fetchLiveScores() {
   try {
-    const res = await fetch(`/api/live?competition=${LIVE_COMPETITION}`);
+    const res = await fetch(`/api/live?competition=${LIVE_COMPETITION}&league=${LIVE_LEAGUE}`);
     if (!res.ok) { console.warn('Live API error', res.status); return; }
     const body = await res.json();
     // Accepte tableau direct (ESPN) ou objet { matches: [] } (ancien format)
@@ -2909,15 +2916,16 @@ function renderAdminPanel() {
     <div class="admin-card">
       <h3>🔴 Scores en direct</h3>
       <p style="font-size:12px;color:var(--text3);margin-bottom:10px;">
-        Connecté à football-data.org — mise à jour toutes les 60s.
+        ESPN (temps réel) + football-data.org en secours — mise à jour toutes les 60s.
       </p>
       <div class="form-group">
         <label>Compétition à suivre</label>
-        <select class="form-input" id="liveCompSelect" onchange="LIVE_COMPETITION=this.value">
+        <select class="form-input" id="liveCompSelect" onchange="onLiveCompChange(this.value)">
           <optgroup label="🏆 Compétition principale">
             <option value="WC">🌍 FIFA Coupe du Monde 2026</option>
           </optgroup>
           <optgroup label="🧪 Tests (matchs en cours selon saison)">
+            <option value="FRIENDLY">🤝 Amicaux internationaux (ESPN)</option>
             <option value="BSA">🇧🇷 Brasileirão Série A</option>
             <option value="CL">⭐ UEFA Champions League</option>
             <option value="PL">🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League</option>
