@@ -441,21 +441,25 @@ select.form-input { cursor: pointer; }
 .group-quali-3rd td { border-left: 2px solid #ff7800; }
 .poules-sub { font-family: var(--font-display); font-size: 15px; letter-spacing: 1px; color: var(--gold); margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
 
-/* ===== BRACKET / TABLEAU ÉLIMINATOIRE ===== */
-.bracket { display: flex; gap: 14px; overflow-x: auto; padding: 4px 2px 14px; -webkit-overflow-scrolling: touch; }
-.bracket-round { flex: 0 0 auto; width: 210px; display: flex; flex-direction: column; gap: 10px; }
-.bracket-round-title { font-family: var(--font-display); font-size: 13px; letter-spacing: 1px; color: var(--gold); text-align: center; text-transform: uppercase; padding-bottom: 6px; border-bottom: 1px solid var(--border); position: sticky; top: 0; }
-.bracket-match { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; transition: border-color .2s; }
-.bracket-match.live { border-color: var(--green); }
-.bracket-match.finished { border-left: 3px solid var(--text3); }
-.bk-num { font-size: 9px; color: var(--text3); letter-spacing: .5px; margin-bottom: 4px; display: flex; justify-content: space-between; }
-.bk-team { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 2px 0; }
-.bk-team .bk-flag { width: 18px; text-align: center; flex: 0 0 auto; }
-.bk-team .bk-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bk-team .bk-name.placeholder { color: var(--text3); font-style: italic; }
-.bk-team .bk-score { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text); }
-.bk-team.winner .bk-name { font-weight: 700; color: var(--gold); }
-.bk-foot { font-size: 9px; color: var(--text3); margin-top: 4px; text-align: center; }
+/* ===== BRACKET / TABLEAU ÉLIMINATOIRE (symétrique) ===== */
+.bracket2 { display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 18px; -webkit-overflow-scrolling: touch; align-items: stretch; }
+.bk-col { flex: 0 0 auto; width: 150px; display: flex; flex-direction: column; }
+.bk-col-title { font-family: var(--font-display); font-size: 12px; letter-spacing: 1px; color: var(--gold); text-align: center; text-transform: uppercase; padding-bottom: 8px; }
+.bk-col-body { flex: 1; display: flex; flex-direction: column; justify-content: space-around; gap: 8px; }
+.bk-center .bk-col-body { justify-content: center; }
+.bk-final-wrap { display: flex; flex-direction: column; gap: 6px; }
+.bk-final-wrap .bk2-match:first-child { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold-dim); }
+.bk-3rd-label { font-family: var(--font-display); font-size: 11px; letter-spacing: 1px; color: var(--text3); text-align: center; text-transform: uppercase; margin-top: 12px; }
+.bk2-match { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 8px; transition: border-color .2s; }
+.bk2-match.live { border-color: var(--green); }
+.bk2-match.finished { border-left: 3px solid var(--text3); }
+.bk2-head { display: flex; justify-content: space-between; font-size: 8.5px; color: var(--text3); margin-bottom: 4px; letter-spacing: .3px; }
+.bk2-head span:first-child { color: var(--gold); font-weight: 700; }
+.bk2-team { display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; padding: 2px 0; gap: 4px; }
+.bk2-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bk2-name.placeholder { color: var(--text3); font-style: italic; }
+.bk2-team.winner .bk2-name { font-weight: 700; color: var(--gold); }
+.bk2-score { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text); flex: 0 0 auto; }
 
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
@@ -1544,54 +1548,66 @@ function koDisplay(label, fallbackFlag, memo) {
   return { name: label, flag: fallbackFlag, ph: true };
 }
 
-// ===== TABLEAU ÉLIMINATOIRE (bracket) =====
-const ELIM_ROUNDS = [
-  { phase: '16e de finale',     label: '16es' },
-  { phase: '8e de finale',      label: '8es' },
-  { phase: 'Quarts',            label: 'Quarts' },
-  { phase: 'Demies',            label: 'Demies' },
-  { phase: '3ème/4ème Place',   label: '3e place' },
-  { phase: 'Finale',            label: 'Finale' },
+// ===== TABLEAU ÉLIMINATOIRE (bracket symétrique) =====
+// Colonnes gauche → centre → droite, dans l'ordre vertical officiel du tirage.
+const BRACKET_COLS = [
+  { title: 'Seizièmes',    nums: [74, 77, 73, 75, 83, 84, 81, 82] },
+  { title: 'Huitièmes',    nums: [89, 90, 93, 94] },
+  { title: 'Quarts',       nums: [97, 98] },
+  { title: 'Demi-finales', nums: [101] },
+  { title: 'Finale',       nums: [104, 103], center: true },
+  { title: 'Demi-finales', nums: [102] },
+  { title: 'Quarts',       nums: [99, 100] },
+  { title: 'Huitièmes',    nums: [91, 92, 95, 96] },
+  { title: 'Seizièmes',    nums: [76, 78, 79, 80, 86, 88, 85, 87] },
 ];
+
+// Embellit un placeholder non résolu pour coller au format du tableau officiel
+function _prettyLabel(label) {
+  if (/^W\d+$/.test(label))            return 'V' + label.slice(1);
+  if (/^3[A-L]{2,}$/.test(label))      return '3e ' + label.slice(1);
+  if (/^Finaliste [12]$/.test(label))  return label.endsWith('1') ? 'V101' : 'V102';
+  if (/^Perdant SF[12]$/.test(label))  return label.endsWith('1') ? 'P101' : 'P102';
+  return label;
+}
 
 function renderElimination() {
   const container = document.getElementById('bracketContainer');
   if (!container) return;
   const memo = {};
-  const koMatches = state.matches.filter(m => ELIM_ROUNDS.some(r => r.phase === m.phase));
-  if (!koMatches.length) {
+  if (!state.matches.some(m => m.matchNum >= 73 && m.matchNum <= 104)) {
     container.innerHTML = '<p style="color:var(--text3);font-size:13px;text-align:center;padding:20px">Le tableau s\'affichera une fois le calendrier chargé.</p>';
     return;
   }
-  let html = '<div class="bracket">';
-  ELIM_ROUNDS.forEach(round => {
-    const ms = koMatches.filter(m => m.phase === round.phase).sort((a,b) => (a.matchNum||0) - (b.matchNum||0));
-    if (!ms.length) return;
-    html += `<div class="bracket-round"><div class="bracket-round-title">${round.label}</div>`;
-    ms.forEach(m => {
-      const played = m.status === 'finished' && m.score1 != null;
-      const w1 = played && m.score1 > m.score2;
-      const w2 = played && m.score2 > m.score1;
-      const teamRow = (label, flag, score, isWin) => {
-        const d = koDisplay(label, flag, memo);
-        const flagH = d.ph ? '⚽' : flagHtml(d.flag, d.name);
-        return `<div class="bk-team${isWin?' winner':''}">
-          <span class="bk-flag">${flagH}</span>
-          <span class="bk-name${d.ph?' placeholder':''}">${d.name}</span>
-          <span class="bk-score">${score != null ? score : ''}</span>
-        </div>`;
-      };
-      const vd = VENUES[m.matchNum];
-      const dateStr = new Date(m.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
-      const statusLabel = m.status==='live' ? '<span style="color:var(--green)">● live</span>' : (played ? 'Terminé' : dateStr);
-      html += `<div class="bracket-match ${m.status}">
-        <div class="bk-num"><span>#${m.matchNum||''}</span><span>${statusLabel}</span></div>
-        ${teamRow(m.team1, m.flag1, m.score1, w1)}
-        ${teamRow(m.team2, m.flag2, m.score2, w2)}
-        ${vd ? `<div class="bk-foot">📍 ${vd.v}, ${vd.c}</div>` : ''}
-      </div>`;
-    });
-    html += '</div>';
+  const card = (num) => {
+    const m = _matchByNum(num);
+    if (!m) return '';
+    const played = m.status === 'finished' && m.score1 != null;
+    const w1 = played && m.score1 > m.score2;
+    const w2 = played && m.score2 > m.score1;
+    const dt = new Date(m.date);
+    const dateStr = dt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) + ' — ' + dt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    const row = (label, flag, score, win) => {
+      const d = koDisplay(label, flag, memo);
+      const flagH = d.ph ? '' : flagHtml(d.flag, d.name) + ' ';
+      const name = d.ph ? _prettyLabel(d.name) : d.name;
+      return `<div class="bk2-team${win ? ' winner' : ''}"><span class="bk2-name${d.ph ? ' placeholder' : ''}">${flagH}${name}</span><span class="bk2-score">${score != null ? score : ''}</span></div>`;
+    };
+    return `<div class="bk2-match ${m.status}">
+      <div class="bk2-head"><span>N°${num}</span><span>${m.status === 'live' ? '<span style="color:var(--green)">● live</span>' : dateStr}</span></div>
+      ${row(m.team1, m.flag1, m.score1, w1)}
+      ${row(m.team2, m.flag2, m.score2, w2)}
+    </div>`;
+  };
+  let html = '<div class="bracket2">';
+  BRACKET_COLS.forEach(col => {
+    html += `<div class="bk-col${col.center ? ' bk-center' : ''}"><div class="bk-col-title">${col.title}</div><div class="bk-col-body">`;
+    if (col.center) {
+      html += `<div class="bk-final-wrap">${card(104)}<div class="bk-3rd-label">3e place</div>${card(103)}</div>`;
+    } else {
+      col.nums.forEach(n => { html += card(n); });
+    }
+    html += `</div></div>`;
   });
   html += '</div>';
   container.innerHTML = html;
