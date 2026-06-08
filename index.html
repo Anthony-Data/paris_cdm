@@ -116,6 +116,13 @@ header {
   font-size: 11px; font-weight: 700; color: var(--green);
 }
 .user-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.tuto-btn {
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 20px; padding: 4px 12px;
+  font-size: 11px; font-weight: 600; color: var(--text2);
+  cursor: pointer; white-space: nowrap; transition: border-color .2s, color .2s;
+}
+.tuto-btn:hover { border-color: var(--gold); color: var(--gold); }
 
 /* mobile family photo — only shown on mobile */
 .mobile-family-photo {
@@ -578,9 +585,12 @@ select.form-input { cursor: pointer; }
     </div>
     <div class="header-right">
       <div class="live-dot" id="liveIndicator">LIVE</div>
-      <div class="user-badge" onclick="doLogout()" title="Se déconnecter">
-        <div class="user-avatar" id="userAvatar">?</div>
-        <span class="user-name" id="userName">—</span>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+        <div class="user-badge" onclick="doLogout()" title="Se déconnecter">
+          <div class="user-avatar" id="userAvatar">?</div>
+          <span class="user-name" id="userName">—</span>
+        </div>
+        <button class="tuto-btn" onclick="maybeShowOnboarding(true)" title="Revoir le tutoriel">📖 Revoir le tuto</button>
       </div>
     </div>
   </header>
@@ -2936,13 +2946,13 @@ const _isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
 let _obStep = 1;
 const _OB_MAX = 4;
 
-function maybeShowOnboarding() {
+function maybeShowOnboarding(force) {
   const myId = state.currentPlayer;
   if (!myId) return;
   if (document.getElementById('onboardingOverlay').style.display !== 'none') return;
   const p = getCurrentPlayer();
   if (!p) return;
-  if (p.onboardingDone) return; // flag Firebase — vrai sur tous les appareils
+  if (!force && p.onboardingDone) return; // flag Firebase — vrai sur tous les appareils
   document.querySelectorAll('.ob-apple-logo').forEach(el => { el.innerHTML = _isIOS ? '&#xF8FF;' : '🍎'; });
   const nameEl = document.getElementById('obWelcomeName');
   if (nameEl) nameEl.textContent = p.prenom.toUpperCase();
