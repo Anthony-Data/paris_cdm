@@ -1959,15 +1959,21 @@ function onLiveCompChange(v) {
   else { LIVE_LEAGUE = 'fifa.world'; LIVE_COMPETITION = v; }
 }
 
+// Pause manuelle : si l'admin clique "Arrêter", le polling auto ne le relance pas
+// (jusqu'à un clic "Démarrer" ou un rechargement de la page).
+let _pollPaused = false;
+
 // Lance le polling toutes les 60s. Appelé au démarrage si des matchs sont "live".
-function startLivePolling() {
-  if (_liveInterval) return;
+function startLivePolling(manual) {
+  if (manual) _pollPaused = false;
+  if (_pollPaused || _liveInterval) return;
   fetchLiveScores();
   _liveInterval = setInterval(fetchLiveScores, 60_000);
   console.log('🔴 Live polling démarré (60s)');
 }
 
-function stopLivePolling() {
+function stopLivePolling(manual) {
+  if (manual) _pollPaused = true;
   if (!_liveInterval) return;
   clearInterval(_liveInterval);
   _liveInterval = null;
@@ -2087,6 +2093,7 @@ function updateLiveStatusIndicator() {
 
 // Démarre le polling si un match est déjà "live" au chargement de la page
 function checkAndStartLivePolling() {
+  if (_pollPaused) return; // l'admin a arrêté manuellement → ne pas relancer
   if (state.matches.some(m => m.status === 'live')) startLivePolling();
   else stopLivePolling();
 }
@@ -2945,8 +2952,8 @@ function renderAdminPanel() {
         </select>
       </div>
       <div style="display:flex;gap:6px;margin-bottom:10px;">
-        <button class="btn btn-primary" style="flex:1" onclick="startLivePolling();toast('🔴 Polling live démarré')">▶ Démarrer</button>
-        <button class="btn" style="flex:1;background:var(--card2)" onclick="stopLivePolling();toast('⏹ Polling arrêté')">⏹ Arrêter</button>
+        <button class="btn btn-primary" style="flex:1" onclick="startLivePolling(true);toast('🔴 Polling live démarré')">▶ Démarrer</button>
+        <button class="btn" style="flex:1;background:var(--card2)" onclick="stopLivePolling(true);toast('⏹ Polling arrêté')">⏹ Arrêter</button>
       </div>
       <div id="liveStatus" style="font-size:12px;color:var(--text3);margin-bottom:12px;">⏹ Polling inactif</div>
       <hr style="border-color:var(--border);margin:10px 0">

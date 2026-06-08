@@ -1,4 +1,4 @@
-const CACHE = 'cdm2026-v6';
+const CACHE = 'cdm2026-v7';
 const ASSETS = ['./index.html', './logo.png'];
 
 self.addEventListener('install', e => {
@@ -15,9 +15,20 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  e.respondWith(
-    caches.match(e.request).then(r => r || fetch(e.request))
-  );
+  const req = e.request;
+  // Network-first pour le HTML : les joueurs ont toujours la dernière version
+  // en ligne (sinon le cache servait un index.html périmé indéfiniment).
+  // Repli sur le cache uniquement hors-ligne.
+  if (req.mode === 'navigate' || req.destination === 'document' || req.url.includes('index.html')) {
+    e.respondWith(
+      fetch(req)
+        .then(res => { const copy = res.clone(); caches.open(CACHE).then(c => c.put('./index.html', copy)); return res; })
+        .catch(() => caches.match('./index.html'))
+    );
+    return;
+  }
+  // Cache-first pour le reste (assets statiques : logo...)
+  e.respondWith(caches.match(req).then(r => r || fetch(req)));
 });
 
 // ===== PUSH depuis le serveur Vercel =====
