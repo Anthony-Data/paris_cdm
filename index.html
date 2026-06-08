@@ -1948,15 +1948,23 @@ function renderMiniRank(ranking) {
 // ===== LIVE SCORES =====
 // Compétition à suivre (WC = Coupe du Monde, CL = Champions League pour les tests)
 let LIVE_COMPETITION = 'WC';
-// ⚠️⚠️ TEMPORAIRE (test amical 08/06) — REMETTRE 'fifa.world' AVANT LE 11 JUIN ⚠️⚠️
-let LIVE_LEAGUE = 'fifa.friendly'; // slug ESPN (fifa.world = CdM 2026)
 let _liveInterval = null;
 let _simInterval  = null;
 
-// Sélecteur admin : règle la ligue ESPN + le code football-data de secours
+// Bascule AUTOMATIQUE amicaux → Coupe du Monde le mercredi 10 juin 2026 à 12h00 (heure de Paris).
+// Avant : fifa.friendly (tests amicaux). Après : fifa.world (CdM 2026).
+// Évalué à chaque polling → la bascule a lieu pile à l'heure, même app restée ouverte.
+const LEAGUE_CUTOFF = new Date('2026-06-10T12:00:00+02:00').getTime();
+let LIVE_LEAGUE_OVERRIDE = null; // si l'admin choisit manuellement une ligue
+function currentLeague() {
+  if (LIVE_LEAGUE_OVERRIDE) return LIVE_LEAGUE_OVERRIDE;
+  return Date.now() >= LEAGUE_CUTOFF ? 'fifa.world' : 'fifa.friendly';
+}
+
+// Sélecteur admin : override manuel de la ligue ESPN + code football-data de secours
 function onLiveCompChange(v) {
-  if (v === 'FRIENDLY') { LIVE_LEAGUE = 'fifa.friendly'; LIVE_COMPETITION = 'WC'; }
-  else { LIVE_LEAGUE = 'fifa.world'; LIVE_COMPETITION = v; }
+  if (v === 'FRIENDLY') { LIVE_LEAGUE_OVERRIDE = 'fifa.friendly'; LIVE_COMPETITION = 'WC'; }
+  else { LIVE_LEAGUE_OVERRIDE = 'fifa.world'; LIVE_COMPETITION = v; }
 }
 
 // Pause manuelle : si l'admin clique "Arrêter", le polling auto ne le relance pas
@@ -1987,7 +1995,7 @@ function stopLivePolling(manual) {
 
 async function fetchLiveScores() {
   try {
-    const res = await fetch(`/api/live?competition=${LIVE_COMPETITION}&league=${LIVE_LEAGUE}`);
+    const res = await fetch(`/api/live?competition=${LIVE_COMPETITION}&league=${currentLeague()}`);
     if (!res.ok) { console.warn('Live API error', res.status); return; }
     const body = await res.json();
     // Accepte tableau direct (ESPN) ou objet { matches: [] } (ancien format)
