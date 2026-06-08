@@ -1,6 +1,6 @@
 const FDORG_TOKEN = process.env.FOOTBALL_DATA_TOKEN;
 const FDORG_BASE  = 'https://api.football-data.org/v4';
-const ESPN_URL    = 'https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard';
+const ESPN_BASE   = 'https://site.api.espn.com/apis/site/v2/sports/soccer/';
 
 const COMP_MAP = {
   WC:  2000,
@@ -95,9 +95,13 @@ function normalizeFdStatus(s) {
   return 'upcoming';
 }
 
-async function fetchEspn(matchId) {
+async function fetchEspn(matchId, league, dates) {
   const fetchFn = typeof fetch !== 'undefined' ? fetch : require('node-fetch');
-  const res = await fetchFn(ESPN_URL, {
+  // league : slug ESPN (fifa.world par défaut, fifa.friendly pour les amicaux...)
+  const lg = /^[a-z0-9.]+$/i.test(league || '') ? league : 'fifa.world';
+  let url = `${ESPN_BASE}${lg}/scoreboard`;
+  if (/^\d{8}$/.test(dates || '')) url += `?dates=${dates}`;
+  const res = await fetchFn(url, {
     headers: { 'User-Agent': 'Mozilla/5.0' },
   });
   if (!res.ok) throw new Error(`ESPN HTTP ${res.status}`);
@@ -175,9 +179,11 @@ module.exports = async (req, res) => {
 
   const competition = req.query.competition || 'WC';
   const matchId = req.query.matchId || null;
+  const league = req.query.league || 'fifa.world';
+  const dates = req.query.dates || null;
 
   try {
-    const matches = await fetchEspn(matchId);
+    const matches = await fetchEspn(matchId, league, dates);
     return res.status(200).json(matches);
   } catch (espnErr) {
     console.error('ESPN failed, falling back to football-data:', espnErr.message);
