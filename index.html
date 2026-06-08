@@ -441,6 +441,22 @@ select.form-input { cursor: pointer; }
 .group-quali-3rd td { border-left: 2px solid #ff7800; }
 .poules-sub { font-family: var(--font-display); font-size: 15px; letter-spacing: 1px; color: var(--gold); margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
 
+/* ===== BRACKET / TABLEAU ÉLIMINATOIRE ===== */
+.bracket { display: flex; gap: 14px; overflow-x: auto; padding: 4px 2px 14px; -webkit-overflow-scrolling: touch; }
+.bracket-round { flex: 0 0 auto; width: 210px; display: flex; flex-direction: column; gap: 10px; }
+.bracket-round-title { font-family: var(--font-display); font-size: 13px; letter-spacing: 1px; color: var(--gold); text-align: center; text-transform: uppercase; padding-bottom: 6px; border-bottom: 1px solid var(--border); position: sticky; top: 0; }
+.bracket-match { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 10px; transition: border-color .2s; }
+.bracket-match.live { border-color: var(--green); }
+.bracket-match.finished { border-left: 3px solid var(--text3); }
+.bk-num { font-size: 9px; color: var(--text3); letter-spacing: .5px; margin-bottom: 4px; display: flex; justify-content: space-between; }
+.bk-team { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 2px 0; }
+.bk-team .bk-flag { width: 18px; text-align: center; flex: 0 0 auto; }
+.bk-team .bk-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bk-team .bk-name.placeholder { color: var(--text3); font-style: italic; }
+.bk-team .bk-score { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text); }
+.bk-team.winner .bk-name { font-weight: 700; color: var(--gold); }
+.bk-foot { font-size: 9px; color: var(--text3); margin-top: 4px; text-align: center; }
+
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: var(--bg); }
 ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
@@ -583,7 +599,7 @@ select.form-input { cursor: pointer; }
 <div id="app">
   <header>
     <div class="logo-area">
-      <h1>CDM<span>2026</span></h1>
+      <h1 onclick="_logoTap()" style="cursor:default;user-select:none">CDM<span>2026</span></h1>
       <p id="headerSub">Paris Family Dubois</p>
     </div>
     <div class="header-right">
@@ -621,8 +637,9 @@ select.form-input { cursor: pointer; }
     <button class="tab-btn active" onclick="showTab('matches',this)">⚽ Matchs</button>
     <button class="tab-btn" onclick="showTab('classement',this)">🏆 Classement</button>
     <button class="tab-btn" onclick="showTab('poules',this)">🗂 Poules</button>
+    <button class="tab-btn" onclick="showTab('elimination',this)">🏅 Tableau</button>
     <button class="tab-btn" onclick="showTab('notifs',this)">🔔 Notifs</button>
-    <button class="tab-btn" onclick="showTab('admin',this)">⚙️ Admin</button>
+    <button class="tab-btn" id="desktopAdminTab" style="display:none" onclick="showTab('admin',this)">⚙️ Admin</button>
   </div>
 
   <!-- App layout -->
@@ -765,6 +782,12 @@ select.form-input { cursor: pointer; }
         <div class="poules-sub" style="margin-top:20px">Classement meilleurs 3ème</div>
         <div id="best3rdContainer"></div>
       </div>
+
+      <!-- TABLEAU ÉLIMINATOIRE -->
+      <div id="tab-elimination" class="tab-pane">
+        <div class="section-title">Tableau <span>à élimination directe</span></div>
+        <div id="bracketContainer"></div>
+      </div>
     </div>
 
     <!-- SIDEBAR (desktop only) -->
@@ -800,11 +823,15 @@ select.form-input { cursor: pointer; }
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
     Poules
   </button>
+  <button class="bnav-btn" onclick="mobileTab('elimination',this)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M6 3v6a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3"/><path d="M12 15v4"/><path d="M8 21h8"/><path d="M4 5h2"/><path d="M18 5h2"/></svg>
+    Tableau
+  </button>
   <button class="bnav-btn" onclick="mobileTab('notifs',this)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
     Notifs
   </button>
-  <button class="bnav-btn" onclick="mobileTab('admin',this)">
+  <button class="bnav-btn" id="mobileAdminTab" style="display:none" onclick="mobileTab('admin',this)">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>
     Admin
   </button>
@@ -1425,6 +1452,60 @@ function renderBest3rdPlaces(thirds, anyPlayed) {
   });
   html += `</tbody></table></div>
   <p style="font-size:11px;color:var(--text3);text-align:center;margin-bottom:16px">Les 8 meilleurs 3ème (sur 12) se qualifient pour les 16es de finale</p>`;
+  container.innerHTML = html;
+}
+
+// ===== TABLEAU ÉLIMINATOIRE (bracket) =====
+const ELIM_ROUNDS = [
+  { phase: '16e de finale',     label: '16es' },
+  { phase: '8e de finale',      label: '8es' },
+  { phase: 'Quarts',            label: 'Quarts' },
+  { phase: 'Demies',            label: 'Demies' },
+  { phase: '3ème/4ème Place',   label: '3e place' },
+  { phase: 'Finale',            label: 'Finale' },
+];
+
+function renderElimination() {
+  const container = document.getElementById('bracketContainer');
+  if (!container) return;
+  const allTeams = new Set();
+  GROUPS.forEach(g => g.teams.forEach(t => allTeams.add(t)));
+  const koMatches = state.matches.filter(m => ELIM_ROUNDS.some(r => r.phase === m.phase));
+  if (!koMatches.length) {
+    container.innerHTML = '<p style="color:var(--text3);font-size:13px;text-align:center;padding:20px">Le tableau s\'affichera une fois le calendrier chargé.</p>';
+    return;
+  }
+  let html = '<div class="bracket">';
+  ELIM_ROUNDS.forEach(round => {
+    const ms = koMatches.filter(m => m.phase === round.phase).sort((a,b) => (a.matchNum||0) - (b.matchNum||0));
+    if (!ms.length) return;
+    html += `<div class="bracket-round"><div class="bracket-round-title">${round.label}</div>`;
+    ms.forEach(m => {
+      const played = m.status === 'finished' && m.score1 != null;
+      const w1 = played && m.score1 > m.score2;
+      const w2 = played && m.score2 > m.score1;
+      const teamRow = (name, flag, score, isWin) => {
+        const ph = !allTeams.has(name);
+        const flagH = ph ? '⚽' : flagHtml(flag, name);
+        return `<div class="bk-team${isWin?' winner':''}">
+          <span class="bk-flag">${flagH}</span>
+          <span class="bk-name${ph?' placeholder':''}">${name}</span>
+          <span class="bk-score">${score != null ? score : ''}</span>
+        </div>`;
+      };
+      const vd = VENUES[m.matchNum];
+      const dateStr = new Date(m.date).toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
+      const statusLabel = m.status==='live' ? '<span style="color:var(--green)">● live</span>' : (played ? 'Terminé' : dateStr);
+      html += `<div class="bracket-match ${m.status}">
+        <div class="bk-num"><span>#${m.matchNum||''}</span><span>${statusLabel}</span></div>
+        ${teamRow(m.team1, m.flag1, m.score1, w1)}
+        ${teamRow(m.team2, m.flag2, m.score2, w2)}
+        ${vd ? `<div class="bk-foot">📍 ${vd.v}, ${vd.c}</div>` : ''}
+      </div>`;
+    });
+    html += '</div>';
+  });
+  html += '</div>';
   container.innerHTML = html;
 }
 
@@ -2326,9 +2407,14 @@ function renderPlayersList() {
   const c = document.getElementById('playersList');
   if (!state.players.length) { c.innerHTML = '<p style="color:var(--text3);font-size:12px">Aucun joueur</p>'; return; }
   c.innerHTML = state.players.map(p => {
+    const isPlayerAdmin = (state.adminIds||[]).includes(p.id);
+    const adminBtn = isPlayerAdmin
+      ? `<button onclick="revokeAdmin('${p.id}')" title="Retirer les droits admin" style="background:var(--gold-dim);border:1px solid var(--gold);color:var(--gold);cursor:pointer;font-size:11px;padding:2px 7px;border-radius:6px;white-space:nowrap">👑 Admin</button>`
+      : `<button onclick="grantAdmin('${p.id}')" title="Nommer ce joueur administrateur" style="background:none;border:1px solid var(--border);color:var(--text3);cursor:pointer;font-size:11px;padding:2px 7px;border-radius:6px;white-space:nowrap">👑</button>`;
     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
-      <span style="font-size:13px;font-weight:500;color:${p.hiddenFromNonAdmins?'var(--text3)':'var(--text)'}">${playerFullName(p)}${p.hiddenFromNonAdmins?' 🙈':''}</span>
+      <span style="font-size:13px;font-weight:500;color:${p.hiddenFromNonAdmins?'var(--text3)':'var(--text)'}">${playerFullName(p)}${isPlayerAdmin?' 👑':''}${p.hiddenFromNonAdmins?' 🙈':''}</span>
       <div style="display:flex;gap:6px;align-items:center">
+        ${adminBtn}
         <button onclick="toggleHidePlayer('${p.id}')" title="${p.hiddenFromNonAdmins ? 'Joueur masqué — cliquer pour afficher' : 'Masquer ce joueur aux non-admins'}" style="background:none;border:1px solid var(--border);color:${p.hiddenFromNonAdmins?'var(--text3)':'var(--text2)'};cursor:pointer;font-size:11px;padding:2px 7px;border-radius:6px;white-space:nowrap">${p.hiddenFromNonAdmins ? '👁' : '🙈'}</button>
         <button onclick="resetPlayer('${p.id}')" title="Supprimer et recréer (réinitialise le didacticiel)" style="background:none;border:1px solid var(--border);color:var(--text3);cursor:pointer;font-size:11px;padding:2px 7px;border-radius:6px;white-space:nowrap">🔄 Tuto</button>
         <button onclick="adminRevokeNotifs('${p.id}')" title="${p.notifDisabled ? 'Réactiver les notifications' : 'Révoquer les notifications (tous ses appareils)'}" style="background:none;border:1px solid var(--border);color:${p.notifDisabled ? 'var(--text3)' : 'var(--red)'};cursor:pointer;font-size:11px;padding:2px 7px;border-radius:6px;white-space:nowrap">${p.notifDisabled ? '🔔' : '🔕'}</button>
@@ -2522,6 +2608,16 @@ function isAdmin() {
   const p = getCurrentPlayer();
   return p && (state.adminIds||[]).includes(p.id);
 }
+// Bootstrap caché : 5 appuis rapides sur le logo ouvrent la saisie du code admin.
+// Filet de sécurité si plus aucun admin ne peut promouvoir (l'onglet Admin est masqué).
+let _logoTaps = 0, _logoTapTimer = null;
+function _logoTap() {
+  if (isAdmin()) return; // déjà admin → l'onglet est visible, inutile
+  _logoTaps++;
+  clearTimeout(_logoTapTimer);
+  _logoTapTimer = setTimeout(() => { _logoTaps = 0; }, 1500);
+  if (_logoTaps >= 5) { _logoTaps = 0; activateAdmin(); }
+}
 function activateAdmin() {
   const code = prompt('Code administrateur :');
   if (code === null) return;
@@ -2530,14 +2626,25 @@ function activateAdmin() {
     if (!state.adminIds) state.adminIds = [];
     if (!state.adminIds.includes(p.id)) state.adminIds.push(p.id);
     save(); toast('✅ Mode admin activé !');
-    renderAdminPanel(); renderFamilyPhotoControls();
+    renderAdminPanel(); renderFamilyPhotoControls(); updateAdminTabVisibility();
   } else {
     toast('❌ Code incorrect');
   }
 }
+// Promotion directe d'un joueur en admin (réservé aux admins)
+function grantAdmin(id) {
+  if (!isAdmin()) return;
+  const p = getPlayerById(id);
+  if (!p) return;
+  if (!confirm(`Nommer ${playerFullName(p)} administrateur ?\nIl aura accès à toute la gestion (matchs, scores, joueurs, notifications).`)) return;
+  if (!state.adminIds) state.adminIds = [];
+  if (!state.adminIds.includes(id)) state.adminIds.push(id);
+  save(); renderPlayersList(); renderAdminPanel(); renderFamilyPhotoControls(); updateAdminTabVisibility();
+  toast(`👑 ${p.prenom} est maintenant administrateur`);
+}
 function revokeAdmin(id) {
   state.adminIds = (state.adminIds||[]).filter(x => x !== id);
-  save(); renderAdminPanel(); renderFamilyPhotoControls();
+  save(); renderPlayersList(); renderAdminPanel(); renderFamilyPhotoControls(); updateAdminTabVisibility();
 }
 function renderAdminPanel() {
   const tab = document.getElementById('tab-admin');
@@ -2794,6 +2901,7 @@ function showTab(id, btn) {
   if (id==='matches') { autoMatchPage(); renderMatches(); }
   if (id==='classement') renderRanking();
   if (id==='poules') renderGroups();
+  if (id==='elimination') renderElimination();
   if (id==='notifs') { renderNotifs(); updateNotifStatus(); }
   if (id==='admin') renderAdminPanel();
 }
@@ -2806,8 +2914,18 @@ function mobileTab(id, btn) {
   if (id==='matches') { autoMatchPage(); renderMatches(); }
   if (id==='classement') renderRanking();
   if (id==='poules') renderGroups();
+  if (id==='elimination') renderElimination();
   if (id==='notifs') { renderNotifs(); updateNotifStatus(); }
   if (id==='admin') renderAdminPanel();
+}
+
+// Affiche/masque l'onglet Admin (desktop + mobile) selon le statut admin
+function updateAdminTabVisibility() {
+  const show = isAdmin() ? '' : 'none';
+  const d = document.getElementById('desktopAdminTab');
+  const mo = document.getElementById('mobileAdminTab');
+  if (d) d.style.display = show;
+  if (mo) mo.style.display = show;
 }
 
 // ===== TOAST =====
@@ -2891,7 +3009,8 @@ function startAutoRefresh() {
 
 // ===== RENDER ALL =====
 function renderAll() {
-  renderMatches(); renderRanking(); renderGroups(); renderNotifs(); renderAdminPanel();
+  renderMatches(); renderRanking(); renderGroups(); renderElimination(); renderNotifs(); renderAdminPanel();
+  updateAdminTabVisibility();
 }
 
 // ===== OFFICIAL MATCHES DATA (CdM 2026) =====
