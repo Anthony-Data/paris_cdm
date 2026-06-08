@@ -1455,6 +1455,95 @@ function renderBest3rdPlaces(thirds, anyPlayed) {
   container.innerHTML = html;
 }
 
+// ===== RÉSOLUTION AUTO DES QUALIFIÉS (placeholders → équipes réelles) =====
+// Non destructif : calcule à l'affichage depuis les résultats des poules.
+let _teamSetCache = null;
+function _allTeamSet() {
+  if (!_teamSetCache) { _teamSetCache = new Set(); GROUPS.forEach(g => g.teams.forEach(t => _teamSetCache.add(t))); }
+  return _teamSetCache;
+}
+function _groupComplete(groupTeams) {
+  const done = state.matches.filter(m =>
+    m.phase === 'Groupes' && m.status === 'finished' && m.score1 != null &&
+    groupTeams.includes(m.team1) && groupTeams.includes(m.team2)).length;
+  return done >= 6; // 4 équipes = 6 matchs
+}
+function _matchByNum(n) { return state.matches.find(m => m.matchNum === n); }
+// Vainqueur/perdant d'un match à élimination directe (terminé, non nul)
+function _koWinnerLoser(m) {
+  if (!m || m.status !== 'finished' || m.score1 == null || m.score2 == null) return null;
+  if (m.score1 === m.score2) return null; // tirs au but inconnus → indécidable
+  return m.score1 > m.score2 ? { winner: m.team1, loser: m.team2 } : { winner: m.team2, loser: m.team1 };
+}
+// Attribution des 8 meilleurs 3èmes aux créneaux 3XXXX (bipartite matching)
+function _resolveThirdsAssignment(memo) {
+  if (memo && memo.__thirds !== undefined) return memo.__thirds;
+  let result = null;
+  if (GROUPS.every(g => _groupComplete(g.teams))) {
+    const thirds = GROUPS.map(g => {
+      const r = getGroupStandings(g.teams);
+      return r.length >= 3 ? { name: r[2].name, group: g.name, pts: r[2].pts, gd: r[2].gf - r[2].ga, gf: r[2].gf } : null;
+    }).filter(Boolean)
+      .sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf)
+      .slice(0, 8);
+    const slots = [];
+    state.matches.forEach(m => [m.team1, m.team2].forEach(t => {
+      if (/^3[A-L]{2,}$/.test(t || '')) slots.push({ label: t, allowed: t.slice(1).split('') });
+    }));
+    const asg = {}; const usedGroups = new Set();
+    const bt = i => {
+      if (i === slots.length) return true;
+      for (const th of thirds) {
+        if (usedGroups.has(th.group) || !slots[i].allowed.includes(th.group)) continue;
+        asg[slots[i].label] = th.name; usedGroups.add(th.group);
+        if (bt(i + 1)) return true;
+        usedGroups.delete(th.group); delete asg[slots[i].label];
+      }
+      return false;
+    };
+    if (slots.length && bt(0)) result = asg;
+  }
+  if (memo) memo.__thirds = result;
+  return result;
+}
+// Résout un placeholder en nom d'équipe réel, ou null si pas encore déterminé
+function resolveKoLabel(label, memo) {
+  memo = memo || {};
+  if (memo[label] !== undefined) return memo[label];
+  memo[label] = null; // garde anti-cycle
+  let res = null;
+  if (/^1[A-L]$/.test(label)) {
+    const g = GROUPS.find(x => x.name === label[1]);
+    if (g && _groupComplete(g.teams)) { const r = getGroupStandings(g.teams); if (r[0]) res = r[0].name; }
+  } else if (/^2[A-L]$/.test(label)) {
+    const g = GROUPS.find(x => x.name === label[1]);
+    if (g && _groupComplete(g.teams)) { const r = getGroupStandings(g.teams); if (r[1]) res = r[1].name; }
+  } else if (/^3[A-L]{2,}$/.test(label)) {
+    const asg = _resolveThirdsAssignment(memo);
+    if (asg && asg[label]) res = asg[label];
+  } else if (/^W\d+$/.test(label)) {
+    const wl = _koWinnerLoser(_matchByNum(+label.slice(1)));
+    if (wl) res = resolveKoLabel(wl.winner, memo);
+  } else if (/^Perdant SF[12]$/.test(label)) {
+    const wl = _koWinnerLoser(_matchByNum(label.endsWith('1') ? 101 : 102));
+    if (wl) res = resolveKoLabel(wl.loser, memo);
+  } else if (/^Finaliste [12]$/.test(label)) {
+    const wl = _koWinnerLoser(_matchByNum(label.endsWith('1') ? 101 : 102));
+    if (wl) res = resolveKoLabel(wl.winner, memo);
+  } else {
+    res = label; // déjà une équipe réelle
+  }
+  memo[label] = res;
+  return res;
+}
+// Affichage prêt-à-l'emploi pour un placeholder : { name, flag, ph(placeholder?) }
+function koDisplay(label, fallbackFlag, memo) {
+  const resolved = resolveKoLabel(label, memo);
+  if (resolved && _allTeamSet().has(resolved))
+    return { name: resolved, flag: getFlagForTeam(resolved) || fallbackFlag, ph: false };
+  return { name: label, flag: fallbackFlag, ph: true };
+}
+
 // ===== TABLEAU ÉLIMINATOIRE (bracket) =====
 const ELIM_ROUNDS = [
   { phase: '16e de finale',     label: '16es' },
@@ -1468,8 +1557,7 @@ const ELIM_ROUNDS = [
 function renderElimination() {
   const container = document.getElementById('bracketContainer');
   if (!container) return;
-  const allTeams = new Set();
-  GROUPS.forEach(g => g.teams.forEach(t => allTeams.add(t)));
+  const memo = {};
   const koMatches = state.matches.filter(m => ELIM_ROUNDS.some(r => r.phase === m.phase));
   if (!koMatches.length) {
     container.innerHTML = '<p style="color:var(--text3);font-size:13px;text-align:center;padding:20px">Le tableau s\'affichera une fois le calendrier chargé.</p>';
@@ -1484,12 +1572,12 @@ function renderElimination() {
       const played = m.status === 'finished' && m.score1 != null;
       const w1 = played && m.score1 > m.score2;
       const w2 = played && m.score2 > m.score1;
-      const teamRow = (name, flag, score, isWin) => {
-        const ph = !allTeams.has(name);
-        const flagH = ph ? '⚽' : flagHtml(flag, name);
+      const teamRow = (label, flag, score, isWin) => {
+        const d = koDisplay(label, flag, memo);
+        const flagH = d.ph ? '⚽' : flagHtml(d.flag, d.name);
         return `<div class="bk-team${isWin?' winner':''}">
           <span class="bk-flag">${flagH}</span>
-          <span class="bk-name${ph?' placeholder':''}">${name}</span>
+          <span class="bk-name${d.ph?' placeholder':''}">${d.name}</span>
           <span class="bk-score">${score != null ? score : ''}</span>
         </div>`;
       };
@@ -1567,6 +1655,7 @@ function filterPhase(p, btn) {
 function renderMatches() {
   const container = document.getElementById('matchesList');
   const myId = state.currentPlayer;
+  const _koMemo = {}; // cache de résolution des qualifiés, partagé sur ce rendu
   let allMatches = [...state.matches].sort((a,b) => new Date(a.date)-new Date(b.date));
   if (currentFilter !== 'all') allMatches = allMatches.filter(m => m.status === currentFilter);
   if (currentPhaseFilter !== 'all') allMatches = allMatches.filter(m => m.phase === currentPhaseFilter);
@@ -1706,14 +1795,16 @@ function renderMatches() {
         : '';
       const _vd = VENUES[m.matchNum] || (m.venue ? {v:m.venue,c:m.city||null} : null);
       const venueHtml = _vd ? `<div style="text-align:center;font-size:12px;color:var(--text3);margin:-4px 0 8px;letter-spacing:.3px">📍 ${_vd.v}, ${_vd.c}</div>` : '';
+      const d1 = koDisplay(m.team1, m.flag1, _koMemo);
+      const d2 = koDisplay(m.team2, m.flag2, _koMemo);
       html += `<div class="match-card ${m.status}" id="match_${m.id}">
         ${deleteBtn}
         <div class="match-header"><span class="match-info">${m.phase}</span>${statusHtml}</div>
         ${venueHtml}${x2Badge}
         <div class="match-teams">
-          <div class="team-block"><span class="team-flag">${flagHtml(m.flag1, m.team1)}</span><div class="team-name">${m.team1}</div></div>
+          <div class="team-block"><span class="team-flag">${d1.ph?'⚽':flagHtml(d1.flag, d1.name)}</span><div class="team-name"${d1.ph?' style="color:var(--text3);font-style:italic"':''}>${d1.name}</div></div>
           ${scoreHtml}
-          <div class="team-block"><span class="team-flag">${flagHtml(m.flag2, m.team2)}</span><div class="team-name">${m.team2}</div></div>
+          <div class="team-block"><span class="team-flag">${d2.ph?'⚽':flagHtml(d2.flag, d2.name)}</span><div class="team-name"${d2.ph?' style="color:var(--text3);font-style:italic"':''}>${d2.name}</div></div>
         </div>
         ${pronoHtml}${allPronosHtml}
       </div>`;
