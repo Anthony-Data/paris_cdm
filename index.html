@@ -2036,6 +2036,14 @@ async function fetchLiveScores() {
       if (idx === -1) continue;
       const local = state.matches[idx];
 
+      // Garde MONOTONE : un match déjà commencé/terminé ne redevient JAMAIS
+      // "à venir". ESPN peut momentanément renvoyer un match comme "pre"
+      // (pré-match / donnée en retard / mauvaise entrée) avec des scores nuls.
+      // On ignore complètement cette entrée obsolète, sinon le match clignote
+      // "en direct ↔ à venir" et ses scores affichés sont effacés.
+      const RANK = { upcoming: 0, live: 1, halftime: 1, finished: 2 };
+      if ((RANK[live.status] ?? 0) < (RANK[local.status] ?? 0)) continue;
+
       // On garde 'halftime' tel quel : l'affichage montre "Mi-temps" et les
       // minutes reprennent automatiquement quand ESPN repasse le match en 'live'.
       const newStatus = live.status;
@@ -2143,7 +2151,20 @@ function updateLiveStatusIndicator() {
 // Démarre le polling si un match est déjà "live" au chargement de la page
 function checkAndStartLivePolling() {
   if (_pollPaused) return; // l'admin a arrêté manuellement → ne pas relancer
-  if (state.matches.some(m => m.status === 'live' || m.status === 'halftime')) startLivePolling();
+  const now = Date.now();
+  const WINDOW = 150 * 60 * 1000; // ~2h30 : couvre prolongations + tirs au but
+  const active = state.matches.some(m => {
+    if (m.status === 'live' || m.status === 'halftime') return true;
+    // Match dont le coup d'envoi est passé mais qu'ESPN/Firebase n'a pas encore
+    // basculé : on sonde quand même /api/live pour récupérer score+minute dès le
+    // coup d'envoi réel (et écrire le statut "en direct" confirmé par ESPN).
+    if (m.status === 'upcoming' && m.date) {
+      const diff = now - new Date(m.date).getTime();
+      return diff >= 0 && diff < WINDOW;
+    }
+    return false;
+  });
+  if (active) startLivePolling();
   else stopLivePolling();
 }
 
@@ -3228,23 +3249,16 @@ function loadSampleData() {
 // ===== AUTO REFRESH =====
 function startAutoRefresh() {
   setInterval(() => {
-    const now = new Date();
-    state.matches.forEach((m, idx) => {
-      if (m.status !== 'upcoming') return;
-      const mt = new Date(m.date);
-      const diff = now - mt;
-      if (diff >= 0 && diff < 110*60*1000) {
-        m.status = 'live';
-        // Écriture ciblée uniquement sur le statut — évite d'écraser les scores/pronos du live-sync
-        if (db && _appReady) {
-          db.ref(`cdm2026/shared/matches/${idx}/status`).set('live')
-            .catch(e => console.warn('Firebase status update error:', e));
-        }
-      }
-    });
+    // IMPORTANT : le client ne DEVINE PLUS le statut via une fenêtre horaire.
+    // Avant, on basculait "à venir → en direct" dès kickoff+110min et on écrivait
+    // ce statut dans Firebase. Le cron serveur (api/live-sync), lui, lit ESPN et
+    // pouvait renvoyer le match comme "à venir" (donnée pré-match / plage de dates
+    // ±1j) → les deux s'écrasaient mutuellement, d'où le flip "en direct ↔ à venir"
+    // toutes les ~30s. Désormais ESPN est la SEULE source de vérité du statut :
+    // soit le cron serveur, soit le polling local fetchLiveScores l'écrit, et
+    // jamais en rétrogradant (cf. garde monotone). Ici on se contente d'afficher
+    // et de (re)lancer le polling local quand un match est — ou devrait être — en cours.
     renderMatches(); renderMiniRank();
-    // Chaque appareil démarre/arrête son propre polling live selon les matchs en cours,
-    // pour que tout le monde voie scores et minutes en direct (pas seulement l'admin).
     checkAndStartLivePolling();
   }, 30000);
 }

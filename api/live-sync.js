@@ -141,10 +141,27 @@ module.exports = async (req, res) => {
         if (s1.has(fbT2) && s2.has(fbT1)) return 'swapped';
         return null;
       };
-      let orientation = null;
-      const espn = espnMatches.find(e => (orientation = sideMatch(e)) !== null);
+      // La plage de dates ±1 jour peut renvoyer DEUX entrées pour la même paire
+      // d'équipes (ex. une en cours + une programmée un autre jour). On prend la
+      // plus "avancée" (en direct/terminé prioritaire sur à venir) pour ne jamais
+      // matcher par erreur l'entrée pré-match au lieu du match réellement en cours.
+      const RANK = { upcoming: 0, live: 1, halftime: 1, finished: 2 };
+      let espn = null, orientation = null;
+      for (const e of espnMatches) {
+        const o = sideMatch(e);
+        if (!o) continue;
+        if (!espn || (RANK[e.status] ?? 0) > (RANK[espn.status] ?? 0)) {
+          espn = e; orientation = o;
+        }
+      }
 
       if (!espn) { skipped++; continue; }
+
+      // Garde MONOTONE : un match déjà commencé/terminé ne doit JAMAIS être
+      // rétrogradé en "à venir". Si l'entrée ESPN retenue est "pre" alors que
+      // Firebase a déjà le match en direct, on l'ignore — sinon le match clignote
+      // "en direct ↔ à venir" toutes les ~30s.
+      if ((RANK[espn.status] ?? 0) < (RANK[m.status] ?? 0)) { skipped++; continue; }
 
       // ESPN peut inverser domicile/extérieur par rapport à notre base
       const swapped = orientation === 'swapped';
