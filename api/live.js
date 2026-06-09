@@ -203,3 +203,9 @@ module.exports = async (req, res) => {
     }
   }
 };
+
+// Helpers réutilisés par api/live-sync.js (cron serveur) — source unique de vérité
+module.exports.fetchEspn = fetchEspn;
+module.exports.toFr = toFr;
+module.exports.normalizeEspnStatus = normalizeEspnStatus;
+module.exports.ESPN_TO_FR = ESPN_TO_FR;
