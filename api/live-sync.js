@@ -8,7 +8,56 @@
 // correspondent exactement à ceux stockés dans Firebase.
 
 const admin = require('firebase-admin');
+const webpush = require('web-push');
 const { fetchEspn } = require('./live');
+
+// VAPID : configuré une seule fois si les clés sont présentes. Sans elles, on
+// continue le sync des scores mais sans envoyer de notification de fin de match.
+let _vapidReady = false;
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(
+    'mailto:' + (process.env.VAPID_EMAIL || 'admin@paris-cdm.com'),
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
+  _vapidReady = true;
+}
+const PUSH_OPTS = { urgency: 'high', TTL: 3600 };
+
+// Envoie une notification "match terminé" à tous les abonnés, une seule fois
+// par match. Utilise le MÊME verrou de déduplication que api/notify.js
+// (cdm2026/notifsSent/fin_<id>) → la notif de fin part une seule fois, que ce
+// soit ce cron ESPN ou la saisie manuelle de l'admin qui termine le match.
+async function notifyFinished(db, match) {
+  if (!_vapidReady) return { sent: 0, reason: 'no_vapid' };
+  const dedupKey = `fin_${match.id}`;
+  // Verrou anti-doublon partagé avec notify.js : seul le premier appel passe.
+  const lockRef = db.ref(`cdm2026/notifsSent/${dedupKey}`);
+  const tx = await lockRef.transaction(cur => cur ? undefined : new Date().toISOString());
+  if (!tx.committed) return { sent: 0, reason: 'already_sent' };
+
+  const subsSnap = await db.ref('cdm2026/subscriptions').once('value');
+  const subscriptions = subsSnap.val() || {};
+  const payload = JSON.stringify({
+    title: `🏁 ${match.flag1 || ''} ${match.team1} ${match.score1} – ${match.score2} ${match.team2} ${match.flag2 || ''}`.trim(),
+    body: `Le match est terminé ! Viens voir ton score 🏆`,
+    tag: dedupKey,
+  });
+  let sent = 0, removed = 0;
+  for (const [subKey, subData] of Object.entries(subscriptions)) {
+    if (!subData.subscription) continue;
+    try {
+      await webpush.sendNotification(subData.subscription, payload, PUSH_OPTS);
+      sent++;
+    } catch (e) {
+      if (e.statusCode === 410 || e.statusCode === 404) {
+        await db.ref(`cdm2026/subscriptions/${subKey}`).remove();
+        removed++;
+      }
+    }
+  }
+  return { sent, removed };
+}
 
 // ── Firebase Admin singleton (même pattern que api/notify.js) ────────────────
 function getDB() {
@@ -127,6 +176,7 @@ module.exports = async (req, res) => {
     let updated = 0, skipped = 0;
     const updates = {};
     const changes = [];
+    const finishedNow = []; // matchs qui viennent de passer "terminé" → notif push
 
     for (const [idx, m] of relevant) {
       const fbT1 = norm(m.team1);
@@ -204,12 +254,30 @@ module.exports = async (req, res) => {
         if (newMinute) updates[`${base}/minute`] = newMinute;
       }
 
+      // Transition vers "terminé" → on note le match pour la notif "viens voir
+      // ton score" (envoyée après l'écriture Firebase, dédupliquée par verrou).
+      if (newStatus === 'finished' && m.status !== 'finished') {
+        finishedNow.push({ ...m, score1: newScore1, score2: newScore2 });
+      }
+
       updated++;
       changes.push(`${m.team1} ${newScore1 ?? '-'}-${newScore2 ?? '-'} ${m.team2} [${newStatus}]`);
     }
 
     if (Object.keys(updates).length) {
       await db.ref().update(updates);
+    }
+
+    // Notifications "match terminé" — après l'écriture Firebase, une seule fois
+    // par match. Une erreur de notif ne doit pas faire échouer le sync des scores.
+    const notified = [];
+    for (const fm of finishedNow) {
+      try {
+        const r = await notifyFinished(db, fm);
+        notified.push(`${fm.team1} ${fm.score1}–${fm.score2} ${fm.team2} → ${r.sent ?? 0} envoyée(s)${r.reason ? ' ('+r.reason+')' : ''}`);
+      } catch (e) {
+        notified.push(`${fm.team1} vs ${fm.team2} → erreur notif: ${e.message}`);
+      }
     }
 
     return res.json({
@@ -223,6 +291,7 @@ module.exports = async (req, res) => {
       espnTeams: espnMatches.map(e => `${e.team1} vs ${e.team2} [${e.status}]`),
       relevant: relevant.map(([, m]) => `${m.team1} vs ${m.team2}`),
       changes,
+      notified,
       checked: new Date().toISOString(),
     });
 
