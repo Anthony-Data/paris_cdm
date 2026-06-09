@@ -1603,7 +1603,7 @@ function renderElimination() {
       return `<div class="bk2-team${win ? ' winner' : ''}"><span class="bk2-name${d.ph ? ' placeholder' : ''}">${flagH}${name}</span><span class="bk2-score">${score != null ? score : ''}</span></div>`;
     };
     return `<div class="bk2-match ${m.status}">
-      <div class="bk2-head"><span>N°${num}</span><span>${m.status === 'live' ? '<span style="color:var(--green)">● live</span>' : dateStr}</span></div>
+      <div class="bk2-head"><span>N°${num}</span><span>${m.status === 'live' ? '<span style="color:var(--green)">● live</span>' : m.status === 'halftime' ? '<span style="color:var(--green)">● mi-temps</span>' : dateStr}</span></div>
       ${row(m.team1, m.flag1, m.score1, w1)}
       ${row(m.team2, m.flag2, m.score2, w2)}
     </div>`;
@@ -1653,7 +1653,7 @@ function autoMatchPage() {
   const all = [...state.matches].sort((a,b) => new Date(a.date)-new Date(b.date));
   if (!all.length) { _matchPage = 0; return; }
   // Priorité : page avec match en direct
-  const liveIdx = all.findIndex(m => m.status === 'live');
+  const liveIdx = all.findIndex(m => m.status === 'live' || m.status === 'halftime');
   if (liveIdx >= 0) { _matchPage = Math.floor(liveIdx / MATCH_PAGE_SIZE); return; }
   // Sinon : page du prochain match à venir
   const now = new Date();
@@ -1740,14 +1740,16 @@ function renderMatches() {
       const dateStr = dt.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
       const pronos = state.pronos[m.id] || {};
       const myProno = myId ? pronos[myId] : null;
-      const canSeeAll = m.status==='live'||m.status==='finished';
+      const canSeeAll = m.status==='live'||m.status==='finished'||m.status==='halftime';
       const canProno = m.status==='upcoming';
       const clockStr = m.displayClock || (m.minute ? m.minute+"'" : null);
       let statusHtml = m.status==='live'
         ? `<span class="match-status status-live">⏱${clockStr ? ' '+clockStr : ' En direct'}</span>`
-        : m.status==='finished'
-          ? `<span class="match-status status-finished">Terminé</span>`
-          : `<span class="match-status status-upcoming">${dateStr}</span>`;
+        : m.status==='halftime'
+          ? `<span class="match-status status-live">⏸ Mi-temps</span>`
+          : m.status==='finished'
+            ? `<span class="match-status status-finished">Terminé</span>`
+            : `<span class="match-status status-upcoming">${dateStr}</span>`;
       let scoreHtml = m.status==='upcoming'
         ? `<div class="score-area"><span class="score-display" style="font-size:18px;color:var(--text3)">vs</span></div>`
         : `<div class="score-area"><span class="score-display">${m.score1??'?'}</span><span class="score-sep">:</span><span class="score-display">${m.score2??'?'}</span></div>`;
@@ -2012,7 +2014,9 @@ async function fetchLiveScores() {
       );
       if (!local) continue;
 
-      const newStatus = live.status === 'halftime' ? 'live' : live.status;
+      // On garde 'halftime' tel quel : l'affichage montre "Mi-temps" et les
+      // minutes reprennent automatiquement quand ESPN repasse le match en 'live'.
+      const newStatus = live.status;
       if (local.score1 !== live.score1 || local.score2 !== live.score2 || local.status !== newStatus) {
         local.score1  = live.score1;
         local.score2  = live.score2;
@@ -2022,9 +2026,11 @@ async function fetchLiveScores() {
       }
       // Minute : donnée transitoire, mise à jour locale (re-render sans save Firebase
       // pour éviter une tempête d'écritures quand tous les appareils sondent).
+      // On n'actualise l'horloge qu'en jeu ('live') : à la mi-temps on affiche
+      // "Mi-temps", et la minute reprend dès la reprise.
       const newClock = live.displayClock || (live.minute ? live.minute + "'" : null);
-      if (newClock && local.displayClock !== newClock) { local.displayClock = newClock; minuteOnly = true; }
-      if (live.minute && local.minute !== live.minute) local.minute = live.minute;
+      if (newStatus === 'live' && newClock && local.displayClock !== newClock) { local.displayClock = newClock; minuteOnly = true; }
+      if (newStatus === 'live' && live.minute && local.minute !== live.minute) local.minute = live.minute;
       if (live.venue && !local.venue) { local.venue = live.venue; local.city = live.city || null; changed = true; }
     }
     if (changed) { save(); renderMatches(); renderRanking(); }
@@ -2107,7 +2113,7 @@ function updateLiveStatusIndicator() {
 // Démarre le polling si un match est déjà "live" au chargement de la page
 function checkAndStartLivePolling() {
   if (_pollPaused) return; // l'admin a arrêté manuellement → ne pas relancer
-  if (state.matches.some(m => m.status === 'live')) startLivePolling();
+  if (state.matches.some(m => m.status === 'live' || m.status === 'halftime')) startLivePolling();
   else stopLivePolling();
 }
 
