@@ -184,7 +184,11 @@ module.exports = async (req, res) => {
       const changed =
         m.status !== newStatus ||
         m.score1 !== newScore1 ||
-        m.score2 !== newScore2;
+        m.score2 !== newScore2 ||
+        // La minute avance à chaque tick → on l'inclut dans "changed" pour que
+        // Firebase reste à jour même sans but. Sans ça, un refresh renvoie
+        // l'utilisateur à la minute du dernier but au lieu de la minute actuelle.
+        (newClock && m.displayClock !== newClock);
 
       if (!changed) { skipped++; continue; }
 
