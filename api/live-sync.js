@@ -132,16 +132,22 @@ module.exports = async (req, res) => {
       const fbT1 = norm(m.team1);
       const fbT2 = norm(m.team2);
 
-      const espn = espnMatches.find(e => {
-        const et1 = norm(e.team1);
-        const et2 = norm(e.team2);
-        return (et1 === fbT1 && et2 === fbT2) || (et1 === fbT2 && et2 === fbT1);
-      });
+      // Chaque côté ESPN peut matcher sur son nom FR (mappé) OU son nom EN brut.
+      // → l'admin peut taper le nom français ou anglais, ça marche dans les deux cas.
+      const sideMatch = (e) => {
+        const s1 = new Set([norm(e.team1), norm(e.team1En)]);
+        const s2 = new Set([norm(e.team2), norm(e.team2En)]);
+        if (s1.has(fbT1) && s2.has(fbT2)) return 'direct';
+        if (s1.has(fbT2) && s2.has(fbT1)) return 'swapped';
+        return null;
+      };
+      let orientation = null;
+      const espn = espnMatches.find(e => (orientation = sideMatch(e)) !== null);
 
       if (!espn) { skipped++; continue; }
 
       // ESPN peut inverser domicile/extérieur par rapport à notre base
-      const swapped = norm(espn.team1) === fbT2;
+      const swapped = orientation === 'swapped';
       const newScore1 = swapped ? espn.score2 : espn.score1;
       const newScore2 = swapped ? espn.score1 : espn.score2;
       const newStatus = espn.status;
