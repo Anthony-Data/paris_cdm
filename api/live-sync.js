@@ -86,10 +86,26 @@ module.exports = async (req, res) => {
       return res.json({ updated: 0, skipped: 0, reason: 'no_relevant_matches', league, checked: new Date().toISOString() });
     }
 
-    // Appel ESPN (réutilise exactement la même logique que /api/live)
-    let espnMatches;
+    // Appel ESPN — on passe explicitement la/les date(s) des matchs pertinents
+    // (format YYYYMMDD UTC). Indispensable pour un match en pleine nuit Paris,
+    // sinon le scoreboard ESPN "du jour" (fuseau US) pourrait ne pas le contenir.
+    const toYmd = (d) => {
+      const dt = new Date(d);
+      return `${dt.getUTCFullYear()}${String(dt.getUTCMonth() + 1).padStart(2, '0')}${String(dt.getUTCDate()).padStart(2, '0')}`;
+    };
+    const dates = [...new Set(relevant.map(([, m]) => toYmd(m.date)))];
+
+    let espnMatches = [];
     try {
-      espnMatches = await fetchEspn(null, league, null);
+      const results = await Promise.all(dates.map(ds => fetchEspn(null, league, ds)));
+      const seen = new Set();
+      for (const list of results) {
+        for (const e of list) {
+          if (e.fdId && seen.has(e.fdId)) continue;
+          if (e.fdId) seen.add(e.fdId);
+          espnMatches.push(e);
+        }
+      }
     } catch (espnErr) {
       return res.status(502).json({ error: 'ESPN inaccessible', detail: espnErr.message, league });
     }
