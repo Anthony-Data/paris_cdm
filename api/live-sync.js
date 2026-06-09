@@ -171,6 +171,16 @@ module.exports = async (req, res) => {
       const newClock = espn.displayClock;
       const newMinute = espn.minute;
 
+      const base = `cdm2026/shared/matches/${idx}`;
+
+      // Stade : métadonnée statique fournie par ESPN (dispo à tout moment, même
+      // match en cours). On la pose une seule fois si elle manque — indépendamment
+      // du score, donc AVANT la sortie "pas de changement".
+      if (espn.venue && !m.venue) {
+        updates[`${base}/venue`] = espn.venue;
+        if (espn.city) updates[`${base}/city`] = espn.city;
+      }
+
       const changed =
         m.status !== newStatus ||
         m.score1 !== newScore1 ||
@@ -178,7 +188,6 @@ module.exports = async (req, res) => {
 
       if (!changed) { skipped++; continue; }
 
-      const base = `cdm2026/shared/matches/${idx}`;
       updates[`${base}/status`] = newStatus;
       if (newScore1 !== null) updates[`${base}/score1`] = newScore1;
       if (newScore2 !== null) updates[`${base}/score2`] = newScore2;

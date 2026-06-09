@@ -1869,7 +1869,7 @@ function renderMatches() {
         ? `<div style="text-align:center;margin-bottom:6px"><span style="background:var(--gold-dim);border:1px solid var(--gold);color:var(--gold);font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px;letter-spacing:1px">⚡ SCORE ×2 !</span></div>`
         : '';
       const _vd = VENUES[m.matchNum] || (m.venue ? {v:m.venue,c:m.city||null} : null);
-      const venueHtml = _vd ? `<div style="text-align:center;font-size:12px;color:var(--text3);margin:-4px 0 8px;letter-spacing:.3px">📍 ${_vd.v}, ${_vd.c}</div>` : '';
+      const venueHtml = _vd ? `<div style="text-align:center;font-size:12px;color:var(--text3);margin:-4px 0 8px;letter-spacing:.3px">📍 ${_vd.v}${_vd.c ? ', ' + _vd.c : ''}</div>` : '';
       const d1 = koDisplay(m.team1, m.flag1, _koMemo);
       const d2 = koDisplay(m.team2, m.flag2, _koMemo);
       html += `<div class="match-card ${m.status}" id="match_${m.id}">
@@ -2099,7 +2099,11 @@ async function fetchLiveScores() {
       const newClock = live.displayClock || (live.minute ? live.minute + "'" : null);
       if (newStatus === 'live' && newClock && local.displayClock !== newClock) { local.displayClock = newClock; minuteOnly = true; }
       if (newStatus === 'live' && live.minute && local.minute !== live.minute) local.minute = live.minute;
-      if (live.venue && !local.venue) { local.venue = live.venue; local.city = live.city || null; changed = true; fbUpdates[`cdm2026/shared/matches/${idx}/venue`] = live.venue; }
+      if (live.venue && !local.venue) {
+        local.venue = live.venue; local.city = live.city || null; changed = true;
+        fbUpdates[`cdm2026/shared/matches/${idx}/venue`] = live.venue;
+        if (live.city) fbUpdates[`cdm2026/shared/matches/${idx}/city`] = live.city;
+      }
     }
     if (changed) {
       // Écriture multi-chemins atomique — jamais de set() complet
