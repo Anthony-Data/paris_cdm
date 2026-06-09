@@ -1697,12 +1697,34 @@ function filterPhase(p, btn) {
   btn.classList.add('active');
   renderMatches();
 }
+
+// ===== STATUT D'AFFICHAGE CALCULÉ =====
+// N'écrit JAMAIS dans Firebase — purement visuel, recalculé à chaque rendu.
+// Si ESPN suit le match, m.status fait foi. Sinon (ESPN muet : match non couvert),
+// on déduit l'état du temps écoulé depuis le coup d'envoi : commencé → « en cours »,
+// puis au-delà de 2h15 → « terminé » (l'admin saisira le score à la main).
+// Empêche qu'un match déjà joué reste affiché « à venir » et pronostiquable.
+const MATCH_LIVE_WINDOW_MS = 135 * 60 * 1000; // 2h15
+function effectiveStatus(m) {
+  if (!m) return 'upcoming';
+  if (m.status && m.status !== 'upcoming') return m.status; // ESPN/admin a tranché
+  if (!m.date) return 'upcoming';
+  const diff = Date.now() - new Date(m.date).getTime();
+  if (diff < 0) return 'upcoming';                 // pas encore commencé
+  if (diff < MATCH_LIVE_WINDOW_MS) return 'live';  // commencé, ESPN muet → en cours
+  return 'finished';                                // au-delà de 2h15 → terminé
+}
+// Pour les filtres : la mi-temps compte comme « en direct »
+function filterStatus(m) {
+  const s = effectiveStatus(m);
+  return s === 'halftime' ? 'live' : s;
+}
 function renderMatches() {
   const container = document.getElementById('matchesList');
   const myId = state.currentPlayer;
   const _koMemo = {}; // cache de résolution des qualifiés, partagé sur ce rendu
   let allMatches = [...state.matches].sort((a,b) => new Date(a.date)-new Date(b.date));
-  if (currentFilter !== 'all') allMatches = allMatches.filter(m => m.status === currentFilter);
+  if (currentFilter !== 'all') allMatches = allMatches.filter(m => filterStatus(m) === currentFilter);
   if (currentPhaseFilter !== 'all') allMatches = allMatches.filter(m => m.phase === currentPhaseFilter);
   if (!allMatches.length) {
     container.innerHTML = `<div class="empty"><div class="empty-icon">⚽</div><p>Aucun match</p></div>`;
@@ -1760,17 +1782,23 @@ function renderMatches() {
       const dateStr = dt.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
       const pronos = state.pronos[m.id] || {};
       const myProno = myId ? pronos[myId] : null;
-      const canSeeAll = m.status==='live'||m.status==='finished'||m.status==='halftime';
-      const canProno = m.status==='upcoming';
+      // Statut d'affichage : ESPN si dispo, sinon déduit du temps (cf. effectiveStatus)
+      const dispStatus = effectiveStatus(m);
+      // "en cours" déduit du temps (ESPN ne suit pas) : pas de minute disponible
+      const timeBasedLive = m.status === 'upcoming' && dispStatus === 'live';
+      const canSeeAll = dispStatus==='live'||dispStatus==='finished'||dispStatus==='halftime';
+      const canProno = dispStatus==='upcoming';
       const clockStr = m.displayClock || (m.minute ? m.minute+"'" : null);
-      let statusHtml = m.status==='live'
-        ? `<span class="match-status status-live">⏱${clockStr ? ' '+clockStr : ' En direct'}</span>`
-        : m.status==='halftime'
+      let statusHtml = dispStatus==='live'
+        ? (timeBasedLive
+            ? `<span class="match-status status-live">🔴 En cours</span>`
+            : `<span class="match-status status-live">⏱${clockStr ? ' '+clockStr : ' En direct'}</span>`)
+        : dispStatus==='halftime'
           ? `<span class="match-status status-live">⏸ Mi-temps</span>`
-          : m.status==='finished'
+          : dispStatus==='finished'
             ? `<span class="match-status status-finished">Terminé</span>`
             : `<span class="match-status status-upcoming">${dateStr}</span>`;
-      let scoreHtml = m.status==='upcoming'
+      let scoreHtml = dispStatus==='upcoming'
         ? `<div class="score-area"><span class="score-display" style="font-size:18px;color:var(--text3)">vs</span></div>`
         : `<div class="score-area"><span class="score-display">${m.score1??'?'}</span><span class="score-sep">:</span><span class="score-display">${m.score2??'?'}</span></div>`;
       let pronoHtml = '';
@@ -1864,6 +1892,14 @@ function renderMatches() {
 function submitProno(matchId) {
   const myId = state.currentPlayer;
   if (!myId) return;
+  // Verrou : impossible de pronostiquer un match déjà commencé (même si ESPN ne
+  // le suit pas → statut déduit du temps). Filet de sécurité si l'UI est périmée.
+  const match = state.matches.find(x => x.id === matchId);
+  if (match && effectiveStatus(match) !== 'upcoming') {
+    toast('⏱ Trop tard — le match a déjà commencé');
+    renderMatches();
+    return;
+  }
   const v1 = document.getElementById('p1_'+matchId)?.value;
   const v2 = document.getElementById('p2_'+matchId)?.value;
   if (v1 === '' || v2 === '') { toast('❌ Entre un score pour les deux équipes'); return; }
