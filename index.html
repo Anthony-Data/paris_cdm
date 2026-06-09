@@ -535,11 +535,10 @@ select.form-input { cursor: pointer; }
             <div style="margin-bottom:6px;padding:8px;background:#000;border-radius:6px"><strong style="color:var(--gold)">① </strong>Ouvre dans <strong>Safari</strong> <span style="color:#00c853;font-size:12px">— si tu lis ceci sur Safari, c'est déjà bon ✅</span></div>
             <div style="margin-bottom:6px;padding:8px;background:#000;border-radius:6px">
               <strong style="color:var(--gold)">② </strong>Appuie sur <strong>⋯</strong> en bas à droite
-              <div style="margin-top:8px;padding:7px 9px;background:rgba(255,160,0,.15);border-left:3px solid #ffa000;border-radius:4px;font-size:13px;color:#ffa000;line-height:1.5"><strong>💡 Tu ne vois pas les ⋯ ?</strong> Fais défiler vers le haut dans Safari pour faire réapparaître la barre du bas.</div>
+              <div style="margin-top:8px;padding:7px 9px;background:rgba(255,160,0,.15);border-left:3px solid #ffa000;border-radius:4px;font-size:13px;color:#ffa000;line-height:1.5"><strong>💡 Si tu ne vois pas les ⋯,</strong> passe directement à l'étape ③</div>
             </div>
             <div style="margin-bottom:6px;padding:8px;background:#000;border-radius:6px"><strong style="color:var(--gold)">③ </strong>Appuie sur <strong>Partager</strong> <svg style="vertical-align:middle" width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 2.5l-4.5 4.5h3V15h3V7h3L12 2.5z"/><path d="M5 15v5h14v-5h-2v2H7v-2H5z"/></svg> <span style="color:var(--text3);font-size:12px">(bouton au bas et au milieu de l'écran si tu as sauté l'étape ②)</span></div>
-            <div style="margin-bottom:6px;padding:8px;background:#000;border-radius:6px"><strong style="color:var(--gold)">④ </strong>Choisis <strong>« + Sur l'écran d'accueil »</strong></div>
-            <div style="padding:8px;background:rgba(0,200,83,.08);border-radius:6px;font-size:12px;color:var(--text3);line-height:1.5">📱 <strong style="color:var(--text2)">iOS te garde dans Safari</strong> — va sur ton écran d'accueil et <strong>ouvre l'icône ⚽ CdM 2026</strong> pour continuer le didacticiel dans l'app.</div>
+            <div style="padding:8px;background:#000;border-radius:6px"><strong style="color:var(--gold)">④ </strong>Choisis <strong>« + Sur l'écran d'accueil »</strong><div style="color:var(--text3);font-size:11px;margin-top:4px">💡 Si tu ne le vois pas, défile vers le bas ou appuie sur <strong style="color:var(--text2)">« En voir plus »</strong></div></div>
           </div>
         </div>
         <div style="background:var(--surface);border-radius:var(--radius);padding:14px;margin-bottom:16px;">
@@ -591,6 +590,20 @@ select.form-input { cursor: pointer; }
     </div>
 
   </div><!-- /obTrack -->
+
+  <!-- Écran "Ouvre le PWA" : affiché après installation depuis Safari/Chrome (mobile, hors PWA).
+       On NE veut PAS que l'utilisateur active les notifications dans le navigateur (inutile).
+       Il doit ouvrir l'app depuis l'écran d'accueil ; le didacticiel reprendra alors à la slide 3. -->
+  <div id="obOpenPwa" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,.98);z-index:5;flex-direction:column;align-items:center;justify-content:center;padding:28px;text-align:center;box-sizing:border-box;">
+    <div style="font-size:64px;margin-bottom:18px">📲</div>
+    <div style="font-family:var(--font-display);font-size:24px;color:var(--gold);letter-spacing:1px;margin-bottom:18px">DERNIÈRE ÉTAPE</div>
+    <div style="font-size:15px;color:var(--text2);line-height:1.8;max-width:340px">
+      L'app est installée ! 🎉<br><br>
+      Maintenant <strong style="color:var(--text)">quitte ce navigateur</strong> et ouvre l'icône <strong style="color:var(--gold)">⚽ CDM 2026</strong> depuis ton <strong style="color:var(--text)">écran d'accueil</strong>.<br><br>
+      Le didacticiel reprendra <strong style="color:var(--text)">tout seul dans l'app</strong> pour activer les notifications.
+    </div>
+    <button class="btn btn-ghost" style="margin-top:28px;font-size:12px;color:var(--text3)" onclick="document.getElementById('obOpenPwa').style.display='none'">← Je n'ai pas encore installé l'app</button>
+  </div>
 
   <!-- Barre du bas : dots au centre, ← Retour à gauche -->
   <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 16px 32px;flex-shrink:0;">
@@ -3352,6 +3365,12 @@ document.getElementById('loginNom').addEventListener('keydown', e => { if (e.key
 
 // ===== ONBOARDING =====
 const _isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const _isAndroid = /android/i.test(navigator.userAgent);
+const _isMobile = _isIOS || _isAndroid;
+function _isStandalone() {
+  return window.navigator.standalone === true
+    || window.matchMedia('(display-mode: standalone)').matches;
+}
 let _obStep = 1;
 const _OB_MAX = 4;
 
@@ -3371,8 +3390,14 @@ function maybeShowOnboarding(force) {
   // Croix de fermeture uniquement en mode 'Revoir le tuto' (force), pas à la 1re connexion
   const closeBtn = document.getElementById('obCloseBtn');
   if (closeBtn) closeBtn.style.display = force ? 'flex' : 'none';
+  // Au cas où l'écran "ouvre le PWA" serait resté affiché d'une session précédente
+  const openPwa = document.getElementById('obOpenPwa');
+  if (openPwa) openPwa.style.display = 'none';
   obUpdateInstallStatus();
-  obGoto(1, false);
+  // Première ouverture DANS le PWA (standalone) : l'app est forcément installée,
+  // on reprend directement à la slide 2 (badge "déjà installée") puis notifications.
+  // En mode "Revoir le tuto" (force), on repart toujours du début.
+  obGoto((!force && _isStandalone()) ? 2 : 1, false);
 }
 
 function obClose() {
@@ -3391,11 +3416,10 @@ function obGoto(step, animate) {
   // Scroll en haut de la slide active
   const slides = document.querySelectorAll('.ob-slide');
   if (slides[_obStep - 1]) slides[_obStep - 1].scrollTop = 0;
-  // Slide 3 : affiche l'avertissement Safari/iOS si pas en mode standalone
+  // Slide 3 : avertissement si on est encore dans le navigateur mobile (notifs inutiles)
   if (_obStep === 3) {
-    const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
     const w = document.getElementById('ob-safari-warning');
-    if (w) w.style.display = (_isIOS && !isStandalone) ? 'block' : 'none';
+    if (w) w.style.display = (_isMobile && !_isStandalone()) ? 'block' : 'none';
   }
 }
 
@@ -3454,11 +3478,26 @@ function obUpdateInstallStatus() {
 function obConfirmInstall() {
   const myId = state.currentPlayer;
   localStorage.setItem('ob_installed_' + myId, '1');
+  // Sur mobile dans un navigateur (pas encore dans le PWA) : on bloque ici.
+  // Activer les notifications depuis Safari/Chrome est inutile → on force
+  // l'ouverture du PWA. Le didacticiel reprendra à la slide 3 dans l'app
+  // (onboardingDone reste false tant que les notifs ne sont pas faites).
+  if (_isMobile && !_isStandalone()) {
+    document.getElementById('obOpenPwa').style.display = 'flex';
+    return;
+  }
+  // Déjà dans le PWA, ou desktop → on enchaîne sur les notifications.
   obNext(3);
 }
 
 async function obRequestNotif() {
   const btn = document.getElementById('obNotifBtn');
+  // Garde-fou : activer les notifs depuis Safari/Chrome mobile est inutile.
+  // On renvoie vers l'ouverture du PWA plutôt que de demander une permission morte.
+  if (_isMobile && !_isStandalone()) {
+    document.getElementById('obOpenPwa').style.display = 'flex';
+    return;
+  }
   if (!('Notification' in window)) { obNext(4); return; }
   try {
     const perm = await Notification.requestPermission();
