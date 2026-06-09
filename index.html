@@ -2025,14 +2025,16 @@ async function fetchLiveScores() {
     if (!liveMatches.length) return;
 
     let changed = false, minuteOnly = false;
+    const fbUpdates = {};
     for (const live of liveMatches) {
       // Correspondance par nom exact (ESPN renvoie déjà en français), puis partielle
-      const local = state.matches.find(m =>
+      const idx = state.matches.findIndex(m =>
         (m.team1 === live.team1 && m.team2 === live.team2) ||
         (m.team1.toLowerCase().includes(live.team1.toLowerCase().substring(0, 4)) &&
          m.team2.toLowerCase().includes(live.team2.toLowerCase().substring(0, 4)))
       );
-      if (!local) continue;
+      if (idx === -1) continue;
+      const local = state.matches[idx];
 
       // On garde 'halftime' tel quel : l'affichage montre "Mi-temps" et les
       // minutes reprennent automatiquement quand ESPN repasse le match en 'live'.
@@ -2042,18 +2044,26 @@ async function fetchLiveScores() {
         local.score2  = live.score2;
         local.status  = newStatus;
         changed = true;
+        // Écriture ciblée (évite d'écraser pronos/joueurs avec un set() complet)
+        const base = `cdm2026/shared/matches/${idx}`;
+        fbUpdates[`${base}/status`]  = newStatus;
+        if (live.score1 !== null) fbUpdates[`${base}/score1`] = live.score1;
+        if (live.score2 !== null) fbUpdates[`${base}/score2`] = live.score2;
         console.log(`⚽ Score mis à jour : ${local.team1} ${live.score1}-${live.score2} ${local.team2}`);
       }
-      // Minute : donnée transitoire, mise à jour locale (re-render sans save Firebase
-      // pour éviter une tempête d'écritures quand tous les appareils sondent).
-      // On n'actualise l'horloge qu'en jeu ('live') : à la mi-temps on affiche
-      // "Mi-temps", et la minute reprend dès la reprise.
+      // Minute : donnée transitoire, mise à jour locale uniquement (pas Firebase)
       const newClock = live.displayClock || (live.minute ? live.minute + "'" : null);
       if (newStatus === 'live' && newClock && local.displayClock !== newClock) { local.displayClock = newClock; minuteOnly = true; }
       if (newStatus === 'live' && live.minute && local.minute !== live.minute) local.minute = live.minute;
-      if (live.venue && !local.venue) { local.venue = live.venue; local.city = live.city || null; changed = true; }
+      if (live.venue && !local.venue) { local.venue = live.venue; local.city = live.city || null; changed = true; fbUpdates[`cdm2026/shared/matches/${idx}/venue`] = live.venue; }
     }
-    if (changed) { save(); renderMatches(); renderRanking(); }
+    if (changed) {
+      // Écriture multi-chemins atomique — jamais de set() complet
+      if (db && _appReady && Object.keys(fbUpdates).length) {
+        db.ref().update(fbUpdates).catch(e => console.warn('Firebase live update error:', e));
+      }
+      renderMatches(); renderRanking();
+    }
     else if (minuteOnly) renderMatches(); // chaque appareil affiche sa propre minute
   } catch(e) {
     console.warn('fetchLiveScores error:', e);
@@ -3219,11 +3229,18 @@ function loadSampleData() {
 function startAutoRefresh() {
   setInterval(() => {
     const now = new Date();
-    state.matches.forEach(m => {
+    state.matches.forEach((m, idx) => {
       if (m.status !== 'upcoming') return;
       const mt = new Date(m.date);
       const diff = now - mt;
-      if (diff >= 0 && diff < 110*60*1000) { m.status = 'live'; save(); }
+      if (diff >= 0 && diff < 110*60*1000) {
+        m.status = 'live';
+        // Écriture ciblée uniquement sur le statut — évite d'écraser les scores/pronos du live-sync
+        if (db && _appReady) {
+          db.ref(`cdm2026/shared/matches/${idx}/status`).set('live')
+            .catch(e => console.warn('Firebase status update error:', e));
+        }
+      }
     });
     renderMatches(); renderMiniRank();
     // Chaque appareil démarre/arrête son propre polling live selon les matchs en cours,
