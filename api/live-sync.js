@@ -86,28 +86,41 @@ module.exports = async (req, res) => {
       return res.json({ updated: 0, skipped: 0, reason: 'no_relevant_matches', league, checked: new Date().toISOString() });
     }
 
-    // Appel ESPN — on passe explicitement la/les date(s) des matchs pertinents
-    // (format YYYYMMDD UTC). Indispensable pour un match en pleine nuit Paris,
-    // sinon le scoreboard ESPN "du jour" (fuseau US) pourrait ne pas le contenir.
-    const toYmd = (d) => {
-      const dt = new Date(d);
+    // Appel ESPN — on interroge une PLAGE de dates (±1 jour) autour de chaque
+    // match pertinent. ESPN regroupe ses matchs par date américaine (heure de
+    // l'Est), pas en UTC : un match à 4h du matin Paris (= 02h UTC) est classé
+    // sous la VEILLE côté ESPN. Interroger UTC seul rate donc le match. La plage
+    // ±1 jour couvre tous les cas quel que soit le fuseau de regroupement ESPN.
+    const toYmd = (ms) => {
+      const dt = new Date(ms);
       return `${dt.getUTCFullYear()}${String(dt.getUTCMonth() + 1).padStart(2, '0')}${String(dt.getUTCDate()).padStart(2, '0')}`;
     };
-    const dates = [...new Set(relevant.map(([, m]) => toYmd(m.date)))];
+    const DAY = 24 * 60 * 60 * 1000;
+    const dateSet = new Set();
+    for (const [, m] of relevant) {
+      const t = new Date(m.date).getTime();
+      dateSet.add(toYmd(t - DAY));
+      dateSet.add(toYmd(t));
+      dateSet.add(toYmd(t + DAY));
+    }
+    const dates = [...dateSet];
 
-    let espnMatches = [];
-    try {
-      const results = await Promise.all(dates.map(ds => fetchEspn(null, league, ds)));
-      const seen = new Set();
-      for (const list of results) {
-        for (const e of list) {
-          if (e.fdId && seen.has(e.fdId)) continue;
-          if (e.fdId) seen.add(e.fdId);
-          espnMatches.push(e);
-        }
+    // Promise.allSettled : une date qui échoue ne doit pas faire tomber le sync.
+    const espnMatches = [];
+    const seen = new Set();
+    const results = await Promise.allSettled(dates.map(ds => fetchEspn(null, league, ds)));
+    const okCount = results.filter(r => r.status === 'fulfilled').length;
+    if (!okCount) {
+      const firstErr = results.find(r => r.status === 'rejected');
+      return res.status(502).json({ error: 'ESPN inaccessible', detail: firstErr?.reason?.message || 'all dates failed', league, dates });
+    }
+    for (const r of results) {
+      if (r.status !== 'fulfilled') continue;
+      for (const e of r.value) {
+        if (e.fdId && seen.has(e.fdId)) continue;
+        if (e.fdId) seen.add(e.fdId);
+        espnMatches.push(e);
       }
-    } catch (espnErr) {
-      return res.status(502).json({ error: 'ESPN inaccessible', detail: espnErr.message, league });
     }
 
     // Comparaison ESPN ↔ Firebase, construction d'un update multi-chemins atomique
@@ -167,7 +180,12 @@ module.exports = async (req, res) => {
       updated,
       skipped,
       league,
+      dates,
       espnMatchesFound: espnMatches.length,
+      // Aide au diagnostic : si un match attendu est skippé, on voit ici les
+      // équipes qu'ESPN a renvoyées pour comparer les noms.
+      espnTeams: espnMatches.map(e => `${e.team1} vs ${e.team2} [${e.status}]`),
+      relevant: relevant.map(([, m]) => `${m.team1} vs ${m.team2}`),
       changes,
       checked: new Date().toISOString(),
     });
