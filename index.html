@@ -713,7 +713,7 @@ select.form-input { cursor: pointer; }
           <span style="color:var(--gold)">● 2pts</span> vainqueur<br>
           <span style="color:var(--red)">● 0pt</span> mauvais score<br>
           <br>
-          À partir des quarts de finale : points <span style="color:var(--gold)">×2</span> — <span style="color:#00c853">10</span> · <span style="color:#ff7800">6</span> · <span style="color:var(--gold)">4</span> · <span style="color:var(--red)">0</span><br>
+          À partir des quarts de finale :<br>points <span style="color:var(--gold)">×2</span> — <span style="color:#00c853">10</span> · <span style="color:#ff7800">6</span> · <span style="color:var(--gold)">4</span> · <span style="color:var(--red)">0</span><br>
           Si deux joueurs sont à égalité : le joueur avec le + de scores exacts est devant
         </div>
       </div>
@@ -1940,6 +1940,7 @@ function renderRanking() {
   const myId = state.currentPlayer;
   const body = document.getElementById('rankingBody');
   if (!ranking.length) { body.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:28px">Aucun joueur</td></tr>`; renderPodium([]); return; }
+  const total = ranking.length;
   body.innerHTML = ranking.map((r, i) => {
     const rank = i+1;
     const p = getPlayerById(r.id);
@@ -1949,14 +1950,27 @@ function renderRanking() {
     if (prev && prev !== rank) trend = prev>rank ? `<span class="trend trend-up">▲${prev-rank}</span>` : `<span class="trend trend-down">▼${rank-prev}</span>`;
     const isMe = r.id === myId;
     const init = playerInitials(p);
-    return `<tr class="rank-${rank}" style="${isMe?'background:var(--green-dim)':''}">
-      <td><span class="rank-num">${rank}</span></td>
+    const isBottom3 = rank > total - 3;
+    let rowBg = '', textColor = '', avatarStyle = '';
+    if (isMe) {
+      rowBg = 'var(--green-dim)'; avatarStyle = 'border-color:var(--green);background:var(--green-dim)';
+    } else if (rank === 1) {
+      rowBg = 'rgba(245,197,24,.18)'; textColor = 'color:var(--gold)'; avatarStyle = 'border-color:var(--gold);background:rgba(245,197,24,.18);color:var(--gold)';
+    } else if (rank === 2) {
+      rowBg = 'rgba(192,192,192,.15)'; textColor = 'color:#c8d0d8'; avatarStyle = 'border-color:#8a9aaa;background:rgba(192,192,192,.15);color:#c8d0d8';
+    } else if (rank === 3) {
+      rowBg = 'rgba(205,127,50,.15)'; textColor = 'color:#d4956a'; avatarStyle = 'border-color:#a06040;background:rgba(205,127,50,.15);color:#d4956a';
+    } else if (isBottom3) {
+      rowBg = 'rgba(200,16,46,.12)'; textColor = 'color:var(--red)'; avatarStyle = 'border-color:var(--red);background:rgba(200,16,46,.12);color:var(--red)';
+    }
+    return `<tr class="rank-${rank}" style="background:${rowBg}">
+      <td><span class="rank-num" style="${textColor}">${rank}</span></td>
       <td><div style="display:flex;align-items:center;gap:8px">
-        <div class="rank-avatar" style="${isMe?'border-color:var(--green);background:var(--green-dim)':''}">${init}</div>
-        <div><div class="rank-name">${p.prenom}${trend}${isMe?' 👈':''}</div></div>
+        <div class="rank-avatar" style="${avatarStyle}">${init}</div>
+        <div><div class="rank-name" style="${textColor}">${p.prenom}${trend}${isMe?' 👈':''}</div></div>
       </div></td>
-      <td><div class="rank-exact">${r.exact} 🎯</div></td>
-      <td><div class="rank-pts">${r.pts}</div></td>
+      <td><div class="rank-exact" style="${isBottom3&&!isMe?'color:var(--red)':''}">${r.exact} 🎯</div></td>
+      <td><div class="rank-pts" style="${isBottom3&&!isMe?'color:var(--red)':rank<=3&&!isMe?textColor:''}">${r.pts}</div></td>
     </tr>`;
   }).join('');
   ranking.forEach((r, i) => { state.lastRanks[r.id] = i+1; });
