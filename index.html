@@ -292,7 +292,7 @@ header {
 .pronos-reveal { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
 .pronos-reveal-title { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 7px; }
 .prono-tags { display: flex; flex-wrap: wrap; gap: 5px; }
-.prono-tag { font-family: var(--font-mono); font-size: 11px; padding: 3px 9px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg2); color: var(--text2); flex: 0 0 calc(50% - 3px); box-sizing: border-box; text-align: center; }
+.prono-tag { font-family: var(--font-mono); font-size: 11px; padding: 3px 9px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg2); color: var(--text2); }
 .prono-tag.exact  { background: rgba(0,200,83,.12);  border-color: #00c853;  color: #00c853; }
 .prono-tag.pts-3  { background: rgba(255,120,0,.12); border-color: #ff7800;       color: #ff7800; }
 .prono-tag.diff-win { background: rgba(255,214,0,.12); border-color: var(--gold); color: var(--gold); }
@@ -1848,17 +1848,24 @@ function renderMatches() {
           ? [...validPronos].sort(([,a],[,b]) =>
               calcPoints(m.score1,m.score2,b.s1,b.s2,m.phase) - calcPoints(m.score1,m.score2,a.s1,a.s2,m.phase))
           : validPronos;
-        let tags = '', lastPts = undefined;
+        let tags = '', lastPts = undefined, lineCount = 0;
         sortedPronos.forEach(([pid, pr]) => {
           const pl = getPlayerById(pid);
           const pts = m.score1!=null ? calcPoints(m.score1,m.score2,pr.s1,pr.s2,m.phase) : null;
           const label = pts!=null ? ptsLabel(pts,m.phase) : '';
           const ptsStr = pts!=null ? ` +${pts}` : '';
-          // Saut de ligne entre chaque groupe de points différent
-          if (pts !== null && lastPts !== undefined && pts !== lastPts) {
+          const newGroup = (pts !== null && lastPts !== undefined && pts !== lastPts);
+          if (newGroup) {
+            // Nouveau groupe de points → saut de ligne avec un peu d'espace
             tags += `<div style="width:100%;height:0;margin:2px 0"></div>`;
+            lineCount = 0;
+          } else if (lineCount === 2) {
+            // Déjà 2 pronos sur la ligne → on renvoie le 3e à la ligne suivante
+            tags += `<div style="width:100%;height:0"></div>`;
+            lineCount = 0;
           }
           tags += `<span class="prono-tag ${label}">${pl.prenom}: ${pr.s1}–${pr.s2}${ptsStr}</span>`;
+          lineCount++;
           lastPts = pts;
         });
         allPronosHtml = `<div class="pronos-reveal"><div class="pronos-reveal-title">Pronos (${validPronos.length})</div><div class="prono-tags">${tags}</div></div>`;
