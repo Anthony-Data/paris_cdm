@@ -1843,7 +1843,12 @@ function renderMatches() {
       });
       let allPronosHtml = '';
       if (canSeeAll && validPronos.length > 0) {
-        const tags = validPronos.map(([pid, pr]) => {
+        // Trie par points décroissants si le match a un score (5→3→2→0), sinon ordre naturel
+        const sortedPronos = m.score1 != null
+          ? [...validPronos].sort(([,a],[,b]) =>
+              calcPoints(m.score1,m.score2,b.s1,b.s2,m.phase) - calcPoints(m.score1,m.score2,a.s1,a.s2,m.phase))
+          : validPronos;
+        const tags = sortedPronos.map(([pid, pr]) => {
           const pl = getPlayerById(pid);
           const pts = m.score1!=null ? calcPoints(m.score1,m.score2,pr.s1,pr.s2,m.phase) : null;
           const label = pts!=null ? ptsLabel(pts,m.phase) : '';
