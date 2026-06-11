@@ -1848,13 +1848,19 @@ function renderMatches() {
           ? [...validPronos].sort(([,a],[,b]) =>
               calcPoints(m.score1,m.score2,b.s1,b.s2,m.phase) - calcPoints(m.score1,m.score2,a.s1,a.s2,m.phase))
           : validPronos;
-        const tags = sortedPronos.map(([pid, pr]) => {
+        let tags = '', lastPts = undefined;
+        sortedPronos.forEach(([pid, pr]) => {
           const pl = getPlayerById(pid);
           const pts = m.score1!=null ? calcPoints(m.score1,m.score2,pr.s1,pr.s2,m.phase) : null;
           const label = pts!=null ? ptsLabel(pts,m.phase) : '';
           const ptsStr = pts!=null ? ` +${pts}` : '';
-          return `<span class="prono-tag ${label}">${pl.prenom}: ${pr.s1}–${pr.s2}${ptsStr}</span>`;
-        }).join('');
+          // Saut de ligne entre chaque groupe de points différent
+          if (pts !== null && lastPts !== undefined && pts !== lastPts) {
+            tags += `<div style="width:100%;height:0;margin:2px 0"></div>`;
+          }
+          tags += `<span class="prono-tag ${label}">${pl.prenom}: ${pr.s1}–${pr.s2}${ptsStr}</span>`;
+          lastPts = pts;
+        });
         allPronosHtml = `<div class="pronos-reveal"><div class="pronos-reveal-title">Pronos (${validPronos.length})</div><div class="prono-tags">${tags}</div></div>`;
       } else if (!canSeeAll && validPronos.length > 0) {
         allPronosHtml = `<div class="pronos-reveal"><div class="pronos-reveal-title">🔒 ${validPronos.length} prono(s) — révélés au coup d'envoi</div></div>`;
