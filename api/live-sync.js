@@ -121,13 +121,20 @@ module.exports = async (req, res) => {
       ? rawMatches.map((m, i) => [String(i), m])
       : Object.entries(rawMatches);
 
-    // Un match est "pertinent" s'il est déjà live/halftime, ou dans la fenêtre
-    // [coup d'envoi −2h ; coup d'envoi +3h]. Sinon inutile d'interroger ESPN.
+    // Un match est "pertinent" s'il est déjà live/halftime, ou si son coup d'envoi
+    // était dans les dernières 24h (et qu'il est encore "upcoming" dans Firebase).
+    // La fenêtre large couvre : délais ESPN importants, matchs jamais passés en
+    // STATUS_IN_PROGRESS, et cas où ESPN ne met STATUS_FINAL que bien après le coup
+    // de sifflet final. Les matchs déjà "finished" dans Firebase sont ignorés.
     const isRelevant = (m) => {
       if (!m || !m.date) return false;
       if (m.status === 'live' || m.status === 'halftime') return true;
+      if (m.status === 'finished') return false; // Déjà réglé, inutile de re-interroger
       const diff = now - new Date(m.date).getTime();
-      return diff >= -2 * 60 * 60 * 1000 && diff < 3 * 60 * 60 * 1000;
+      // Fenêtre : de 2h avant le coup d'envoi jusqu'à 24h après.
+      // Les 24h couvrent les délais ESPN extrêmes ET les cas où on a raté la fenêtre
+      // active (ESPN bloqué en STATUS_SCHEDULED pendant tout le match).
+      return diff >= -2 * 3600000 && diff < 24 * 3600000;
     };
 
     const relevant = matchEntries.filter(([, m]) => isRelevant(m));

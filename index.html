@@ -2853,6 +2853,8 @@ function onUpdateMatchSelect() {
   const pw = document.getElementById('uPenWinner');
   if (pw) pw.value = m.penWinner ? String(m.penWinner) : '';
   refreshPenWinnerUI();
+  const btn = document.getElementById('uNotifBtn');
+  if (btn) btn.style.display = m.status === 'finished' ? '' : 'none';
 }
 // Affiche le sélecteur de vainqueur t.a.b. uniquement pour un match éliminatoire à égalité
 function refreshPenWinnerUI() {
@@ -2905,6 +2907,28 @@ async function notifyMatchFinished(m) {
     flag1: m.flag1 || '', flag2: m.flag2 || '',
   });
   fetch('/api/notify?' + params).catch(() => {});
+}
+async function adminResendNotif() {
+  const id = document.getElementById('updateMatchSelect')?.value;
+  const m = state.matches.find(x => x.id === id);
+  if (!m || m.status !== 'finished') { toast('❌ Sélectionne un match terminé'); return; }
+  if (!confirm(`Envoyer la notification "match terminé" pour\n${m.team1} ${m.score1}–${m.score2} ${m.team2} ?`)) return;
+  const params = new URLSearchParams({
+    finished: '1',
+    matchId: m.id,
+    team1: m.team1, team2: m.team2,
+    score1: m.score1, score2: m.score2,
+    flag1: m.flag1 || '', flag2: m.flag2 || '',
+  });
+  try {
+    const res = await fetch('/api/notify?' + params);
+    const data = await res.json();
+    if (data.reason === 'already_sent') toast('⚠️ Notification déjà envoyée — suprime la clé fin_' + m.id + ' dans Firebase pour forcer');
+    else if (data.sent > 0) toast(`📣 Notification envoyée à ${data.sent} abonné(s)`);
+    else toast('📣 Envoyé : ' + JSON.stringify(data));
+  } catch (e) {
+    toast('❌ Erreur : ' + e.message);
+  }
 }
 function updateMatchScore() {
   const id = document.getElementById('updateMatchSelect').value;
@@ -3072,6 +3096,7 @@ function renderAdminPanel() {
       </div>
       <button class="btn btn-primary" onclick="updateMatchScore()" style="width:100%">Mettre à jour</button>
       <button class="btn btn-danger" onclick="deleteMatch()" style="width:100%;margin-top:6px">🗑 Supprimer ce match</button>
+      <button id="uNotifBtn" class="btn" onclick="adminResendNotif()" style="width:100%;margin-top:6px;background:var(--card2);display:none">📣 Envoyer notif fin de match</button>
     </div>
     <div class="admin-card">
       <h3>🔴 Scores en direct</h3>
