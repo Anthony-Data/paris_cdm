@@ -1002,6 +1002,13 @@ function initFirebase() {
           if (m.team2 === 'Türkiye') { m.team2 = 'Turquie'; migrated = true; }
           if (m.team1 === 'Tchéquie') { m.team1 = 'Rep. Tchèque'; migrated = true; }
           if (m.team2 === 'Tchéquie') { m.team2 = 'Rep. Tchèque'; migrated = true; }
+          // Correction urgente : Australie vs Turquie était daté du samedi 13/06,
+          // alors que le match a lieu le dimanche 14/06 (même heure). On compare le
+          // timestamp (robuste au format stocké) et on ne touche QUE la mauvaise valeur.
+          if (m.team1 === 'Australie' && m.team2 === 'Turquie' && m.phase === 'Groupes'
+              && new Date(m.date).getTime() === new Date('2026-06-13T00:00:00-04:00').getTime()) {
+            m.date = '2026-06-14T00:00:00-04:00'; migrated = true;
+          }
         });
         localStorage.setItem('cdm2026v2', JSON.stringify(data));
       } else if (!_appReady) {
@@ -3316,7 +3323,7 @@ const OFFICIAL_MATCHES = [
   {id:'o3',matchNum:3,team1:'Canada',team2:'Bosnie',flag1:'🇨🇦',flag2:'🇧🇦',date:'2026-06-12T15:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
   {id:'o4',matchNum:4,team1:'USA',team2:'Paraguay',flag1:'🇺🇸',flag2:'🇵🇾',date:'2026-06-12T21:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
   {id:'o5',matchNum:5,team1:'Haïti',team2:'Écosse',flag1:'🇭🇹',flag2:'🏴󠁧󠁢󠁳󠁣󠁴󠁿',date:'2026-06-13T21:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
-  {id:'o6',matchNum:6,team1:'Australie',team2:'Turquie',flag1:'🇦🇺',flag2:'🇹🇷',date:'2026-06-13T00:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
+  {id:'o6',matchNum:6,team1:'Australie',team2:'Turquie',flag1:'🇦🇺',flag2:'🇹🇷',date:'2026-06-14T00:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
   {id:'o7',matchNum:7,team1:'Brésil',team2:'Maroc',flag1:'🇧🇷',flag2:'🇲🇦',date:'2026-06-13T18:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
   {id:'o8',matchNum:8,team1:'Qatar',team2:'Suisse',flag1:'🇶🇦',flag2:'🇨🇭',date:'2026-06-13T15:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
   {id:'o9',matchNum:9,team1:"Côte d'Ivoire",team2:'Équateur',flag1:'🇨🇮',flag2:'🇪🇨',date:'2026-06-14T19:00:00-04:00',phase:'Groupes',status:'upcoming',score1:null,score2:null},
