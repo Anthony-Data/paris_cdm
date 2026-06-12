@@ -672,8 +672,8 @@ select.form-input { cursor: pointer; }
       <!-- MATCHS -->
       <div id="tab-matches" class="tab-pane active">
         <div class="filters">
-          <button class="filter-btn status-filter-btn active" onclick="filterMatches('all',this)">Tous</button>
-          <button class="filter-btn status-filter-btn" onclick="filterMatches('upcoming',this)">À venir</button>
+          <button class="filter-btn status-filter-btn" onclick="filterMatches('all',this)">Tous</button>
+          <button class="filter-btn status-filter-btn active" onclick="filterMatches('upcoming',this)">À venir</button>
           <button class="filter-btn status-filter-btn" onclick="filterMatches('live',this)">En direct</button>
           <button class="filter-btn status-filter-btn" onclick="filterMatches('finished',this)">Terminés</button>
         </div>
@@ -1670,7 +1670,7 @@ function getRanking() {
 }
 
 // ===== RENDER MATCHES =====
-let currentFilter = 'all';
+let currentFilter = 'upcoming';
 let currentPhaseFilter = 'all';
 let _matchPage = 0;
 const MATCH_PAGE_SIZE = 8;
