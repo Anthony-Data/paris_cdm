@@ -109,32 +109,33 @@ module.exports = async (req, res) => {
     const league = req.query.league || currentLeague();
     const now = Date.now();
 
-    // Lecture des matchs Firebase
-    const sharedSnap = await db.ref('cdm2026/shared/matches').once('value');
+    // Lecture des matchs Firebase + clés de dédup des notifs en parallèle
+    const [sharedSnap, notifsSentSnap] = await Promise.all([
+      db.ref('cdm2026/shared/matches').once('value'),
+      db.ref('cdm2026/notifsSent').once('value'),
+    ]);
     const rawMatches = sharedSnap.val();
     if (!rawMatches) {
       return res.json({ updated: 0, reason: 'no_matches_in_firebase', league });
     }
+    // sentKeys : clés de dédup des notifs déjà envoyées (fin_<id> → timestamp)
+    const sentKeys = notifsSentSnap.val() || {};
 
     // Firebase renvoie parfois un objet à clés numériques au lieu d'un tableau
     const matchEntries = Array.isArray(rawMatches)
       ? rawMatches.map((m, i) => [String(i), m])
       : Object.entries(rawMatches);
 
-    // Un match est "pertinent" s'il est déjà live/halftime, ou si son coup d'envoi
-    // était dans les dernières 24h (et qu'il est encore "upcoming" dans Firebase).
-    // La fenêtre large couvre : délais ESPN importants, matchs jamais passés en
-    // STATUS_IN_PROGRESS, et cas où ESPN ne met STATUS_FINAL que bien après le coup
-    // de sifflet final. Les matchs déjà "finished" dans Firebase sont ignorés.
+    // Un match est "pertinent" s'il est déjà live/halftime, ou dans la fenêtre
+    // [coup d'envoi −2h ; coup d'envoi +4h]. Les matchs "finished" restent dans
+    // la fenêtre pour rattraper les notifications ratées (race condition client :
+    // fetchLiveScores peut écrire "finished" dans Firebase avant que ce cron ne
+    // détecte la transition et envoie la notif).
     const isRelevant = (m) => {
       if (!m || !m.date) return false;
       if (m.status === 'live' || m.status === 'halftime') return true;
-      if (m.status === 'finished') return false; // Déjà réglé, inutile de re-interroger
       const diff = now - new Date(m.date).getTime();
-      // Fenêtre : de 2h avant le coup d'envoi jusqu'à 24h après.
-      // Les 24h couvrent les délais ESPN extrêmes ET les cas où on a raté la fenêtre
-      // active (ESPN bloqué en STATUS_SCHEDULED pendant tout le match).
-      return diff >= -2 * 3600000 && diff < 24 * 3600000;
+      return diff >= -2 * 3600000 && diff < 4 * 3600000;
     };
 
     const relevant = matchEntries.filter(([, m]) => isRelevant(m));
@@ -247,28 +248,34 @@ module.exports = async (req, res) => {
         // l'utilisateur à la minute du dernier but au lieu de la minute actuelle.
         (newClock && m.displayClock !== newClock);
 
-      if (!changed) { skipped++; continue; }
+      // Notification "terminé" : ESPN dit finished ET la clé fin_<id> n'est pas
+      // encore posée dans Firebase. On teste la clé de dédup (sentKeys) plutôt
+      // que m.status pour couvrir la race condition : fetchLiveScores (client)
+      // peut écrire "finished" dans Firebase avant que ce cron ne détecte la
+      // transition — dans ce cas changed=false mais la notif n'a pas été envoyée.
+      const needsNotif = newStatus === 'finished' && !sentKeys[`fin_${m.id}`];
 
-      updates[`${base}/status`] = newStatus;
-      if (newScore1 !== null) updates[`${base}/score1`] = newScore1;
-      if (newScore2 !== null) updates[`${base}/score2`] = newScore2;
-      // displayClock/minute : utiles tant que le match tourne, nettoyés une fois fini
-      if (newStatus === 'finished') {
-        updates[`${base}/displayClock`] = null;
-        updates[`${base}/minute`] = null;
-      } else {
-        if (newClock) updates[`${base}/displayClock`] = newClock;
-        if (newMinute) updates[`${base}/minute`] = newMinute;
+      if (!changed && !needsNotif) { skipped++; continue; }
+
+      if (changed) {
+        updates[`${base}/status`] = newStatus;
+        if (newScore1 !== null) updates[`${base}/score1`] = newScore1;
+        if (newScore2 !== null) updates[`${base}/score2`] = newScore2;
+        // displayClock/minute : utiles tant que le match tourne, nettoyés une fois fini
+        if (newStatus === 'finished') {
+          updates[`${base}/displayClock`] = null;
+          updates[`${base}/minute`] = null;
+        } else {
+          if (newClock) updates[`${base}/displayClock`] = newClock;
+          if (newMinute) updates[`${base}/minute`] = newMinute;
+        }
+        updated++;
+        changes.push(`${m.team1} ${newScore1 ?? '-'}-${newScore2 ?? '-'} ${m.team2} [${newStatus}]`);
       }
 
-      // Transition vers "terminé" → on note le match pour la notif "viens voir
-      // ton score" (envoyée après l'écriture Firebase, dédupliquée par verrou).
-      if (newStatus === 'finished' && m.status !== 'finished') {
+      if (needsNotif) {
         finishedNow.push({ ...m, score1: newScore1, score2: newScore2 });
       }
-
-      updated++;
-      changes.push(`${m.team1} ${newScore1 ?? '-'}-${newScore2 ?? '-'} ${m.team2} [${newStatus}]`);
     }
 
     if (Object.keys(updates).length) {

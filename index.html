@@ -2123,6 +2123,7 @@ async function fetchLiveScores() {
       // minutes reprennent automatiquement quand ESPN repasse le match en 'live'.
       const newStatus = live.status;
       if (local.score1 !== live.score1 || local.score2 !== live.score2 || local.status !== newStatus) {
+        const prevStatus = local.status;
         local.score1  = live.score1;
         local.score2  = live.score2;
         local.status  = newStatus;
@@ -2133,6 +2134,10 @@ async function fetchLiveScores() {
         if (live.score1 !== null) fbUpdates[`${base}/score1`] = live.score1;
         if (live.score2 !== null) fbUpdates[`${base}/score2`] = live.score2;
         console.log(`⚽ Score mis à jour : ${local.team1} ${live.score1}-${live.score2} ${local.team2}`);
+        // Le client détecte la transition → finished : déclenche la notif push
+        // même si le cron serveur ne l'a pas encore détectée (race condition).
+        // La clé de dédup fin_<id> garantit qu'une seule notif part au total.
+        if (newStatus === 'finished' && prevStatus !== 'finished') notifyMatchFinished(local);
       }
       // Minute : donnée transitoire, mise à jour locale uniquement (pas Firebase)
       const newClock = live.displayClock || (live.minute ? live.minute + "'" : null);
