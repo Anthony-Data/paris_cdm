@@ -1969,17 +1969,18 @@ function renderRanking() {
     const isMe = r.id === myId;
     const init = playerInitials(p);
     const isBottom3 = rank > total - 3;
-    let rowBg = '', textColor = '', avatarStyle = '';
-    if (isMe) {
-      rowBg = 'var(--green-dim)'; avatarStyle = 'border-color:var(--green);background:var(--green-dim)';
-    } else if (rank === 1) {
-      rowBg = 'rgba(245,197,24,.18)'; textColor = 'color:var(--gold)'; avatarStyle = 'border-color:var(--gold);background:rgba(245,197,24,.18);color:var(--gold)';
+    // Couleur des points : blanc par défaut (milieu de tableau), or/argent/bronze
+    // pour le top 3, rouge pour les 3 derniers. Le classement « moi » n'est plus
+    // surligné — la petite main 👈 suffit à se repérer.
+    let rowBg = '', textColor = '', avatarStyle = '', ptsColor = '#fff';
+    if (rank === 1) {
+      rowBg = 'rgba(245,197,24,.18)'; textColor = 'color:var(--gold)'; ptsColor = 'var(--gold)'; avatarStyle = 'border-color:var(--gold);background:rgba(245,197,24,.18);color:var(--gold)';
     } else if (rank === 2) {
-      rowBg = 'rgba(192,192,192,.15)'; textColor = 'color:#c8d0d8'; avatarStyle = 'border-color:#8a9aaa;background:rgba(192,192,192,.15);color:#c8d0d8';
+      rowBg = 'rgba(192,192,192,.15)'; textColor = 'color:#c8d0d8'; ptsColor = '#c8d0d8'; avatarStyle = 'border-color:#8a9aaa;background:rgba(192,192,192,.15);color:#c8d0d8';
     } else if (rank === 3) {
-      rowBg = 'rgba(205,127,50,.15)'; textColor = 'color:#d4956a'; avatarStyle = 'border-color:#a06040;background:rgba(205,127,50,.15);color:#d4956a';
+      rowBg = 'rgba(205,127,50,.15)'; textColor = 'color:#d4956a'; ptsColor = '#d4956a'; avatarStyle = 'border-color:#a06040;background:rgba(205,127,50,.15);color:#d4956a';
     } else if (isBottom3) {
-      rowBg = 'rgba(200,16,46,.12)'; textColor = 'color:var(--red)'; avatarStyle = 'border-color:var(--red);background:rgba(200,16,46,.12);color:var(--red)';
+      rowBg = 'rgba(200,16,46,.12)'; textColor = 'color:var(--red)'; ptsColor = 'var(--red)'; avatarStyle = 'border-color:var(--red);background:rgba(200,16,46,.12);color:var(--red)';
     }
     return `<tr class="rank-${rank}" style="background:${rowBg}">
       <td><span class="rank-num" style="${textColor}">${rank}</span></td>
@@ -1987,8 +1988,8 @@ function renderRanking() {
         <div class="rank-avatar" style="${avatarStyle}">${init}</div>
         <div><div class="rank-name" style="${textColor}">${p.prenom}${trend}${isMe?' 👈':''}</div></div>
       </div></td>
-      <td><div class="rank-exact" style="${isBottom3&&!isMe?'color:var(--red)':''}">${r.exact} 🎯</div></td>
-      <td><div class="rank-pts" style="${isBottom3&&!isMe?'color:var(--red)':rank<=3&&!isMe?textColor:''}">${r.pts}</div></td>
+      <td><div class="rank-exact" style="${isBottom3?'color:var(--red)':''}">${r.exact} 🎯</div></td>
+      <td><div class="rank-pts" style="color:${ptsColor}">${r.pts}</div></td>
     </tr>`;
   }).join('');
   ranking.forEach((r, i) => { state.lastRanks[r.id] = i+1; });
