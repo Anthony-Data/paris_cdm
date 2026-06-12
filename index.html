@@ -780,19 +780,6 @@ select.form-input { cursor: pointer; }
           <div id="notifStatus" style="font-size:12px;color:var(--text3);margin-top:10px;"></div>
         </div>
 
-        <!-- BETA TEST SECTION (admin uniquement) -->
-        <div id="betaTestSection" style="display:none;background:var(--surface);border:1px solid rgba(255,214,0,.3);border-radius:var(--radius);padding:16px 18px;margin-bottom:14px;">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-            <span class="test-badge">🧪 Bêta test notifs</span>
-          </div>
-          <p style="font-size:13px;color:var(--text2);margin-bottom:12px;">Crée un match fictif dans 61 min. La notification partira automatiquement pile à 1h avant le coup d'envoi</p>
-          <button id="betaStartBtn" class="btn btn-gold" onclick="betaTestNotif()" style="width:100%">🧪 Créer match test (notif dans ~1 min)</button>
-          <button onclick="serverTestPush()" class="btn btn-ghost" style="width:100%;margin-top:8px">📲 Test push serveur immédiat</button>
-          <button onclick="checkPushEndpoint()" class="btn btn-ghost" style="width:100%;margin-top:6px;font-size:12px;opacity:.8">📡 Vérifier endpoint (APNS/FCM ?)</button>
-          <button id="betaCancelBtn" class="btn btn-danger" onclick="cancelBetaTest()" style="width:100%;margin-top:8px;display:none">✕ Annuler le beta test</button>
-          <div id="betaStatus" style="font-size:12px;color:var(--text3);margin-top:8px;line-height:1.6;white-space:pre-wrap"></div>
-        </div>
-
         <div id="notifsList"></div>
       </div>
       <!-- ADMIN -->
@@ -2392,148 +2379,6 @@ async function testNotifNow() {
   toast('📲 Notification envoyée !');
 }
 
-// ===== BETA TEST NOTIFS =====
-let _betaMatchId = null;
-
-function cancelBetaTest() {
-  if (_betaMatchId) {
-    state.matches = state.matches.filter(m => m.id !== _betaMatchId);
-    save(); renderMatches();
-    _betaMatchId = null;
-  }
-  const betaStatus = document.getElementById('betaStatus');
-  if (betaStatus) { betaStatus.textContent = ''; }
-  document.getElementById('betaStartBtn').style.display = 'block';
-  document.getElementById('betaCancelBtn').style.display = 'none';
-  toast('🗑 Beta test annulé');
-}
-
-async function betaTestNotif() {
-  if (Notification.permission !== 'granted') { toast('❌ Active les notifications d\'abord'); return; }
-  if (_betaMatchId) cancelBetaTest();
-
-  // S'assurer que l'abonnement est bien enregistré avant d'envoyer
-  await subscribeToPush();
-
-  const now = new Date();
-  // Match fictif dans 61 min — mais la notif est envoyée immédiatement via ?matchId=
-  // (plus d'attente du cron, même comportement que la vraie notif 1h avant)
-  const matchTime = new Date(now.getTime() + 61 * 60 * 1000);
-  const testId = 'beta_' + Date.now();
-  _betaMatchId = testId;
-
-  const testMatch = {
-    id: testId, team1: 'Test FC', team2: 'Bêta United',
-    flag1: '🧪', flag2: '⚡', phase: 'Groupes',
-    date: matchTime.toISOString(), status: 'upcoming',
-    score1: null, score2: null,
-  };
-
-  state.matches.push(testMatch);
-  save();
-  renderMatches();
-
-  // Nettoyage automatique après 15 min
-  setTimeout(() => {
-    if (_betaMatchId === testId) {
-      state.matches = state.matches.filter(m => m.id !== testId);
-      save(); renderMatches();
-      _betaMatchId = null;
-    }
-  }, 15 * 60 * 1000);
-
-  const betaStatus = document.getElementById('betaStatus');
-  if (betaStatus) { betaStatus.textContent = '⏳ Envoi du push serveur…'; betaStatus.style.color = 'var(--text3)'; }
-  document.getElementById('betaStartBtn').style.display = 'none';
-  document.getElementById('betaCancelBtn').style.display = 'block';
-
-  // Appel immédiat au serveur avec le matchId — même logique que la vraie notif 1h avant,
-  // sans dépendre du cron GitHub Actions (throttlé à ~1/heure en réalité)
-  try {
-    const res = await fetch('/api/notify?matchId=' + encodeURIComponent(testId));
-    const data = await res.json();
-    const msg = res.ok
-      ? `✅ Push envoyé : ${data.sent} appareil(s), ${data.skipped} ignoré(s)${data.removed ? ', ' + data.removed + ' mort(s) supprimé(s)' : ''}`
-      : `❌ Erreur : ${data.error || res.status}`;
-    if (betaStatus) { betaStatus.textContent = msg; betaStatus.style.color = res.ok ? '#4caf50' : 'var(--red)'; }
-    toast(res.ok ? '📲 Push serveur envoyé !' : '❌ Erreur push serveur');
-    addNotif(`🧪 Bêta test push serveur — ${msg}`);
-  } catch(e) {
-    if (betaStatus) { betaStatus.textContent = '❌ Erreur réseau'; betaStatus.style.color = 'var(--red)'; }
-    toast('❌ Erreur réseau');
-  }
-}
-
-async function betaTestImmediate() {
-  if (Notification.permission !== 'granted') {
-    toast('❌ Active les notifications d\'abord'); return;
-  }
-  const fakeMatch = { id:'instant_test', team1:'France', team2:'Brésil', flag1:'🇫🇷', flag2:'🇧🇷', phase:'Groupes' };
-  await showPushNotification(
-    '⚽ 🇫🇷 France vs Brésil 🇧🇷',
-    'N\'oublie pas ton prono pour le match France vs Brésil ! (test immédiat)',
-    'instant_test'
-  );
-  const el = document.getElementById('betaStatus');
-  if (el) { el.textContent = '⚡ Notification envoyée !'; el.style.color = 'var(--gold)'; }
-  toast('📲 Notification envoyée !');
-}
-
-// Test push serveur immédiat — appelle /api/notify?force=1 pour vérifier que le serveur
-// peut envoyer une vraie notification iOS/Android sans attendre le cron
-async function serverTestPush() {
-  const el = document.getElementById('betaStatus');
-  if (el) { el.textContent = '⏳ Envoi push serveur en cours…'; el.style.color = 'var(--text3)'; }
-  try {
-    const res = await fetch('/api/notify?force=1');
-    const data = await res.json();
-    if (res.ok) {
-      // Détail par appareil : type (apns/fcm), joueur, statut
-      const lines = [`✅ ${data.sent} envoyé(s), ${data.removed || 0} supprimé(s), ${data.failed || 0} échoué(s)`];
-      if (data.details) {
-        data.details.forEach(d => {
-          const icon = d.type === 'apns' ? '🍎' : d.type === 'fcm' ? '🤖' : '🌐';
-          const status = d.status === 'ok' ? '✓' : d.status === '410_removed' ? '✗ expiré' : `✗ ${d.status}`;
-          lines.push(`${icon} ${d.player || '?'} — ${status}${d.msg ? ' : ' + d.msg : ''}`);
-        });
-      }
-      if (el) { el.textContent = lines.join('\n'); el.style.color = '#4caf50'; }
-      toast('📲 Push serveur envoyé !');
-    } else {
-      if (el) { el.textContent = `❌ Erreur serveur : ${data.error || res.status}`; el.style.color = 'var(--red)'; }
-      toast('❌ Erreur push serveur');
-    }
-  } catch(e) {
-    if (el) { el.textContent = '❌ Erreur réseau'; el.style.color = 'var(--red)'; }
-    toast('❌ Erreur réseau');
-  }
-}
-
-// Affiche le type d'endpoint actuel (APNS = iOS, FCM = Chrome/Android)
-// Indispensable pour diagnostiquer si l'abonnement iOS est bien enregistré
-async function checkPushEndpoint() {
-  const el = document.getElementById('betaStatus');
-  try {
-    const reg = await navigator.serviceWorker?.getRegistration();
-    const sub = await reg?.pushManager?.getSubscription();
-    if (!sub) {
-      toast('❌ Aucune subscription push sur cet appareil');
-      if (el) { el.textContent = '❌ Pas de subscription push active sur cet appareil'; el.style.color = 'var(--red)'; }
-      return;
-    }
-    const url = sub.endpoint;
-    const type = url.includes('apple.com')   ? '✅ APNS — iOS Safari (correct !)'
-               : url.includes('google') || url.includes('firebase') ? '✅ FCM — Chrome / Android'
-               : url.includes('mozilla.com') ? '✅ Mozilla — Firefox'
-               : '⚠️ Endpoint inconnu';
-    const short = url.length > 70 ? url.slice(0, 70) + '…' : url;
-    if (el) { el.textContent = `📡 ${type}\n${short}`; el.style.color = 'var(--text2)'; }
-    console.log('[Push endpoint]', url);
-    toast(`📡 ${type}`);
-  } catch(e) {
-    toast('❌ Erreur lecture endpoint');
-  }
-}
 
 function addNotif(message) {
   state.notifications.push({ message, time: new Date().toISOString(), read: false });
@@ -2639,8 +2484,6 @@ function clearNotifs() {
   save(); renderNotifs(); toast('🗑 Notifications effacées');
 }
 function renderNotifs() {
-  const beta = document.getElementById('betaTestSection');
-  if (beta) beta.style.display = isAdmin() ? '' : 'none';
   const c = document.getElementById('notifsList');
   if (!state.notifications.length) {
     c.innerHTML = `<div class="empty"><div class="empty-icon">🔔</div><p>Pas encore de notifications</p></div>`;
