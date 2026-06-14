@@ -309,6 +309,8 @@ header {
 /* ===== PHASE BADGE ===== */
 .phase-badge { display: inline-block; font-family: var(--font-display); font-size: 13px; letter-spacing: 1px; background: var(--gold-dim); color: var(--gold); border: 1px solid rgba(255,214,0,.3); padding: 3px 12px; border-radius: 20px; margin-bottom: 10px; }
 .phase-badge.normal { background: var(--gold-dim); color: var(--gold); border-color: rgba(255,214,0,.3); }
+.date-sep-badge { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-size: 13px; letter-spacing: 1px; color: var(--text2); margin: 6px 0 10px; }
+.date-sep-badge::before, .date-sep-badge::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
 /* ===== RANKING ===== */
 .ranking-table { width: 100%; border-collapse: collapse; }
@@ -1667,6 +1669,8 @@ let currentFilter = 'upcoming';
 let currentPhaseFilter = 'all';
 let _matchPage = 0;
 const MATCH_PAGE_SIZE = 8;
+// Feature flag : séparateurs de date entre les jours (beta, activé via ?beta=1)
+const _betaDateSep = new URLSearchParams(location.search).has('beta');
 
 function autoMatchPage() {
   if (currentFilter !== 'all' || currentPhaseFilter !== 'all') return;
@@ -1734,9 +1738,13 @@ function renderMatches() {
   _matchPage = Math.max(0, Math.min(_matchPage, totalPages - 1));
   const start = _matchPage * MATCH_PAGE_SIZE;
   const matches = allMatches.slice(start, start + MATCH_PAGE_SIZE);
-  // Phase badge: start from last match of previous page to avoid duplicate badge
+  // Phase badge + date separator: on repart du dernier match de la page précédente
+  // pour éviter les doublons de badge en début de page
   const prevMatches = allMatches.slice(0, start);
   let lastPhase = prevMatches.length > 0 ? prevMatches[prevMatches.length - 1].phase : null;
+  // Clé de date locale (YYYY-MM-DD) pour détecter le changement de jour
+  const dateKey = m => new Date(m.date).toLocaleDateString('fr-FR', { year:'numeric', month:'2-digit', day:'2-digit' });
+  let lastDate = prevMatches.length > 0 ? dateKey(prevMatches[prevMatches.length - 1]) : null;
 
   // Helper : barre de pagination avec ellipsis intelligente
   const _pg = (withScroll) => {
@@ -1772,6 +1780,17 @@ function renderMatches() {
 
   let html = _pg(false);
   matches.forEach(m => {
+    // Séparateur de date (beta) — affiché uniquement si ?beta=1 dans l'URL
+    if (_betaDateSep) {
+      const dk = dateKey(m);
+      if (dk !== lastDate) {
+        const dt2 = new Date(m.date);
+        const label = dt2.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
+        const labelCap = label.charAt(0).toUpperCase() + label.slice(1);
+        html += `<div class="date-sep-badge">${labelCap}</div>`;
+        lastDate = dk;
+      }
+    }
     if (m.phase !== lastPhase) {
       const x = phaseMultiplier(m.phase);
       html += `<div class="phase-badge${x>1?'':' normal'}">${m.phase}</div>`;
