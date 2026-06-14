@@ -961,8 +961,11 @@ function initFirebase() {
 
       let migrated = false; // déclaré ici pour être visible dans tout le callback
       if (data) {
-        // Firebase a des données → elles ont TOUJOURS priorité sur localStorage
+        // Firebase a des données → elles ont priorité, SAUF pour notifications
+        // (état local uniquement — chaque appareil garde son propre historique).
+        const localNotifs = state.notifications ? [...state.notifications] : [];
         Object.assign(state, data);
+        state.notifications = localNotifs;
         state.currentPlayer = prevPlayer;
         if (!state.players) state.players = [];
         if (!state.matches) state.matches = [];
@@ -1045,12 +1048,15 @@ function save() {
   delete shared.currentPlayer;
   delete shared.refreshTimer;
 
-  // Cache local
+  // Cache local (inclut notifications — historique personnel)
   localStorage.setItem('cdm2026v2', JSON.stringify(shared));
 
-  // Sync Firebase uniquement une fois les données initiales reçues
+  // Sync Firebase uniquement une fois les données initiales reçues.
+  // notifications = état local uniquement (chaque appareil garde son historique).
   if (db && _appReady) {
-    db.ref('cdm2026/shared').set(shared).catch(e => console.warn('Firebase save error:', e));
+    const fbShared = {...shared};
+    delete fbShared.notifications;
+    db.ref('cdm2026/shared').set(fbShared).catch(e => console.warn('Firebase save error:', e));
   }
 }
 function load() {
@@ -2885,13 +2891,29 @@ function renderAdminPanel() {
         </div>
       </div>
       <button class="btn btn-primary" onclick="addPlayer()" style="width:100%;margin-bottom:12px">+ Ajouter</button>
-      <div id="playersList"></div>
-      <button class="btn btn-ghost" onclick="cleanupOrphanSubs()" style="width:100%;margin-top:8px;font-size:12px;color:var(--text3)">🧹 Supprimer les abonnements sans joueur</button>
+      <details>
+        <summary style="cursor:pointer;list-style:none;font-size:13px;color:var(--text2);padding:4px 0;user-select:none">▶ Voir la liste (${state.players.length} joueur(s))</summary>
+        <div id="playersList" style="margin-top:8px"></div>
+        <button class="btn btn-ghost" onclick="cleanupOrphanSubs()" style="width:100%;margin-top:8px;font-size:12px;color:var(--text3)">🧹 Supprimer les abonnements sans joueur</button>
+      </details>
     </div>
     <div class="admin-card">
-      <h3>Liens WhatsApp</h3>
-      <p style="font-size:12px;color:var(--text3);margin-bottom:10px;">Envoie ce lien à chaque joueur → il se connecte automatiquement.</p>
-      <div id="whatsappLinks"></div>
+      <details>
+        <summary style="cursor:pointer;list-style:none;user-select:none"><h3 style="display:inline;font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--text3)">Liens WhatsApp ▶</h3></summary>
+        <p style="font-size:12px;color:var(--text3);margin:8px 0 10px;">Envoie ce lien à chaque joueur → il se connecte automatiquement.</p>
+        <div id="whatsappLinks"></div>
+      </details>
+    </div>
+    <div class="admin-card">
+      <h3>Corriger le prono d'un joueur</h3>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:10px;">Saisir ou corriger le prono d'un joueur (par ex. un prono non enregistré). Contourne le verrou du coup d'envoi.</p>
+      <div class="form-group"><label>Joueur</label><select class="form-input" id="fpPlayerSelect" onchange="onFixPronoMatchSelect()"></select></div>
+      <div class="form-group"><label>Match</label><select class="form-input" id="fpMatchSelect" onchange="onFixPronoMatchSelect()"></select></div>
+      <div style="display:flex;gap:6px;">
+        <div class="form-group" style="flex:1"><label>Score 1</label><input type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" class="form-input" id="fpScore1" placeholder="0" oninput="if(this.value.length===1)document.getElementById('fpScore2').focus()"></div>
+        <div class="form-group" style="flex:1"><label>Score 2</label><input type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" class="form-input" id="fpScore2" placeholder="0"></div>
+      </div>
+      <button class="btn btn-primary" onclick="fixPlayerProno()" style="width:100%">Enregistrer le prono</button>
     </div>
     <div class="admin-card">
       <h3>Ajouter un match</h3>
@@ -2958,17 +2980,6 @@ function renderAdminPanel() {
       </div>
       <button class="btn btn-primary" onclick="updateMatchScore()" style="width:100%">Mettre à jour</button>
       <button class="btn btn-danger" onclick="deleteMatch()" style="width:100%;margin-top:6px">🗑 Supprimer ce match</button>
-    </div>
-    <div class="admin-card">
-      <h3>Corriger le prono d'un joueur</h3>
-      <p style="font-size:12px;color:var(--text3);margin-bottom:10px;">Saisir ou corriger le prono d'un joueur (par ex. un prono non enregistré). Contourne le verrou du coup d'envoi.</p>
-      <div class="form-group"><label>Joueur</label><select class="form-input" id="fpPlayerSelect" onchange="onFixPronoMatchSelect()"></select></div>
-      <div class="form-group"><label>Match</label><select class="form-input" id="fpMatchSelect" onchange="onFixPronoMatchSelect()"></select></div>
-      <div style="display:flex;gap:6px;">
-        <div class="form-group" style="flex:1"><label>Score 1</label><input type="text" inputmode="numeric" pattern="[0-9]" maxlength="2" class="form-input" id="fpScore1" placeholder="0"></div>
-        <div class="form-group" style="flex:1"><label>Score 2</label><input type="text" inputmode="numeric" pattern="[0-9]" maxlength="2" class="form-input" id="fpScore2" placeholder="0"></div>
-      </div>
-      <button class="btn btn-primary" onclick="fixPlayerProno()" style="width:100%">Enregistrer le prono</button>
     </div>
     <div class="admin-card">
       <h3>🔴 Scores en direct</h3>
