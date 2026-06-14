@@ -2182,7 +2182,11 @@ function renderRanking() {
       <td><div class="rank-pts" style="color:${ptsColor}">${r.pts}</div></td>
     </tr>`;
   }).join('');
-  ranking.forEach((r, i) => { state.lastRanks[r.id] = i+1; });
+  // On ne met à jour lastRanks QUE s'il n'y a pas de match en direct.
+  // Pendant un live, lastRanks reste gelé sur la photo prise avant le match
+  // → les flèches restent visibles et stables tout au long du match.
+  const hasLive = state.matches.some(m => m.status === 'live' || m.status === 'halftime');
+  if (!hasLive) ranking.forEach((r, i) => { state.lastRanks[r.id] = i+1; });
   renderPodium(ranking);
   renderMiniRank(ranking);
 }
