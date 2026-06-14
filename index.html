@@ -1060,16 +1060,32 @@ function saveLocal() {
 function save() {
   saveLocal();
   // Sync Firebase uniquement une fois les données initiales reçues.
-  // ⚠️ set() complet : remplace TOUT le blob partagé. Réservé aux mutations
-  // structurelles admin (matchs, joueurs, scores). Pour les pronos, utiliser
-  // writeProno() (écriture ciblée) afin de ne pas écraser ceux des autres.
+  // ⚠️ update() (et NON set()) : fusionne les clés structurelles (matchs,
+  // joueurs, scores…) sans jamais toucher au nœud `pronos`. Les pronos ne sont
+  // écrits QUE via writeProno() (chemin ciblé par joueur). Résultat : aucune
+  // action — y compris admin — ne peut plus écraser les pronos des autres.
   // notifications = état local uniquement (chaque appareil garde son historique).
   if (db && _appReady) {
     const fbShared = {...state};
     delete fbShared.currentPlayer;
     delete fbShared.refreshTimer;
     delete fbShared.notifications;
-    db.ref('cdm2026/shared').set(fbShared).catch(e => console.warn('Firebase save error:', e));
+    delete fbShared.pronos; // pronos hors-périmètre du save structurel
+    db.ref('cdm2026/shared').update(fbShared).catch(e => console.warn('Firebase save error:', e));
+  }
+}
+
+// Réécriture COMPLÈTE du blob partagé, pronos inclus (set()). Réservé aux
+// actions destructives VOLONTAIRES : réinitialisation totale et import d'une
+// sauvegarde. Nulle part ailleurs on ne remplace le nœud `pronos` en entier.
+function saveFullOverwrite() {
+  saveLocal();
+  if (db && _appReady) {
+    const fbShared = {...state};
+    delete fbShared.currentPlayer;
+    delete fbShared.refreshTimer;
+    delete fbShared.notifications;
+    db.ref('cdm2026/shared').set(fbShared).catch(e => console.warn('Firebase overwrite error:', e));
   }
 }
 
@@ -2818,6 +2834,8 @@ function deleteMatchById(id) {
   if (!confirm(`Supprimer "${m.team1} vs ${m.team2}" ?\n\nCette action est irréversible.`)) return;
   state.matches = state.matches.filter(x => x.id !== id);
   delete state.pronos[id];
+  // save() ne touche plus au nœud pronos → on supprime explicitement ceux du match
+  if (db && _appReady) db.ref(`cdm2026/shared/pronos/${id}`).remove().catch(()=>{});
   save(); renderMatches(); populateUpdateMatchSelect(); renderRanking();
   toast(`🗑 Match supprimé`);
 }
@@ -2828,8 +2846,9 @@ function deleteMatch() {
   if (!m) { toast('❌ Match introuvable'); return; }
   if (!confirm(`Supprimer "${m.team1} vs ${m.team2}" ?`)) return;
   state.matches = state.matches.filter(x => x.id !== id);
-  // Supprimer aussi les pronos liés
+  // Supprimer aussi les pronos liés (save() ne touche plus au nœud pronos)
   delete state.pronos[id];
+  if (db && _appReady) db.ref(`cdm2026/shared/pronos/${id}`).remove().catch(()=>{});
   save(); renderMatches(); populateUpdateMatchSelect(); renderRanking();
   toast(`🗑 Match supprimé`);
 }
@@ -3231,7 +3250,7 @@ function importData(e) {
   const f = e.target.files[0]; if (!f) return;
   const reader = new FileReader();
   reader.onload = ev => {
-    try { Object.assign(state, JSON.parse(ev.target.result)); save(); renderAll(); toast('✅ Importé !'); }
+    try { Object.assign(state, JSON.parse(ev.target.result)); saveFullOverwrite(); renderAll(); toast('✅ Importé !'); }
     catch { toast('❌ Fichier invalide'); }
   };
   reader.readAsText(f);
@@ -3241,7 +3260,7 @@ function resetAll() {
   localStorage.removeItem('cdm2026v2');
   localStorage.removeItem('cdm2026_player');
   state = { currentPlayer:null, players:[], matches:[], pronos:{}, notifications:[], lastRanks:{}, familyPhoto:null, adminIds:[] };
-  save(); renderAll(); toast('🗑 Réinitialisé');
+  saveFullOverwrite(); renderAll(); toast('🗑 Réinitialisé');
 }
 
 // ===== SAMPLE DATA =====
