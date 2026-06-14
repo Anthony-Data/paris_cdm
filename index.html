@@ -976,6 +976,18 @@ function initFirebase() {
         if (!state.notifications) state.notifications = [];
         if (!state.lastRanks) state.lastRanks = {};
         if (!state.adminIds) state.adminIds = [];
+        // Ré-applique les pronos écrits localement mais pas encore confirmés par
+        // Firebase (race condition : listener peut recevoir un snapshot légèrement
+        // en retard par rapport à writeProno()). Entrée supprimée par writeProno()
+        // lui-même dès que Firebase confirme la réception.
+        for (const { matchId, playerId, value } of _pendingPronoWrites.values()) {
+          if (value == null) {
+            if (state.pronos[matchId]) delete state.pronos[matchId][playerId];
+          } else {
+            if (!state.pronos[matchId]) state.pronos[matchId] = {};
+            state.pronos[matchId][playerId] = value;
+          }
+        }
         // Migration silencieuse : noms de phases + drapeaux corrompus
         const phaseMap = {'32es':'16e de finale','32e de finale':'16e de finale','16es':'8e de finale','3e place':'3ème/4ème Place'};
         // Correction des drapeaux : Curaçao (🏝→🇨🇼) et Bosnie (corruption emoji)
@@ -1003,7 +1015,10 @@ function initFirebase() {
             m.date = '2026-06-14T00:00:00-04:00'; migrated = true;
           }
         });
-        localStorage.setItem('cdm2026v2', JSON.stringify(data));
+        // Sauvegarde dans le cache local l'état FUSIONNÉ (state), pas le snapshot
+        // brut Firebase (data) — évite d'écraser en localStorage un prono qu'on
+        // venait de saisir et qui n'est pas encore arrivé dans le snapshot Firebase.
+        saveLocal();
       } else if (!_appReady) {
         // Firebase vide (1ère connexion) → charger le calendrier officiel et sauver
         if (state.matches.length === 0) {
@@ -1031,6 +1046,11 @@ function initFirebase() {
 }
 
 // ===== STATE =====
+// Pronos écrits localement mais pas encore confirmés par Firebase.
+// Le listener Firebase ré-applique ces entrées après chaque sync pour éviter
+// qu'un snapshot légèrement en retard n'écrase un prono qu'on vient de saisir.
+const _pendingPronoWrites = new Map(); // clé "matchId/playerId" → {matchId, playerId, value}
+
 let state = {
   currentPlayer: null,
   players: [],   // [{id, prenom, nom}]
@@ -1092,12 +1112,22 @@ function saveFullOverwrite() {
 // Écriture CIBLÉE d'un prono — jamais de set() complet. Chaque joueur n'écrit
 // que son propre chemin pronos/<match>/<joueur>, donc deux joueurs qui parient
 // au même moment ne s'écrasent plus jamais. value=null → suppression du prono.
+// L'écriture est enregistrée dans _pendingPronoWrites jusqu'à confirmation Firebase,
+// ce qui évite qu'un snapshot en retard n'efface le prono dans le listener.
 function writeProno(matchId, playerId, value) {
+  const key = `${matchId}/${playerId}`;
+  _pendingPronoWrites.set(key, { matchId, playerId, value });
   saveLocal();
   if (db && _appReady) {
     const ref = db.ref(`cdm2026/shared/pronos/${matchId}/${playerId}`);
     const op = value == null ? ref.remove() : ref.set(value);
-    op.catch(e => console.warn('Firebase prono write error:', e));
+    op.then(() => {
+      _pendingPronoWrites.delete(key);
+    }).catch(e => {
+      _pendingPronoWrites.delete(key);
+      console.warn('Firebase prono write error:', e);
+      toast('⚠️ Erreur réseau — prono non enregistré, réessaie');
+    });
   }
 }
 function load() {
