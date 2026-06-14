@@ -996,7 +996,12 @@ function initFirebase() {
         // Firebase (race condition : listener peut recevoir un snapshot légèrement
         // en retard par rapport à writeProno()). Entrée supprimée par writeProno()
         // lui-même dès que Firebase confirme la réception.
-        for (const { matchId, playerId, value } of _pendingPronoWrites.values()) {
+        // On combine la file mémoire ET la queue localStorage (qui survit aux rechargements).
+        const allPending = new Map(_pendingPronoWrites);
+        for (const [key, entry] of Object.entries(pronoQueueGet())) {
+          if (!allPending.has(key)) allPending.set(key, entry);
+        }
+        for (const { matchId, playerId, value } of allPending.values()) {
           if (value == null) {
             if (state.pronos[matchId]) delete state.pronos[matchId][playerId];
           } else {
@@ -1046,6 +1051,7 @@ function initFirebase() {
       }
 
       _appReady = true;
+      flushPronoQueue(); // envoie les pronos mis en queue pendant le chargement Firebase
       if (migrated) save();
       if (document.getElementById('mainApp').style.display !== 'none') {
         renderAll(); loadFamilyPhoto();
@@ -1064,6 +1070,7 @@ function initFirebase() {
       clearTimeout(_offlineBannerTimer);
       if (_fbConnected) {
         updateOfflineBanner();
+        flushPronoQueue(); // reconnexion → on envoie tout ce qui était en attente
       } else {
         // Délai de grâce : on n'alarme pas l'utilisateur pour une coupure d'1s
         _offlineBannerTimer = setTimeout(updateOfflineBanner, 3000);
@@ -1085,6 +1092,42 @@ function updateOfflineBanner() {
   // Bandeau visible uniquement si déconnecté ET connecté à l'app (pas sur l'écran de login)
   const inApp = document.getElementById('mainApp')?.style.display !== 'none';
   b.style.display = (!_fbConnected && inApp) ? 'flex' : 'none';
+}
+
+// ===== QUEUE PERSISTANTE DE PRONOS =====
+// Pronos en attente de synchronisation Firebase. Persistée en localStorage pour
+// survivre aux rechargements de page (contrairement à la file mémoire seule).
+// Flux : writeProno() → ajout queue → flush dès que Firebase est joignable.
+const PRONO_QUEUE_KEY = 'cdm2026_pronoQueue';
+function pronoQueueGet() { try { return JSON.parse(localStorage.getItem(PRONO_QUEUE_KEY) || '{}'); } catch { return {}; } }
+function pronoQueueSave(q) { localStorage.setItem(PRONO_QUEUE_KEY, JSON.stringify(q)); }
+function pronoQueueAdd(matchId, playerId, value) {
+  const q = pronoQueueGet();
+  if (value == null) { delete q[`${matchId}/${playerId}`]; } // suppression = retirer de la queue
+  else { q[`${matchId}/${playerId}`] = { matchId, playerId, value }; }
+  pronoQueueSave(q);
+}
+function pronoQueueRemove(key) { const q = pronoQueueGet(); delete q[key]; pronoQueueSave(q); }
+
+// Envoie vers Firebase toutes les entrées encore en queue.
+// Appelé à chaque reconnexion ET quand _appReady devient true.
+function flushPronoQueue() {
+  if (!db || !_appReady) return;
+  const q = pronoQueueGet();
+  for (const [key, entry] of Object.entries(q)) {
+    const { matchId, playerId, value } = entry;
+    _pendingPronoWrites.set(key, entry); // garde en mémoire pendant le transit
+    const ref = db.ref(`cdm2026/shared/pronos/${matchId}/${playerId}`);
+    const op = value == null ? ref.remove() : ref.set(value);
+    op.then(() => {
+      _pendingPronoWrites.delete(key);
+      pronoQueueRemove(key);
+      console.log(`✅ Prono synchronisé : ${key}`);
+    }).catch(e => {
+      console.warn(`Firebase prono flush error (${key}):`, e);
+      // On garde dans la queue — sera retentée à la prochaine reconnexion
+    });
+  }
 }
 
 // ===== STATE =====
@@ -1151,26 +1194,30 @@ function saveFullOverwrite() {
   }
 }
 
-// Écriture CIBLÉE d'un prono — jamais de set() complet. Chaque joueur n'écrit
-// que son propre chemin pronos/<match>/<joueur>, donc deux joueurs qui parient
-// au même moment ne s'écrasent plus jamais. value=null → suppression du prono.
-// L'écriture est enregistrée dans _pendingPronoWrites jusqu'à confirmation Firebase,
-// ce qui évite qu'un snapshot en retard n'efface le prono dans le listener.
+// Écriture CIBLÉE d'un prono. Stratégie à 3 niveaux :
+// 1. Queue localStorage persistante — survit aux rechargements de page
+// 2. File mémoire _pendingPronoWrites — protège contre les snapshots Firebase en retard
+// 3. Write Firebase ciblé (chemin par joueur) — jamais de set() complet
+// Si Firebase est indisponible, l'écriture sera tentée à la reconnexion via flushPronoQueue().
 function writeProno(matchId, playerId, value) {
   const key = `${matchId}/${playerId}`;
+  // 1. Queue persistante (localStorage) — premier filet de sécurité
+  pronoQueueAdd(matchId, playerId, value);
+  // 2. File mémoire (protège le listener Firebase)
   _pendingPronoWrites.set(key, { matchId, playerId, value });
   saveLocal();
-  if (db && _appReady) {
-    const ref = db.ref(`cdm2026/shared/pronos/${matchId}/${playerId}`);
-    const op = value == null ? ref.remove() : ref.set(value);
-    op.then(() => {
-      _pendingPronoWrites.delete(key);
-    }).catch(e => {
-      _pendingPronoWrites.delete(key);
-      console.warn('Firebase prono write error:', e);
-      toast('⚠️ Erreur réseau — prono non enregistré, réessaie');
-    });
-  }
+  if (!db || !_appReady) return; // Firebase pas prêt → sera flushed plus tard
+  // 3. Write Firebase
+  const ref = db.ref(`cdm2026/shared/pronos/${matchId}/${playerId}`);
+  const op = value == null ? ref.remove() : ref.set(value);
+  op.then(() => {
+    _pendingPronoWrites.delete(key);
+    pronoQueueRemove(key); // confirmé par Firebase → retirer de la queue
+  }).catch(e => {
+    console.warn('Firebase prono write error:', e);
+    // Reste dans pronoQueueGet() → sera retenté à la reconnexion
+    if (_fbConnected) toast('⚠️ Erreur Firebase — prono en attente de sync');
+  });
 }
 function load() {
   // Charger le joueur courant (local à l'appareil)
