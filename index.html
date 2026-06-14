@@ -1301,6 +1301,22 @@ function playerFullName(p) { return p ? p.prenom + ' ' + p.nom : ''; }
 function isRankingExcluded(p) { return p && normalize(playerFullName(p)) === 'user admin'; }
 function playerInitials(p) { return p ? (p.prenom[0] + (p.nom[0] || '')).toUpperCase() : '?'; }
 
+// Prénom affiché dans le classement : "Prénom" si unique, sinon "Prénom L." avec
+// autant de lettres du nom que nécessaire pour distinguer les homonymes.
+// Ex : deux "Thomas D…" → "Thomas Du." vs "Thomas Du." → "Thomas Dup." vs "Thomas Dur."
+function playerDisplayName(p) {
+  if (!p) return '';
+  const group = state.players.filter(x => x.prenom === p.prenom);
+  if (group.length <= 1) return p.prenom;
+  const nom = (p.nom || '');
+  for (let len = 1; len <= nom.length; len++) {
+    const prefix = nom.slice(0, len).toLowerCase();
+    const collision = group.some(o => o.id !== p.id && (o.nom || '').toLowerCase().startsWith(prefix));
+    if (!collision) return `${p.prenom} ${nom.slice(0, len).toUpperCase()}.`;
+  }
+  return `${p.prenom} ${nom.toUpperCase()}.`; // dernier recours : nom complet
+}
+
 // Stocke les scores précédents lors d'une modification de prono
 const _pendingEditValues = {};
 
@@ -2086,10 +2102,6 @@ function renderRanking() {
   const body = document.getElementById('rankingBody');
   if (!ranking.length) { body.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:28px">Aucun joueur</td></tr>`; renderPodium([]); return; }
   const total = ranking.length;
-  // Prénoms en doublon → afficher "Prénom N." pour les distinguer
-  const prenomCount = {};
-  state.players.forEach(p => { prenomCount[p.prenom] = (prenomCount[p.prenom] || 0) + 1; });
-  const displayName = p => prenomCount[p.prenom] > 1 ? `${p.prenom} ${(p.nom||'').charAt(0).toUpperCase()}.` : p.prenom;
   body.innerHTML = ranking.map((r, i) => {
     const rank = i+1;
     const p = getPlayerById(r.id);
@@ -2117,7 +2129,7 @@ function renderRanking() {
       <td><span class="rank-num" style="${textColor}">${rank}</span></td>
       <td><div style="display:flex;align-items:center;gap:8px">
         <div class="rank-avatar" style="${avatarStyle}">${init}</div>
-        <div><div class="rank-name" style="${textColor}">${displayName(p)}${trend}${isMe?' 👈':''}</div></div>
+        <div><div class="rank-name" style="${textColor}">${playerDisplayName(p)}${trend}${isMe?' 👈':''}</div></div>
       </div></td>
       <td><div class="rank-exact" style="${isBottom3?'color:var(--red)':''}">${r.exact} 🎯</div></td>
       <td><div class="rank-pts" style="color:${ptsColor}">${r.pts}</div></td>
@@ -2136,9 +2148,6 @@ function renderPodium(ranking) {
   const order = [ranking[1], ranking[0], ranking[2]].filter(Boolean);
   const positions = [2, 1, 3];
   const isMe = (r) => r && r.id === state.currentPlayer;
-  const prenomCount = {};
-  state.players.forEach(p => { prenomCount[p.prenom] = (prenomCount[p.prenom] || 0) + 1; });
-  const displayName = p => prenomCount[p.prenom] > 1 ? `${p.prenom} ${(p.nom||'').charAt(0).toUpperCase()}.` : p.prenom;
   let html = '<div class="podium-wrap"><div class="podium">';
   order.forEach((r, idx) => {
     const pos = positions[idx];
@@ -2149,7 +2158,7 @@ function renderPodium(ranking) {
       <div class="podium-crown">${crowns[pos-1]}</div>
       <div class="podium-pts">${r.pts}<span style="font-size:12px;opacity:.6"> pts</span></div>
       <div class="podium-avatar" style="${me?'box-shadow:0 0 0 3px var(--green),0 4px 16px rgba(0,0,0,.4)':''}">${playerInitials(p)}</div>
-      <div class="podium-name">${displayName(p)}${me?' 👈':''}</div>
+      <div class="podium-name">${playerDisplayName(p)}${me?' 👈':''}</div>
       <div class="podium-label">${r.exact} 🎯</div>
       <div class="podium-bar"><div class="podium-medal">${medals[pos-1]}</div></div>
     </div>`;
@@ -2165,16 +2174,13 @@ function renderMiniRank(ranking) {
   if (!body) return;
   if (!ranking.length) { body.innerHTML = '<p style="font-size:12px;color:var(--text3)">Aucun score</p>'; return; }
   const colors = ['var(--gold)','#c0c0c0','#cd7f32'];
-  const prenomCount = {};
-  state.players.forEach(p => { prenomCount[p.prenom] = (prenomCount[p.prenom] || 0) + 1; });
-  const displayName = p => prenomCount[p.prenom] > 1 ? `${p.prenom} ${(p.nom||'').charAt(0).toUpperCase()}.` : p.prenom;
   body.innerHTML = ranking.slice(0,8).map((r, i) => {
     const p = getPlayerById(r.id);
     if (!p) return '';
     const isMe = r.id === myId;
     return `<div class="mini-rank-row${isMe?' me':''}">
       <div class="mini-rank-pos" style="color:${colors[i]||'var(--text3)'}">${i+1}</div>
-      <div class="mini-rank-name">${displayName(p)}${isMe?' 👈':''}</div>
+      <div class="mini-rank-name">${playerDisplayName(p)}${isMe?' 👈':''}</div>
       <div class="mini-rank-pts">${r.pts}</div>
     </div>`;
   }).join('');
