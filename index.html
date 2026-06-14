@@ -1669,8 +1669,6 @@ let currentFilter = 'upcoming';
 let currentPhaseFilter = 'all';
 let _matchPage = 0;
 const MATCH_PAGE_SIZE = 8;
-// Feature flag : séparateurs de date entre les jours (beta, activé via ?beta=1)
-const _betaDateSep = new URLSearchParams(location.search).has('beta');
 
 function autoMatchPage() {
   if (currentFilter !== 'all' || currentPhaseFilter !== 'all') return;
@@ -1780,16 +1778,14 @@ function renderMatches() {
 
   let html = _pg(false);
   matches.forEach(m => {
-    // Séparateur de date (beta) — affiché uniquement si ?beta=1 dans l'URL
-    if (_betaDateSep) {
-      const dk = dateKey(m);
-      if (dk !== lastDate) {
-        const dt2 = new Date(m.date);
-        const label = dt2.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
-        const labelCap = label.charAt(0).toUpperCase() + label.slice(1);
-        html += `<div class="date-sep-badge">${labelCap}</div>`;
-        lastDate = dk;
-      }
+    // Séparateur de date entre les jours
+    const dk = dateKey(m);
+    if (dk !== lastDate) {
+      const dt2 = new Date(m.date);
+      const label = dt2.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
+      const labelCap = label.charAt(0).toUpperCase() + label.slice(1);
+      html += `<div class="date-sep-badge">${labelCap}</div>`;
+      lastDate = dk;
     }
     if (m.phase !== lastPhase) {
       const x = phaseMultiplier(m.phase);
