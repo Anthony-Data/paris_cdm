@@ -1753,7 +1753,7 @@ function renderMatches() {
       const show = new Set();
       for (let i = 0; i < Math.min(2, totalPages); i++) show.add(i);
       for (let i = Math.max(0, totalPages-2); i < totalPages; i++) show.add(i);
-      for (let i = Math.max(0, _matchPage-1); i <= Math.min(totalPages-1, _matchPage+1); i++) show.add(i);
+      show.add(_matchPage);
       const sorted = [...show].sort((a,b) => a-b);
       const items = []; let prev = -1;
       for (const p of sorted) {
