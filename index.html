@@ -292,6 +292,7 @@ header {
 .pronos-reveal { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
 .pronos-reveal-title { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 7px; }
 .prono-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+details[open] .suivi-arrow { transform: rotate(90deg); }
 .prono-tag { font-family: var(--font-mono); font-size: 11px; padding: 3px 9px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg2); color: var(--text2); }
 .prono-tag.exact  { background: rgba(0,200,83,.12);  border-color: #00c853;  color: #00c853; }
 .prono-tag.pts-3  { background: rgba(255,120,0,.12); border-color: #ff7800;       color: #ff7800; }
@@ -1891,10 +1892,13 @@ function renderMatches() {
         const missHtml = missing.map(p =>
           `<span class="prono-tag wrong" style="opacity:.7">✗ ${p.prenom}</span>`
         ).join('');
-        allPronosHtml += `<div class="pronos-reveal" style="margin-top:6px;border-top:1px solid var(--border);padding-top:8px">
-          <div class="pronos-reveal-title">👑 Suivi admin — ${done.length}/${rankedPlayers.length} pronos</div>
-          <div class="prono-tags">${doneHtml}${missHtml}</div>
-        </div>`;
+        allPronosHtml += `<details style="margin-top:6px;border-top:1px solid var(--border);padding-top:8px">
+          <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text2);user-select:none">
+            <span style="font-size:10px;transition:transform .2s" class="suivi-arrow">▶</span>
+            👑 Suivi admin — ${done.length}/${rankedPlayers.length} pronos
+          </summary>
+          <div class="prono-tags" style="margin-top:8px">${doneHtml}${missHtml}</div>
+        </details>`;
       }
       const deleteBtn = isAdmin()
         ? `<button onclick="deleteMatchById('${m.id}')" title="Supprimer ce match" style="position:absolute;top:8px;right:8px;background:none;border:none;cursor:pointer;color:var(--red);font-size:18px;line-height:1;padding:2px 5px;border-radius:4px;opacity:.7;transition:opacity .15s" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.7">✕</button>`
