@@ -1043,23 +1043,45 @@ let state = {
 };
 
 // ===== STORAGE =====
-function save() {
+// Écriture LOCALE seule (localStorage) — ne touche JAMAIS Firebase.
+// À utiliser pour tout état purement local (notifications) : évite de réécrire
+// le blob partagé complet, qui écraserait les pronos ajoutés par d'autres
+// appareils entre-temps (cause du bug "prono qui disparaît").
+function saveLocal() {
   // currentPlayer est local à l'appareil — jamais partagé
   localStorage.setItem('cdm2026_player', state.currentPlayer || '');
-
   const shared = {...state};
   delete shared.currentPlayer;
   delete shared.refreshTimer;
-
   // Cache local (inclut notifications — historique personnel)
   localStorage.setItem('cdm2026v2', JSON.stringify(shared));
+}
 
+function save() {
+  saveLocal();
   // Sync Firebase uniquement une fois les données initiales reçues.
+  // ⚠️ set() complet : remplace TOUT le blob partagé. Réservé aux mutations
+  // structurelles admin (matchs, joueurs, scores). Pour les pronos, utiliser
+  // writeProno() (écriture ciblée) afin de ne pas écraser ceux des autres.
   // notifications = état local uniquement (chaque appareil garde son historique).
   if (db && _appReady) {
-    const fbShared = {...shared};
+    const fbShared = {...state};
+    delete fbShared.currentPlayer;
+    delete fbShared.refreshTimer;
     delete fbShared.notifications;
     db.ref('cdm2026/shared').set(fbShared).catch(e => console.warn('Firebase save error:', e));
+  }
+}
+
+// Écriture CIBLÉE d'un prono — jamais de set() complet. Chaque joueur n'écrit
+// que son propre chemin pronos/<match>/<joueur>, donc deux joueurs qui parient
+// au même moment ne s'écrasent plus jamais. value=null → suppression du prono.
+function writeProno(matchId, playerId, value) {
+  saveLocal();
+  if (db && _appReady) {
+    const ref = db.ref(`cdm2026/shared/pronos/${matchId}/${playerId}`);
+    const op = value == null ? ref.remove() : ref.set(value);
+    op.catch(e => console.warn('Firebase prono write error:', e));
   }
 }
 function load() {
@@ -1945,8 +1967,9 @@ function submitProno(matchId) {
   const s2 = parseInt(v2) || 0;
   delete _pendingEditValues[matchId];
   if (!state.pronos[matchId]) state.pronos[matchId] = {};
-  state.pronos[matchId][myId] = { s1, s2, at: new Date().toISOString() };
-  save(); toast(`✅ Prono enregistré : ${s1}–${s2}`);
+  const prono = { s1, s2, at: new Date().toISOString() };
+  state.pronos[matchId][myId] = prono;
+  writeProno(matchId, myId, prono); toast(`✅ Prono enregistré : ${s1}–${s2}`);
   renderMatches(); renderMiniRank();
 }
 function editProno(matchId) {
@@ -1954,14 +1977,14 @@ function editProno(matchId) {
   const existing = state.pronos[matchId]?.[myId];
   if (existing) _pendingEditValues[matchId] = { s1: existing.s1, s2: existing.s2 };
   if (state.pronos[matchId]) delete state.pronos[matchId][myId];
-  save(); renderMatches();
+  writeProno(matchId, myId, null); renderMatches();
 }
 function resetProno(matchId) {
   if (!confirm('Supprimer ton prono pour ce match ?')) return;
   const myId = state.currentPlayer;
   delete _pendingEditValues[matchId];
   if (state.pronos[matchId]) delete state.pronos[matchId][myId];
-  save(); renderMatches(); renderRanking();
+  writeProno(matchId, myId, null); renderMatches(); renderRanking();
   toast('🗑 Prono supprimé');
 }
 
@@ -2408,7 +2431,9 @@ async function testNotifNow() {
 
 function addNotif(message) {
   state.notifications.push({ message, time: new Date().toISOString(), read: false });
-  save(); renderNotifs();
+  // notifications = état LOCAL → écriture localStorage seule (jamais de set()
+  // Firebase complet, qui écraserait les pronos des autres avec un état périmé).
+  saveLocal(); renderNotifs();
 }
 
 // Tracks match IDs already scheduled this session to avoid duplicates
@@ -2507,7 +2532,7 @@ function clearNotifs() {
   if (!state.notifications.length) return;
   if (!confirm('Vider toutes les notifications ?')) return;
   state.notifications = [];
-  save(); renderNotifs(); toast('🗑 Notifications effacées');
+  saveLocal(); renderNotifs(); toast('🗑 Notifications effacées');
 }
 function renderNotifs() {
   const c = document.getElementById('notifsList');
@@ -2748,8 +2773,9 @@ function fixPlayerProno() {
   const s2 = parseInt(v2) || 0;
   if (!confirm(`Enregistrer le prono de ${playerFullName(p)} pour\n${m.team1} vs ${m.team2} : ${s1}–${s2} ?`)) return;
   if (!state.pronos[mid]) state.pronos[mid] = {};
-  state.pronos[mid][pid] = { s1, s2, at: new Date().toISOString() };
-  save();
+  const prono = { s1, s2, at: new Date().toISOString() };
+  state.pronos[mid][pid] = prono;
+  writeProno(mid, pid, prono);
   renderMatches(); renderRanking();
   toast(`✅ Prono de ${p.prenom} enregistré : ${s1}–${s2}`);
 }
