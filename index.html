@@ -2153,7 +2153,7 @@ function renderRanking() {
     const rank = i+1;
     const p = getPlayerById(r.id);
     if (!p) return '';
-    const prev = state.lastRanks[r.id];
+    const prev = (_liveMatchId ? _preMatchRanks : state.lastRanks)[r.id];
     let trend = '';
     if (prev && prev !== rank) trend = prev>rank ? `<span class="trend trend-up">▲${prev-rank}</span>` : `<span class="trend trend-down">▼${rank-prev}</span>`;
     const isMe = r.id === myId;
@@ -2182,11 +2182,21 @@ function renderRanking() {
       <td><div class="rank-pts" style="color:${ptsColor}">${r.pts}</div></td>
     </tr>`;
   }).join('');
-  // On ne met à jour lastRanks QUE s'il n'y a pas de match en direct.
-  // Pendant un live, lastRanks reste gelé sur la photo prise avant le match
-  // → les flèches restent visibles et stables tout au long du match.
-  const hasLive = state.matches.some(m => m.status === 'live' || m.status === 'halftime');
-  if (!hasLive) ranking.forEach((r, i) => { state.lastRanks[r.id] = i+1; });
+  // Détection du match en direct courant (le premier trouvé s'il y en a plusieurs)
+  const liveNow = state.matches.find(m => m.status === 'live' || m.status === 'halftime');
+  const liveMId = liveNow?.id || null;
+  if (liveMId !== _liveMatchId) {
+    if (liveMId) {
+      // Nouveau match en direct → photo du classement AVANT ce match comme référence
+      _preMatchRanks = {...state.lastRanks};
+    } else {
+      // Plus de match en direct → réinitialiser
+      _preMatchRanks = {};
+    }
+    _liveMatchId = liveMId;
+  }
+  // lastRanks est toujours mis à jour (sert de photo "avant" pour le prochain match)
+  ranking.forEach((r, i) => { state.lastRanks[r.id] = i+1; });
   renderPodium(ranking);
   renderMiniRank(ranking);
 }
@@ -2242,6 +2252,11 @@ function renderMiniRank(ranking) {
 let LIVE_COMPETITION = 'WC';
 let _liveInterval = null;
 let _simInterval  = null;
+// Photo du classement prise au moment où le match en cours est passé en direct.
+// Sert de référence pour les flèches de tendance : "qui a gagné/perdu des places
+// DEPUIS le début de CE match", pas depuis le match précédent.
+let _liveMatchId    = null; // ID du match actuellement suivi (live/halftime)
+let _preMatchRanks  = {};   // Classement juste avant ce match = référence des flèches
 
 // Bascule AUTOMATIQUE amicaux → Coupe du Monde le mercredi 10 juin 2026 à 12h00 (heure de Paris).
 // Avant : fifa.friendly (tests amicaux). Après : fifa.world (CdM 2026).
