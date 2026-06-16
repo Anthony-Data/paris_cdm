@@ -1825,7 +1825,7 @@ function getRanking() {
   const visiblePlayers = state.players.filter(p => !p.hiddenFromNonAdmins && !isRankingExcluded(p));
   visiblePlayers.forEach(p => { scores[p.id] = { id: p.id, pts: 0, exact: 0 }; });
   state.matches.forEach(m => {
-    if (!['finished','live'].includes(m.status) || m.score1==null) return;
+    if (!['finished','live','halftime'].includes(m.status) || m.score1==null) return;
     const pronos = state.pronos[m.id] || {};
     visiblePlayers.forEach(p => {
       const pr = pronos[p.id];
