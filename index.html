@@ -2048,7 +2048,7 @@ function renderMatches() {
             tags += `<div style="width:100%;height:0"></div>`;
             lineCount = 0;
           }
-          tags += `<span class="prono-tag ${label}">${pl.prenom}: ${pr.s1}–${pr.s2}${ptsStr}</span>`;
+          tags += `<span class="prono-tag ${label}">${playerDisplayName(pl)}: ${pr.s1}–${pr.s2}${ptsStr}</span>`;
           lineCount++;
           lastPts = pts;
         });
@@ -2061,10 +2061,10 @@ function renderMatches() {
         const done    = rankedPlayers.filter(p => pronos[p.id]);
         const missing = rankedPlayers.filter(p => !pronos[p.id]);
         const doneHtml = done.map(p =>
-          `<span class="prono-tag exact" style="opacity:.85">✓ ${p.prenom}</span>`
+          `<span class="prono-tag exact" style="opacity:.85">✓ ${playerDisplayName(p)}</span>`
         ).join('');
         const missHtml = missing.map(p =>
-          `<span class="prono-tag wrong" style="opacity:.7">✗ ${p.prenom}</span>`
+          `<span class="prono-tag wrong" style="opacity:.7">✗ ${playerDisplayName(p)}</span>`
         ).join('');
         allPronosHtml += `<details style="margin-top:6px;border-top:1px solid var(--border);padding-top:8px">
           <summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text2);user-select:none">
