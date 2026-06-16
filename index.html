@@ -1822,7 +1822,7 @@ function renderElimination() {
 // ===== RANKING =====
 function getRanking() {
   const scores = {};
-  const visiblePlayers = state.players.filter(p => (!p.hiddenFromNonAdmins || isAdmin()) && !isRankingExcluded(p));
+  const visiblePlayers = state.players.filter(p => !p.hiddenFromNonAdmins && !isRankingExcluded(p));
   visiblePlayers.forEach(p => { scores[p.id] = { id: p.id, pts: 0, exact: 0 }; });
   state.matches.forEach(m => {
     if (!['finished','live'].includes(m.status) || m.score1==null) return;
