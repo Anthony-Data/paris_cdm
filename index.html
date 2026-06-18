@@ -2953,7 +2953,15 @@ function fixPlayerProno() {
   if (_fbConnected) toast(`✅ Prono de ${p.prenom} enregistré : ${s1}–${s2}`);
   else toast(`⚠️ Pas de réseau — fix en attente. Ne ferme pas l'app !`);
 }
-// À la sélection d'un match : pré-remplit scores/statut et prépare le champ t.a.b.
+// Convertit une date ISO stockée → valeur d'un <input datetime-local> en heure locale du navigateur.
+function toDatetimeLocal(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+// À la sélection d'un match : pré-remplit scores/statut/date et prépare le champ t.a.b.
 function onUpdateMatchSelect() {
   const id = document.getElementById('updateMatchSelect')?.value;
   const m = state.matches.find(x => x.id === id);
@@ -2962,6 +2970,8 @@ function onUpdateMatchSelect() {
   if (s1) s1.value = m.score1 != null ? m.score1 : '';
   if (s2) s2.value = m.score2 != null ? m.score2 : '';
   if (st) st.value = m.status || 'upcoming';
+  const dt = document.getElementById('uDate');
+  if (dt) dt.value = toDatetimeLocal(m.date);
   const pw = document.getElementById('uPenWinner');
   if (pw) pw.value = m.penWinner ? String(m.penWinner) : '';
   refreshPenWinnerUI();
@@ -3030,6 +3040,11 @@ function updateMatchScore() {
   if (!m) { toast('❌ Match introuvable'); return; }
   const wasFinished = m.status === 'finished';
   m.score1=s1; m.score2=s2; m.status=status;
+  const dtVal = document.getElementById('uDate')?.value;
+  if (dtVal) {
+    const parsed = new Date(dtVal);
+    if (!isNaN(parsed)) m.date = parsed.toISOString();
+  }
   // Vainqueur aux tirs au but (uniquement pertinent pour un nul en élimination directe)
   const penVal = document.getElementById('uPenWinner')?.value;
   if (isEliminationMatch(m) && s1 === s2 && (penVal === '1' || penVal === '2')) {
@@ -3039,7 +3054,8 @@ function updateMatchScore() {
   }
   if (status === 'finished' && !wasFinished) notifyMatchFinished(m);
   save(); renderMatches(); renderRanking(); renderElimination();
-  toast(`✅ Score mis à jour : ${s1}–${s2}`);
+  scheduleNotifications();
+  toast(`✅ Match mis à jour : ${s1}–${s2}`);
 }
 
 // ===== ADMIN =====
@@ -3194,6 +3210,7 @@ function renderAdminPanel() {
           <option value="finished">Terminé</option>
         </select>
       </div>
+      <div class="form-group"><label>Date &amp; heure (heure locale)</label><input type="datetime-local" class="form-input" id="uDate"></div>
       <div class="form-group" id="uPenRow" style="display:none"><label>🥅 Vainqueur aux tirs au but</label>
         <select class="form-input" id="uPenWinner">
           <option value="">— (match nul, pas de t.a.b.)</option>
