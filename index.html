@@ -1862,6 +1862,10 @@ function filterMatches(f, btn) {
   currentFilter = f;
   _matchPage = 0;
   if (f === 'all') autoMatchPage();
+  else if (f === 'finished') {
+    const count = state.matches.filter(m => filterStatus(m) === 'finished').length;
+    _matchPage = Math.max(0, Math.ceil(count / MATCH_PAGE_SIZE) - 1);
+  }
   document.querySelectorAll('.status-filter-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   renderMatches();
