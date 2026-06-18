@@ -1869,6 +1869,10 @@ function filterMatches(f, btn) {
   document.querySelectorAll('.status-filter-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   renderMatches();
+  if (f === 'finished') {
+    const cards = document.querySelectorAll('#matchesList .match-card');
+    if (cards.length) cards[cards.length - 1].scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 }
 function filterPhase(p, btn) {
   currentPhaseFilter = p;
