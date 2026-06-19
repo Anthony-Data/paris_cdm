@@ -1862,17 +1862,9 @@ function filterMatches(f, btn) {
   currentFilter = f;
   _matchPage = 0;
   if (f === 'all') autoMatchPage();
-  else if (f === 'finished') {
-    const count = state.matches.filter(m => filterStatus(m) === 'finished').length;
-    _matchPage = Math.max(0, Math.ceil(count / MATCH_PAGE_SIZE) - 1);
-  }
   document.querySelectorAll('.status-filter-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   renderMatches();
-  if (f === 'finished') {
-    const cards = document.querySelectorAll('#matchesList .match-card');
-    if (cards.length) cards[cards.length - 1].scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
 }
 function filterPhase(p, btn) {
   currentPhaseFilter = p;
@@ -1910,6 +1902,7 @@ function renderMatches() {
   const _koMemo = {}; // cache de résolution des qualifiés, partagé sur ce rendu
   let allMatches = [...state.matches].sort((a,b) => new Date(a.date)-new Date(b.date));
   if (currentFilter !== 'all') allMatches = allMatches.filter(m => filterStatus(m) === currentFilter);
+  if (currentFilter === 'finished') allMatches.reverse();
   if (currentPhaseFilter !== 'all') allMatches = allMatches.filter(m => m.phase === currentPhaseFilter);
   if (!allMatches.length) {
     container.innerHTML = `<div class="empty"><div class="empty-icon">⚽</div><p>Aucun match</p></div>`;
