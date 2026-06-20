@@ -1847,7 +1847,6 @@ let currentFilter = 'upcoming';
 let currentPhaseFilter = 'all';
 let _matchPage = 0;
 const MATCH_PAGE_SIZE = 8;
-const BETA_FLAG_CLICK = new URLSearchParams(location.search).has('beta');
 let _teamFilter = null;
 
 function autoMatchPage() {
@@ -1930,7 +1929,7 @@ function renderMatches() {
   if (currentFilter !== 'all') allMatches = allMatches.filter(m => filterStatus(m) === currentFilter);
   if (currentFilter === 'finished') allMatches.reverse();
   if (currentPhaseFilter !== 'all') allMatches = allMatches.filter(m => m.phase === currentPhaseFilter);
-  if (BETA_FLAG_CLICK && _teamFilter) allMatches = allMatches.filter(m => m.team1 === _teamFilter || m.team2 === _teamFilter);
+  if (_teamFilter) allMatches = allMatches.filter(m => m.team1 === _teamFilter || m.team2 === _teamFilter);
   if (!allMatches.length) {
     container.innerHTML = `<div class="empty"><div class="empty-icon">⚽</div><p>Aucun match</p></div>`;
     return;
@@ -1980,7 +1979,7 @@ function renderMatches() {
     return `<div style="display:flex;justify-content:center;align-items:center;gap:4px;padding:8px 0;overflow-x:auto;flex-wrap:nowrap">${prev}${numHtml}${next}</div>`;
   };
 
-  const teamBanner = (BETA_FLAG_CLICK && _teamFilter)
+  const teamBanner = _teamFilter
     ? `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:4px;background:var(--gold-dim);border:1px solid var(--gold);border-radius:var(--radius);font-size:13px;font-weight:600;color:var(--gold)">
         ⚽ Matchs de <strong>${_teamFilter}</strong>
         <button onclick="clearTeamFilter()" style="margin-left:auto;background:none;border:1px solid var(--gold);color:var(--gold);border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:14px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center">×</button>
@@ -2123,9 +2122,9 @@ function renderMatches() {
         <div class="match-header"><span class="match-info">${m.phase}</span>${statusHtml}</div>
         ${venueHtml}${x2Badge}
         <div class="match-teams">
-          ${_mkTeamBlock(d1, BETA_FLAG_CLICK && !d1.ph, _teamFilter)}
+          ${_mkTeamBlock(d1, !d1.ph, _teamFilter)}
           ${scoreHtml}
-          ${_mkTeamBlock(d2, BETA_FLAG_CLICK && !d2.ph, _teamFilter)}
+          ${_mkTeamBlock(d2, !d2.ph, _teamFilter)}
         </div>
         ${pronoHtml}${allPronosHtml}
       </div>`;
