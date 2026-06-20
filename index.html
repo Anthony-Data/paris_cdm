@@ -245,6 +245,9 @@ header {
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .6; } }
 .match-teams { display: flex; align-items: center; gap: 8px; }
 .team-block { flex: 1; text-align: center; }
+.beta-team-btn { cursor: pointer; border-radius: 10px; transition: background .15s; padding: 4px 2px; }
+.beta-team-btn:hover { background: var(--surface2); }
+.beta-team-active { background: var(--gold-dim) !important; outline: 2px solid var(--gold); }
 .team-flag { font-size: 36px; display: block; margin-bottom: 4px; line-height: 1.2; }
 .team-flag img { width: 52px; height: 38px; border-radius: 3px; }
 .team-name { font-size: 17px; font-weight: 700; }
@@ -1915,12 +1918,8 @@ function _mkTeamBlock(d, clickable, activeTeam) {
   const nameDiv  = `<div class="team-name"${d.ph ? ' style="color:var(--text3);font-style:italic"' : ''}>${d.name}</div>`;
   if (!clickable) return `<div class="team-block">${flagSpan}${nameDiv}</div>`;
   const active = activeTeam === d.name;
-  return `<div class="team-block" onclick="filterByTeam(${JSON.stringify(d.name)})" title="Matchs de ${d.name}"
-    style="cursor:pointer;border-radius:10px;transition:background .15s;${active ? 'background:var(--gold-dim);outline:2px solid var(--gold);' : ''}"
-    onmouseover="if('${activeTeam}'!=='${d.name}')this.style.background='var(--surface2)'"
-    onmouseout="this.style.background='${active ? 'var(--gold-dim)' : ''}'">
-    ${flagSpan}${nameDiv}
-  </div>`;
+  const safeName = JSON.stringify(d.name).replace(/"/g, '&quot;');
+  return `<div class="team-block beta-team-btn${active ? ' beta-team-active' : ''}" onclick="filterByTeam(${safeName})" title="Voir tous les matchs de ${d.name}">${flagSpan}${nameDiv}</div>`;
 }
 function renderMatches() {
   const container = document.getElementById('matchesList');
