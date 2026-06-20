@@ -1889,7 +1889,7 @@ function filterByTeam(name) {
   const phaseBtns = document.querySelectorAll('.phase-filter-btn');
   phaseBtns.forEach((b,i) => b.classList.toggle('active', i === 0));
   renderMatches();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  document.querySelector('#matchesList .match-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 function clearTeamFilter() { _teamFilter = null; renderMatches(); }
 
