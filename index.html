@@ -1844,6 +1844,8 @@ let currentFilter = 'upcoming';
 let currentPhaseFilter = 'all';
 let _matchPage = 0;
 const MATCH_PAGE_SIZE = 8;
+const BETA_FLAG_CLICK = new URLSearchParams(location.search).has('beta');
+let _teamFilter = null;
 
 function autoMatchPage() {
   if (currentFilter !== 'all' || currentPhaseFilter !== 'all') return;
@@ -1874,6 +1876,18 @@ function filterPhase(p, btn) {
   btn.classList.add('active');
   renderMatches();
 }
+function filterByTeam(name) {
+  _teamFilter = (_teamFilter === name) ? null : name;
+  currentFilter = 'all';
+  currentPhaseFilter = 'all';
+  _matchPage = 0;
+  const statusBtns = document.querySelectorAll('.status-filter-btn');
+  statusBtns.forEach((b,i) => b.classList.toggle('active', i === 0));
+  const phaseBtns = document.querySelectorAll('.phase-filter-btn');
+  phaseBtns.forEach((b,i) => b.classList.toggle('active', i === 0));
+  renderMatches();
+}
+function clearTeamFilter() { _teamFilter = null; renderMatches(); }
 
 // ===== STATUT D'AFFICHAGE CALCULÉ =====
 // N'écrit JAMAIS dans Firebase — purement visuel, recalculé à chaque rendu.
@@ -1896,6 +1910,18 @@ function filterStatus(m) {
   const s = effectiveStatus(m);
   return s === 'halftime' ? 'live' : s;
 }
+function _mkTeamBlock(d, clickable, activeTeam) {
+  const flagSpan = `<span class="team-flag">${d.ph ? '⚽' : flagHtml(d.flag, d.name)}</span>`;
+  const nameDiv  = `<div class="team-name"${d.ph ? ' style="color:var(--text3);font-style:italic"' : ''}>${d.name}</div>`;
+  if (!clickable) return `<div class="team-block">${flagSpan}${nameDiv}</div>`;
+  const active = activeTeam === d.name;
+  return `<div class="team-block" onclick="filterByTeam(${JSON.stringify(d.name)})" title="Matchs de ${d.name}"
+    style="cursor:pointer;border-radius:10px;transition:background .15s;${active ? 'background:var(--gold-dim);outline:2px solid var(--gold);' : ''}"
+    onmouseover="if('${activeTeam}'!=='${d.name}')this.style.background='var(--surface2)'"
+    onmouseout="this.style.background='${active ? 'var(--gold-dim)' : ''}'">
+    ${flagSpan}${nameDiv}
+  </div>`;
+}
 function renderMatches() {
   const container = document.getElementById('matchesList');
   const myId = state.currentPlayer;
@@ -1904,6 +1930,7 @@ function renderMatches() {
   if (currentFilter !== 'all') allMatches = allMatches.filter(m => filterStatus(m) === currentFilter);
   if (currentFilter === 'finished') allMatches.reverse();
   if (currentPhaseFilter !== 'all') allMatches = allMatches.filter(m => m.phase === currentPhaseFilter);
+  if (BETA_FLAG_CLICK && _teamFilter) allMatches = allMatches.filter(m => m.team1 === _teamFilter || m.team2 === _teamFilter);
   if (!allMatches.length) {
     container.innerHTML = `<div class="empty"><div class="empty-icon">⚽</div><p>Aucun match</p></div>`;
     return;
@@ -1953,7 +1980,13 @@ function renderMatches() {
     return `<div style="display:flex;justify-content:center;align-items:center;gap:4px;padding:8px 0;overflow-x:auto;flex-wrap:nowrap">${prev}${numHtml}${next}</div>`;
   };
 
-  let html = _pg(false);
+  const teamBanner = (BETA_FLAG_CLICK && _teamFilter)
+    ? `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;margin-bottom:4px;background:var(--gold-dim);border:1px solid var(--gold);border-radius:var(--radius);font-size:13px;font-weight:600;color:var(--gold)">
+        ⚽ Matchs de <strong>${_teamFilter}</strong>
+        <button onclick="clearTeamFilter()" style="margin-left:auto;background:none;border:1px solid var(--gold);color:var(--gold);border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:14px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center">×</button>
+      </div>`
+    : '';
+  let html = teamBanner + _pg(false);
   matches.forEach(m => {
     // Séparateur de date entre les jours
     const dk = dateKey(m);
@@ -2090,9 +2123,9 @@ function renderMatches() {
         <div class="match-header"><span class="match-info">${m.phase}</span>${statusHtml}</div>
         ${venueHtml}${x2Badge}
         <div class="match-teams">
-          <div class="team-block"><span class="team-flag">${d1.ph?'⚽':flagHtml(d1.flag, d1.name)}</span><div class="team-name"${d1.ph?' style="color:var(--text3);font-style:italic"':''}>${d1.name}</div></div>
+          ${_mkTeamBlock(d1, BETA_FLAG_CLICK && !d1.ph, _teamFilter)}
           ${scoreHtml}
-          <div class="team-block"><span class="team-flag">${d2.ph?'⚽':flagHtml(d2.flag, d2.name)}</span><div class="team-name"${d2.ph?' style="color:var(--text3);font-style:italic"':''}>${d2.name}</div></div>
+          ${_mkTeamBlock(d2, BETA_FLAG_CLICK && !d2.ph, _teamFilter)}
         </div>
         ${pronoHtml}${allPronosHtml}
       </div>`;
