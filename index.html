@@ -1823,12 +1823,16 @@ function renderElimination() {
 }
 
 // ===== RANKING =====
-function getRanking() {
+// opts.finishedOnly : ne compte QUE les matchs terminés (exclut les directs).
+// Sert à calculer le classement de référence figé d'avant les matchs en cours,
+// pour les flèches de tendance en direct.
+function getRanking(opts = {}) {
+  const statuses = opts.finishedOnly ? ['finished'] : ['finished','live','halftime'];
   const scores = {};
   const visiblePlayers = state.players.filter(p => !p.hiddenFromNonAdmins && !isRankingExcluded(p));
   visiblePlayers.forEach(p => { scores[p.id] = { id: p.id, pts: 0, exact: 0 }; });
   state.matches.forEach(m => {
-    if (!['finished','live','halftime'].includes(m.status) || m.score1==null) return;
+    if (!statuses.includes(m.status) || m.score1==null) return;
     const pronos = state.pronos[m.id] || {};
     visiblePlayers.forEach(p => {
       const pr = pronos[p.id];
@@ -2181,12 +2185,20 @@ function renderRanking() {
   const myId = state.currentPlayer;
   const body = document.getElementById('rankingBody');
   if (!ranking.length) { body.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:28px">Aucun joueur</td></tr>`; renderPodium([]); return; }
+  // Flèches de tendance : actives uniquement s'il y a au moins un match en direct.
+  // Référence = classement figé en ne comptant QUE les matchs terminés (donc avant
+  // les matchs en cours). Recalculé à chaque rendu → reste fixe pendant tout le
+  // direct, survit aux rechargements, identique sur tous les appareils, gère
+  // plusieurs matchs en direct simultanés (tous exclus de la référence).
+  const hasLive = state.matches.some(m => m.status === 'live' || m.status === 'halftime');
+  const baseRank = {};
+  if (hasLive) getRanking({ finishedOnly: true }).forEach((r, i) => { baseRank[r.id] = i+1; });
   const total = ranking.length;
   body.innerHTML = ranking.map((r, i) => {
     const rank = i+1;
     const p = getPlayerById(r.id);
     if (!p) return '';
-    const prev = (_liveMatchId ? _preMatchRanks : state.lastRanks)[r.id];
+    const prev = hasLive ? baseRank[r.id] : undefined;
     let trend = '';
     if (prev && prev !== rank) trend = prev>rank ? `<span class="trend trend-up">▲${prev-rank}</span>` : `<span class="trend trend-down">▼${rank-prev}</span>`;
     const isMe = r.id === myId;
@@ -2215,21 +2227,6 @@ function renderRanking() {
       <td><div class="rank-pts" style="color:${ptsColor}">${r.pts}</div></td>
     </tr>`;
   }).join('');
-  // Détection du match en direct courant (le premier trouvé s'il y en a plusieurs)
-  const liveNow = state.matches.find(m => m.status === 'live' || m.status === 'halftime');
-  const liveMId = liveNow?.id || null;
-  if (liveMId !== _liveMatchId) {
-    if (liveMId) {
-      // Nouveau match en direct → photo du classement AVANT ce match comme référence
-      _preMatchRanks = {...state.lastRanks};
-    } else {
-      // Plus de match en direct → réinitialiser
-      _preMatchRanks = {};
-    }
-    _liveMatchId = liveMId;
-  }
-  // lastRanks est toujours mis à jour (sert de photo "avant" pour le prochain match)
-  ranking.forEach((r, i) => { state.lastRanks[r.id] = i+1; });
   renderPodium(ranking);
   renderMiniRank(ranking);
 }
@@ -2285,11 +2282,6 @@ function renderMiniRank(ranking) {
 let LIVE_COMPETITION = 'WC';
 let _liveInterval = null;
 let _simInterval  = null;
-// Photo du classement prise au moment où le match en cours est passé en direct.
-// Sert de référence pour les flèches de tendance : "qui a gagné/perdu des places
-// DEPUIS le début de CE match", pas depuis le match précédent.
-let _liveMatchId    = null; // ID du match actuellement suivi (live/halftime)
-let _preMatchRanks  = {};   // Classement juste avant ce match = référence des flèches
 
 // Bascule AUTOMATIQUE amicaux → Coupe du Monde le mercredi 10 juin 2026 à 12h00 (heure de Paris).
 // Avant : fifa.friendly (tests amicaux). Après : fifa.world (CdM 2026).
