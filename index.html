@@ -305,6 +305,8 @@ details[open] .suivi-arrow { transform: rotate(90deg); }
 .prono-saved.pts-3   { color: #ff7800; }
 .prono-saved.diff-win{ color: var(--gold); }
 .prono-saved.wrong   { color: var(--red); }
+.prono-saved.prono-pending { color: #ff9800; font-size: 13px; animation: pendingPulse 1.4s ease-in-out infinite; }
+@keyframes pendingPulse { 0%,100% { opacity: .55; } 50% { opacity: 1; } }
 
 /* ===== ONBOARDING ===== */
 .ob-dot { width:8px;height:8px;border-radius:50%;background:var(--border);transition:background .3s; }
@@ -1089,13 +1091,19 @@ function initFirebase() {
 // État de connexion Firebase (true tant qu'on n'a pas reçu d'info contraire)
 let _fbConnected = true;
 let _offlineBannerTimer = null;
+// Hors-ligne = soit l'OS signale l'absence de réseau (navigator.onLine, immédiat),
+// soit Firebase a perdu sa connexion (.info/connected, peut tarder ~60s).
+function isOffline() { return navigator.onLine === false || !_fbConnected; }
 function updateOfflineBanner() {
   const b = document.getElementById('offlineBanner');
   if (!b) return;
-  // Bandeau visible uniquement si déconnecté ET connecté à l'app (pas sur l'écran de login)
+  // Bandeau visible uniquement si hors-ligne ET connecté à l'app (pas sur l'écran de login)
   const inApp = document.getElementById('mainApp')?.style.display !== 'none';
-  b.style.display = (!_fbConnected && inApp) ? 'flex' : 'none';
+  b.style.display = (isOffline() && inApp) ? 'flex' : 'none';
 }
+// Signaux OS immédiats : complètent la détection Firebase qui est plus lente.
+window.addEventListener('offline', () => { clearTimeout(_offlineBannerTimer); updateOfflineBanner(); });
+window.addEventListener('online',  () => { updateOfflineBanner(); flushPronoQueue(); });
 
 // ===== QUEUE PERSISTANTE DE PRONOS =====
 // Pronos en attente de synchronisation Firebase. Persistée en localStorage pour
@@ -1111,6 +1119,19 @@ function pronoQueueAdd(matchId, playerId, value) {
   pronoQueueSave(q);
 }
 function pronoQueueRemove(key) { const q = pronoQueueGet(); delete q[key]; pronoQueueSave(q); }
+// Un prono est « en attente » tant qu'il est dans la queue (= pas encore confirmé par Firebase).
+function isPronoPending(matchId, playerId) {
+  return Object.prototype.hasOwnProperty.call(pronoQueueGet(), `${matchId}/${playerId}`);
+}
+// Re-rendu léger (débounce) après confirmation Firebase : fait passer le badge
+// « ⏳ en attente » à « ✓ enregistré » sans attendre un autre événement.
+let _pronoRenderTimer = null;
+function schedulePronoRerender() {
+  clearTimeout(_pronoRenderTimer);
+  _pronoRenderTimer = setTimeout(() => {
+    if (document.getElementById('mainApp')?.style.display !== 'none') { renderMatches(); renderMiniRank(); }
+  }, 250);
+}
 
 // Envoie vers Firebase toutes les entrées encore en queue.
 // Appelé à chaque reconnexion ET quand _appReady devient true.
@@ -1126,6 +1147,7 @@ function flushPronoQueue() {
       _pendingPronoWrites.delete(key);
       pronoQueueRemove(key);
       console.log(`✅ Prono synchronisé : ${key}`);
+      schedulePronoRerender(); // badge « en attente » → « enregistré »
     }).catch(e => {
       console.warn(`Firebase prono flush error (${key}):`, e);
       // On garde dans la queue — sera retentée à la prochaine reconnexion
@@ -1216,6 +1238,7 @@ function writeProno(matchId, playerId, value) {
   op.then(() => {
     _pendingPronoWrites.delete(key);
     pronoQueueRemove(key); // confirmé par Firebase → retirer de la queue
+    schedulePronoRerender(); // badge « en attente » → « enregistré »
   }).catch(e => {
     console.warn('Firebase prono write error:', e);
     // Reste dans pronoQueueGet() → sera retenté à la reconnexion
@@ -2035,10 +2058,14 @@ function renderMatches() {
           const pts = canSeeAll ? calcPoints(m.score1,m.score2,myProno.s1,myProno.s2,m.phase) : null;
           const label = pts!=null ? ptsLabel(pts,m.phase) : '';
           const ptsTag = pts!=null ? `<span class="prono-tag ${label}">${pts>0?'+':''}${pts}pts</span>` : '';
+          const pending = isPronoPending(m.id, myId);
+          const savedTag = pending
+            ? `<span class="prono-saved prono-pending">⏳ ${myProno.s1}–${myProno.s2} · synchronisation…</span>`
+            : `<span class="prono-saved">✓ ${myProno.s1}–${myProno.s2} ${ptsTag}</span>`;
           pronoHtml = `<div class="prono-section">
             <label>Mon prono</label>
             <div class="prono-inputs">
-              <span class="prono-saved">✓ ${myProno.s1}–${myProno.s2} ${ptsTag}</span>
+              ${savedTag}
               ${canProno?`<button class="btn btn-ghost" onclick="editProno('${m.id}')">Modifier</button><button class="btn btn-ghost" style="color:var(--red);border-color:var(--red)" onclick="resetProno('${m.id}')">✕</button>`:''}
             </div>
           </div>`;
@@ -2159,8 +2186,8 @@ function submitProno(matchId) {
   const prono = { s1, s2, at: new Date().toISOString() };
   state.pronos[matchId][myId] = prono;
   writeProno(matchId, myId, prono);
-  if (_fbConnected) toast(`✅ Prono enregistré : ${s1}–${s2}`);
-  else toast(`⚠️ Pas de réseau — prono en attente. Ne ferme pas l'app !`);
+  if (isOffline()) toast(`⚠️ Pas de réseau — prono PAS encore envoyé. Il partira tout seul au retour du réseau.`);
+  else toast(`✅ Prono enregistré : ${s1}–${s2}`);
   renderMatches(); renderMiniRank();
 }
 function editProno(matchId) {
@@ -2975,8 +3002,8 @@ function fixPlayerProno() {
   state.pronos[mid][pid] = prono;
   writeProno(mid, pid, prono);
   renderMatches(); renderRanking();
-  if (_fbConnected) toast(`✅ Prono de ${p.prenom} enregistré : ${s1}–${s2}`);
-  else toast(`⚠️ Pas de réseau — fix en attente. Ne ferme pas l'app !`);
+  if (isOffline()) toast(`⚠️ Pas de réseau — fix PAS encore envoyé. Il partira tout seul au retour du réseau.`);
+  else toast(`✅ Prono de ${p.prenom} enregistré : ${s1}–${s2}`);
 }
 // Convertit une date ISO stockée → valeur d'un <input datetime-local> en heure locale du navigateur.
 function toDatetimeLocal(iso) {
