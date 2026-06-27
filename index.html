@@ -1690,8 +1690,12 @@ function _allTeamSet() {
   return _teamSetCache;
 }
 function _groupComplete(groupTeams) {
+  // effectiveStatus (et non m.status brut) : un match dont le coup d'envoi remonte
+  // à plus de 2h15 est considéré terminé même si ESPN/admin n'a jamais posé le
+  // statut. Sinon un match affiché « Terminé » à l'écran restait « upcoming » en
+  // interne → la poule n'était jamais vue comme complète → 2A non résolu.
   const done = state.matches.filter(m =>
-    m.phase === 'Groupes' && m.status === 'finished' && m.score1 != null &&
+    m.phase === 'Groupes' && effectiveStatus(m) === 'finished' && m.score1 != null &&
     groupTeams.includes(m.team1) && groupTeams.includes(m.team2)).length;
   return done >= 6; // 4 équipes = 6 matchs
 }
