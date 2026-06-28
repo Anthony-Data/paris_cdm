@@ -226,8 +226,8 @@ module.exports = async (req, res) => {
       const newScore1 = swapped ? espn.score2 : espn.score1;
       const newScore2 = swapped ? espn.score1 : espn.score2;
       const newStatus = espn.status;
-      const newClock = espn.displayClock;
-      const newMinute = espn.minute;
+      // (horloge volontairement non lue : plus écrite dans Firebase — cf. optimisation
+      // bande passante. La minute est affichée côté client via /api/live + repli local.)
 
       const base = `cdm2026/shared/matches/${idx}`;
 
@@ -264,14 +264,16 @@ module.exports = async (req, res) => {
         if (w1 || w2) updates[`${base}/penWinner`] = w1 ? 1 : 2;
       }
 
+      // OPTIMISATION BANDE PASSANTE : on ne déclenche plus d'écriture sur la
+      // simple progression de la minute. Écrire l'horloge chaque minute forçait
+      // TOUS les appareils à re-télécharger le bloc entier → quota explosé.
+      // L'horloge n'est plus écrite dans Firebase : chaque client l'affiche via
+      // son propre polling /api/live. Firebase n'est sollicité que sur un vrai
+      // changement (but, statut).
       const changed =
         m.status !== newStatus ||
         m.score1 !== newScore1 ||
-        m.score2 !== newScore2 ||
-        // La minute avance à chaque tick → on l'inclut dans "changed" pour que
-        // Firebase reste à jour même sans but. Sans ça, un refresh renvoie
-        // l'utilisateur à la minute du dernier but au lieu de la minute actuelle.
-        (newClock && m.displayClock !== newClock);
+        m.score2 !== newScore2;
 
       // Notification "terminé" : ESPN dit finished ET la clé fin_<id> n'est pas
       // encore posée dans Firebase. On teste la clé de dédup (sentKeys) plutôt
@@ -286,13 +288,11 @@ module.exports = async (req, res) => {
         updates[`${base}/status`] = newStatus;
         if (newScore1 !== null) updates[`${base}/score1`] = newScore1;
         if (newScore2 !== null) updates[`${base}/score2`] = newScore2;
-        // displayClock/minute : utiles tant que le match tourne, nettoyés une fois fini
+        // Nettoie l'horloge résiduelle quand le match se termine (l'horloge n'est
+        // plus écrite en continu — cf. optimisation bande passante ci-dessus).
         if (newStatus === 'finished') {
           updates[`${base}/displayClock`] = null;
           updates[`${base}/minute`] = null;
-        } else {
-          if (newClock) updates[`${base}/displayClock`] = newClock;
-          if (newMinute) updates[`${base}/minute`] = newMinute;
         }
         updated++;
         changes.push(`${m.team1} ${newScore1 ?? '-'}-${newScore2 ?? '-'} ${m.team2} [${newStatus}]`);

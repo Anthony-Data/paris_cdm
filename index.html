@@ -1000,8 +1000,17 @@ function initFirebase() {
         // Firebase a des données → elles ont priorité, SAUF pour notifications
         // (état local uniquement — chaque appareil garde son propre historique).
         const localNotifs = state.notifications ? [...state.notifications] : [];
+        const localPhoto = state.familyPhoto; // photo gérée par un nœud séparé
+        // Sauvegarde des horloges affichées localement (issues du polling /api/live
+        // de cet appareil) pour qu'un sync du blob ne les efface pas. L'horloge
+        // n'est plus écrite dans Firebase (optimisation bande passante).
+        const localClocks = {};
+        (state.matches || []).forEach(m => { if (m && m.id && (m.displayClock || m.minute)) localClocks[m.id] = { displayClock: m.displayClock, minute: m.minute }; });
         Object.assign(state, data);
         state.notifications = localNotifs;
+        // La photo vit dans son nœud dédié : on ne laisse pas le blob l'écraser.
+        // À la 1re sync pré-migration, on retombe sur l'ancienne photo du blob.
+        state.familyPhoto = localPhoto != null ? localPhoto : (data.familyPhoto || null);
         state.currentPlayer = prevPlayer;
         if (!state.players) state.players = [];
         if (!state.matches) state.matches = [];
@@ -1009,6 +1018,9 @@ function initFirebase() {
         if (!state.notifications) state.notifications = [];
         if (!state.lastRanks) state.lastRanks = {};
         if (!state.adminIds) state.adminIds = [];
+        // Réinjecte l'horloge locale (polling /api/live) pour les matchs encore en
+        // direct → l'affichage de la minute n'a aucun à-coup malgré la sync du blob.
+        state.matches.forEach(m => { const c = localClocks[m && m.id]; if (c && m.status === 'live') { m.displayClock = c.displayClock; m.minute = c.minute; } });
         // Ré-applique les pronos écrits localement mais pas encore confirmés par
         // Firebase (race condition : listener peut recevoir un snapshot légèrement
         // en retard par rapport à writeProno()). Entrée supprimée par writeProno()
@@ -1094,6 +1106,26 @@ function initFirebase() {
           state.koDrawPronoReset = 'v1';
           migrated = true;
         }
+        // Migration : sortir la photo de famille du blob partagé vers son nœud
+        // dédié `cdm2026/familyPhoto` (la photo était re-téléchargée par tous à
+        // chaque sync → quota). Marqueur persistant `familyPhotoMigrated` :
+        //  - 1re fois : on COPIE la photo vers le nœud dédié (si pas de photo
+        //    locale plus récente), on la retire du blob, on pose le marqueur.
+        //  - ensuite : si un ANCIEN client (pas encore rechargé) réinjecte la
+        //    photo dans le blob, on la retire SANS la ressusciter dans le nœud
+        //    dédié → pas d'écrasement d'une photo modifiée/supprimée, pas de
+        //    ré-inflation durable de la bande passante.
+        if (!data.familyPhotoMigrated) {
+          if (data.familyPhoto != null && localPhoto == null) {
+            db.ref('cdm2026/familyPhoto').set(data.familyPhoto).catch(()=>{});
+            state.familyPhoto = data.familyPhoto;
+          }
+          if (data.familyPhoto != null) db.ref('cdm2026/shared/familyPhoto').remove().catch(()=>{});
+          db.ref('cdm2026/shared/familyPhotoMigrated').set(true).catch(()=>{});
+          state.familyPhotoMigrated = true;
+        } else if (data.familyPhoto != null) {
+          db.ref('cdm2026/shared/familyPhoto').remove().catch(()=>{}); // nettoyage réinjection ancien client
+        }
         // Sauvegarde dans le cache local l'état FUSIONNÉ (state), pas le snapshot
         // brut Firebase (data) — évite d'écraser en localStorage un prono qu'on
         // venait de saisir et qui n'est pas encore arrivé dans le snapshot Firebase.
@@ -1117,6 +1149,17 @@ function initFirebase() {
       maybeShowOnboarding(); // toujours vérifier, même si loginScreen est affiché
       scheduleNotifications(); // replanifie à chaque update Firebase (nouveaux matchs inclus)
       scheduleFranceNotifs();
+    });
+
+    // Écoute DÉDIÉE de la photo de famille, hors du blob partagé temps réel.
+    // La photo (image lourde) n'est ainsi téléchargée qu'à son chargement / sa
+    // modification, et non à chaque changement de score ou de prono.
+    db.ref('cdm2026/familyPhoto').on('value', snap => {
+      const v = snap.val();
+      if (v === null) return; // nœud jamais écrit (pré-migration) → le blob gère l'affichage
+      state.familyPhoto = v ? v : null; // '' = supprimée → null ; sinon = la photo
+      if (_appReady) saveLocal();
+      loadFamilyPhoto();
     });
 
     // Surveillance de la connexion Firebase : .info/connected est la source de
@@ -1254,8 +1297,19 @@ function save() {
     delete fbShared.refreshTimer;
     delete fbShared.notifications;
     delete fbShared.pronos; // pronos hors-périmètre du save structurel
+    delete fbShared.familyPhoto; // photo dans un nœud séparé (cf. savePhoto) → bande passante
     db.ref('cdm2026/shared').update(fbShared).catch(e => console.warn('Firebase save error:', e));
   }
+}
+
+// Écrit la photo de famille dans son nœud dédié `cdm2026/familyPhoto`, HORS du
+// bloc partagé temps réel. Évite qu'une image lourde soit re-téléchargée par
+// tous les appareils à chaque changement de score/prono (cause majeure du quota).
+function savePhoto() {
+  // '' (chaîne vide) = sentinelle « photo supprimée » (distincte de null = nœud
+  // jamais écrit / pré-migration). Permet de propager une suppression sans
+  // ambiguïté à tous les appareils.
+  if (db && _appReady) db.ref('cdm2026/familyPhoto').set(state.familyPhoto || '').catch(e => console.warn('Firebase photo save error:', e));
 }
 
 // Réécriture COMPLÈTE du blob partagé, pronos inclus (set()). Réservé aux
@@ -1268,6 +1322,7 @@ function saveFullOverwrite() {
     delete fbShared.currentPlayer;
     delete fbShared.refreshTimer;
     delete fbShared.notifications;
+    delete fbShared.familyPhoto; // photo dans son nœud séparé (écrite via savePhoto)
     db.ref('cdm2026/shared').set(fbShared).catch(e => console.warn('Firebase overwrite error:', e));
   }
 }
@@ -2052,6 +2107,19 @@ function filterStatus(m) {
   const s = effectiveStatus(m);
   return s === 'halftime' ? 'live' : s;
 }
+// Minute approximative d'un match en direct, calculée depuis le coup d'envoi.
+// Sert UNIQUEMENT de repli quand l'horloge exacte (polling /api/live) est absente.
+// Approximatif (pause de mi-temps estimée) — l'horloge ESPN précise reprend le
+// dessus dès qu'elle arrive.
+function approxLiveMinute(m) {
+  if (!m || !m.date) return null;
+  const mins = Math.floor((Date.now() - new Date(m.date).getTime()) / 60000);
+  if (mins < 0 || mins > 140) return null;     // hors plage plausible
+  if (mins <= 47) return mins + "'";           // 1re période
+  if (mins <= 62) return "~45'";               // créneau de mi-temps estimé
+  const t = mins - 15;                          // 2e période, ~15 min de pause retirées
+  return t >= 90 ? "90+'" : t + "'";
+}
 function _mkTeamBlock(d, clickable, activeTeam) {
   const flagSpan = `<span class="team-flag">${d.ph ? '⚽' : flagHtml(d.flag, d.name)}</span>`;
   const nameDiv  = `<div class="team-name"${d.ph ? ' style="color:var(--text3);font-style:italic"' : ''}>${d.name}</div>`;
@@ -2155,7 +2223,11 @@ function renderMatches() {
       const timeBasedLive = m.status === 'upcoming' && dispStatus === 'live';
       const canSeeAll = dispStatus==='live'||dispStatus==='finished'||dispStatus==='halftime';
       const canProno = dispStatus==='upcoming';
-      const clockStr = m.displayClock || (m.minute ? m.minute+"'" : null);
+      // Minute affichée : priorité au clock exact (polling /api/live de cet appareil),
+      // sinon repli APPROXIMATIF calculé depuis le coup d'envoi → une minute s'affiche
+      // toujours pour un match en direct, même si /api/live échoue / pas encore répondu
+      // (l'horloge n'est plus diffusée par Firebase pour économiser la bande passante).
+      const clockStr = m.displayClock || (m.minute ? m.minute+"'" : (dispStatus==='live' ? approxLiveMinute(m) : null));
       let statusHtml = dispStatus==='live'
         ? (timeBasedLive
             ? `<span class="match-status status-live">🔴 En cours</span>`
@@ -3638,7 +3710,7 @@ function uploadFamilyPhoto(e) {
   const reader = new FileReader();
   reader.onload = ev => {
     state.familyPhoto = ev.target.result;
-    save(); loadFamilyPhoto();
+    saveLocal(); savePhoto(); loadFamilyPhoto(); // photo dans son nœud dédié, pas dans le blob
     renderAdminPhotoControls();
     toast('📸 Photo mise à jour !');
   };
@@ -3648,7 +3720,11 @@ function deleteFamilyPhoto() {
   if (!isAdmin()) return;
   if (!confirm('Supprimer la photo de famille ?')) return;
   state.familyPhoto = null;
-  save(); loadFamilyPhoto(); renderAdminPhotoControls();
+  saveLocal(); savePhoto(); // '' écrit dans le nœud dédié = suppression propagée
+  // Purge aussi toute copie résiduelle dans l'ancien blob (sinon un client encore
+  // sur l'ancienne version pourrait la faire réapparaître).
+  if (db && _appReady) db.ref('cdm2026/shared/familyPhoto').remove().catch(()=>{});
+  loadFamilyPhoto(); renderAdminPhotoControls();
   toast('🗑 Photo supprimée');
 }
 function renderFamilyPhotoControls() {
@@ -3735,7 +3811,7 @@ function importData(e) {
   const f = e.target.files[0]; if (!f) return;
   const reader = new FileReader();
   reader.onload = ev => {
-    try { Object.assign(state, JSON.parse(ev.target.result)); saveFullOverwrite(); renderAll(); toast('✅ Importé !'); }
+    try { Object.assign(state, JSON.parse(ev.target.result)); saveFullOverwrite(); savePhoto(); renderAll(); toast('✅ Importé !'); }
     catch { toast('❌ Fichier invalide'); }
   };
   reader.readAsText(f);
@@ -3745,7 +3821,7 @@ function resetAll() {
   localStorage.removeItem('cdm2026v2');
   localStorage.removeItem('cdm2026_player');
   state = { currentPlayer:null, players:[], matches:[], pronos:{}, notifications:[], lastRanks:{}, familyPhoto:null, adminIds:[] };
-  saveFullOverwrite(); renderAll(); toast('🗑 Réinitialisé');
+  saveFullOverwrite(); savePhoto(); renderAll(); toast('🗑 Réinitialisé');
 }
 
 // ===== SAMPLE DATA =====
