@@ -3071,6 +3071,53 @@ function refreshPenWinnerUI() {
     row.style.display = 'none';
   }
 }
+// ===== MODIFIER LES ÉQUIPES D'UN MATCH (admin) =====
+function populateTeamEditSelect() {
+  const sel = document.getElementById('teamEditMatchSelect');
+  if (!sel) return;
+  const memo = {};
+  sel.innerHTML = state.matches.map(m => {
+    const d1 = koDisplay(m.team1, m.flag1, memo), d2 = koDisplay(m.team2, m.flag2, memo);
+    const n1 = d1.ph ? m.team1 : d1.name, n2 = d2.ph ? m.team2 : d2.name;
+    return `<option value="${m.id}">${n1} vs ${n2} (${m.phase})</option>`;
+  }).join('') || '<option>Aucun match</option>';
+  onTeamEditSelect();
+}
+function onTeamEditSelect() {
+  const id = document.getElementById('teamEditMatchSelect')?.value;
+  const m = state.matches.find(x => x.id === id);
+  if (!m) return;
+  const memo = {};
+  const d1 = koDisplay(m.team1, m.flag1, memo), d2 = koDisplay(m.team2, m.flag2, memo);
+  const t1 = document.getElementById('teTeam1'), t2 = document.getElementById('teTeam2');
+  if (t1) t1.value = d1.ph ? m.team1 : d1.name;
+  if (t2) t2.value = d2.ph ? m.team2 : d2.name;
+  refreshTeamEditPreview();
+}
+function refreshTeamEditPreview() {
+  const el = document.getElementById('teFlagPreview');
+  if (!el) return;
+  const n1 = (document.getElementById('teTeam1')?.value || '').trim();
+  const n2 = (document.getElementById('teTeam2')?.value || '').trim();
+  const f1 = n1 ? (getFlagForTeam(n1) || '🏳') : '';
+  const f2 = n2 ? (getFlagForTeam(n2) || '🏳') : '';
+  el.textContent = (n1 || n2) ? `Aperçu : ${f1} ${n1}  vs  ${f2} ${n2}` : '';
+}
+function updateMatchTeams() {
+  const id = document.getElementById('teamEditMatchSelect')?.value;
+  const m = state.matches.find(x => x.id === id);
+  if (!m) { toast('❌ Match introuvable'); return; }
+  const n1 = (document.getElementById('teTeam1')?.value || '').trim();
+  const n2 = (document.getElementById('teTeam2')?.value || '').trim();
+  if (!n1 || !n2) { toast('❌ Renseigne les deux équipes'); return; }
+  if (!confirm(`Remplacer les équipes de ce match par :\n${n1} vs ${n2} ?\n\nLes pronos déjà saisis sont conservés.`)) return;
+  m.team1 = n1; m.flag1 = getFlagForTeam(n1) || m.flag1 || '⚽';
+  m.team2 = n2; m.flag2 = getFlagForTeam(n2) || m.flag2 || '⚽';
+  save();
+  renderMatches(); renderRanking(); renderElimination();
+  populateUpdateMatchSelect(); populateTeamEditSelect();
+  toast(`✅ Équipes mises à jour : ${n1} vs ${n2}`);
+}
 function deleteMatchById(id) {
   const m = state.matches.find(x => x.id === id);
   if (!m) return;
@@ -3297,6 +3344,15 @@ function renderAdminPanel() {
       <button class="btn btn-danger" onclick="deleteMatch()" style="width:100%;margin-top:6px">🗑 Supprimer ce match</button>
     </div>
     <div class="admin-card">
+      <h3>Modifier les équipes d'un match</h3>
+      <p style="font-size:12px;color:var(--text3);margin-bottom:10px;">Remplace les équipes d'un match (utile pour fixer un 16e mal résolu). Les pronos déjà saisis sont conservés.</p>
+      <div class="form-group"><label>Match</label><select class="form-input" id="teamEditMatchSelect" onchange="onTeamEditSelect()"></select></div>
+      <div class="form-group"><label>Équipe 1</label><input type="text" class="form-input" id="teTeam1" placeholder="Ex: Allemagne" oninput="refreshTeamEditPreview()"></div>
+      <div class="form-group"><label>Équipe 2</label><input type="text" class="form-input" id="teTeam2" placeholder="Ex: Paraguay" oninput="refreshTeamEditPreview()"></div>
+      <p id="teFlagPreview" style="font-size:13px;color:var(--text3);margin:-2px 0 10px;min-height:18px"></p>
+      <button class="btn btn-primary" onclick="updateMatchTeams()" style="width:100%">Mettre à jour les équipes</button>
+    </div>
+    <div class="admin-card">
       <h3>🔴 Scores en direct</h3>
       <p style="font-size:12px;color:var(--text3);margin-bottom:10px;">
         ESPN (temps réel) + football-data.org en secours — mise à jour toutes les 60s.
@@ -3356,7 +3412,7 @@ function renderAdminPanel() {
       <div style="margin-top:10px;font-size:12px;color:var(--text3)">Code: <code style="color:var(--gold)">${ADMIN_CODE}</code></div>
     </div>
   </div>`;
-  renderPlayersList(); populateUpdateMatchSelect(); populateFixPronoSelects(); renderWhatsappLinks();
+  renderPlayersList(); populateUpdateMatchSelect(); populateTeamEditSelect(); populateFixPronoSelects(); renderWhatsappLinks();
   renderAdminPhotoControls();
   renderAdminsList();
   populateSimMatchSelect();
