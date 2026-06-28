@@ -1117,6 +1117,40 @@ function initFirebase() {
         } else if (data.familyPhoto != null) {
           db.ref('cdm2026/shared/familyPhoto').remove().catch(()=>{}); // nettoyage réinjection ancien client
         }
+        // ── Résolution AUTO des équipes KO : persiste les vrais pays dans Firebase ──
+        // Le bracket (1A, 2B, 3XXX, W##, Finaliste/Perdant SF) n'était résolu QU'À
+        // l'affichage (koDisplay) ; Firebase gardait « 1C vs 2F ». Deux conséquences
+        // graves : (1) le cron live-sync matche les matchs ESPN par NOM d'équipe → un
+        // match stocké « 1C » ne se synchronise jamais (ni score ni minute) ; (2) les
+        // notifications poussées affichaient le placeholder. On écrit donc le vrai pays
+        // + drapeau dès qu'il est déterminé (poule terminée / match nourricier joué),
+        // via EXACTEMENT la même logique que l'affichage (resolveKoLabel + getFlagForTeam)
+        // → la base reflète ce que l'app montre déjà. Idempotent : un vrai nom déjà posé
+        // n'est jamais retouché (préserve les corrections manuelles admin). Écriture
+        // ciblée (champs modifiés seulement) pour ne pas réinflater la bande passante.
+        const _koResolveMemo = {};
+        const koUpdates = {};
+        state.matches
+          .map((mm, i) => [mm, i])
+          .filter(([mm]) => isEliminationMatch(mm))
+          .sort((a, b) => (a[0].matchNum || 0) - (b[0].matchNum || 0))
+          .forEach(([mm, i]) => {
+            [['team1', 'flag1'], ['team2', 'flag2']].forEach(([tk, fk]) => {
+              const cur = mm[tk];
+              if (!cur || _allTeamSet().has(cur)) return; // vide ou déjà un vrai pays
+              const resolved = resolveKoLabel(cur, _koResolveMemo);
+              if (resolved && _allTeamSet().has(resolved) && resolved !== cur) {
+                mm[tk] = resolved;
+                koUpdates[i + '/' + tk] = resolved;
+                const fl = getFlagForTeam(resolved);
+                if (fl) { mm[fk] = fl; koUpdates[i + '/' + fk] = fl; }
+              }
+            });
+          });
+        if (db && Object.keys(koUpdates).length) {
+          db.ref('cdm2026/shared/matches').update(koUpdates)
+            .catch(e => console.warn('Résolution KO — écriture Firebase échouée:', e));
+        }
         // Sauvegarde dans le cache local l'état FUSIONNÉ (state), pas le snapshot
         // brut Firebase (data) — évite d'écraser en localStorage un prono qu'on
         // venait de saisir et qui n'est pas encore arrivé dans le snapshot Firebase.
