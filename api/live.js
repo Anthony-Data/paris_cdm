@@ -180,6 +180,12 @@ async function fetchEspn(matchId, league, dates) {
       minute: isActive ? Math.round(status.clock) : null,
       displayClock: isActive ? (status.displayClock || null) : null,
       status: normalizeEspnStatus(statusType.name),
+      // Statut brut ESPN (END_OF_REGULATION, OVERTIME, SHOOTOUT…) : permet au cron
+      // de figer le score à 90 min et de détecter prolongation / t.a.b.
+      statusName: statusType.name || null,
+      // Booléens vainqueur ESPN (renseignés même en cas de victoire aux t.a.b.)
+      winner1: home.winner === true,
+      winner2: away.winner === true,
       venue: comp.venue?.fullName || null,
       city: comp.venue?.address?.city || null,
       utcDate: event.date,

@@ -239,6 +239,31 @@ module.exports = async (req, res) => {
         if (espn.city) updates[`${base}/city`] = espn.city;
       }
 
+      // ── Capture AUTO du score à 90 min + qualifié (matchs à élimination) ──────
+      // ESPN distingue fin du temps réglementaire / prolongation / t.a.b. via le
+      // statut brut. Dès la 1re phase post-90min, le score courant EST le score à
+      // 90 min → on le fige une seule fois dans reg1/reg2 (jamais écrasé ensuite).
+      // Écrit hors du test `changed` (comme venue) car pendant la pause fin de
+      // match le statut/score ne bougent pas mais on doit quand même capturer.
+      const POST_REG = new Set([
+        'STATUS_END_OF_REGULATION', 'STATUS_OVERTIME',
+        'STATUS_FIRST_EXTRA_TIME', 'STATUS_SECOND_EXTRA_TIME',
+        'STATUS_HALFTIME_ET', 'STATUS_END_OF_EXTRA_TIME', 'STATUS_END_OF_EXTRATIME',
+        'STATUS_SHOOTOUT',
+      ]);
+      if (POST_REG.has(espn.statusName) && m.reg1 == null && m.reg2 == null
+          && newScore1 != null && newScore2 != null) {
+        updates[`${base}/reg1`] = newScore1;
+        updates[`${base}/reg2`] = newScore2;
+      }
+      // À la fin d'un match nul (score final = égalité) → t.a.b. : on lit le
+      // booléen vainqueur ESPN pour renseigner penWinner (le qualifié).
+      if (espn.status === 'finished' && newScore1 === newScore2 && m.penWinner == null) {
+        const w1 = swapped ? espn.winner2 : espn.winner1;
+        const w2 = swapped ? espn.winner1 : espn.winner2;
+        if (w1 || w2) updates[`${base}/penWinner`] = w1 ? 1 : 2;
+      }
+
       const changed =
         m.status !== newStatus ||
         m.score1 !== newScore1 ||

@@ -307,6 +307,12 @@ details[open] .suivi-arrow { transform: rotate(90deg); }
 .prono-saved.wrong   { color: var(--red); }
 .prono-saved.prono-pending { color: #ff9800; font-size: 13px; animation: pendingPulse 1.4s ease-in-out infinite; }
 @keyframes pendingPulse { 0%,100% { opacity: .55; } 50% { opacity: 1; } }
+.ko-info { text-align: center; font-size: 11.5px; color: var(--text3); margin-top: 4px; letter-spacing: .2px; }
+.ko-winner-pick { flex-direction: column; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); }
+.ko-winner-q { font-size: 12px; font-weight: 600; color: var(--gold); }
+.ko-winner-btns { display: flex; gap: 6px; }
+.ko-wbtn { flex: 1; padding: 7px 6px; font-size: 13px; font-weight: 600; border-radius: 8px; cursor: pointer; background: var(--surface2); border: 1px solid var(--border); color: var(--text); }
+.ko-wbtn.active { background: var(--gold-dim); border-color: var(--gold); color: var(--gold); }
 
 /* ===== ONBOARDING ===== */
 .ob-dot { width:8px;height:8px;border-radius:50%;background:var(--border);transition:background .3s; }
@@ -1060,6 +1066,27 @@ function initFirebase() {
           state.r32ManualFix = 'v1';
           migrated = true;
         }
+        // Nouveau système élimination : un prono NUL nécessite désormais le choix
+        // du qualifié. On annule (une seule fois) les pronos nuls déjà saisis sans
+        // qualifié sur les matchs à élimination → les joueurs les re-saisiront.
+        // Les pronos non-nuls sont conservés. Suppression ciblée Firebase (save()
+        // ne touche pas au nœud pronos).
+        if (!state.koDrawPronoReset) {
+          state.matches.forEach(m => {
+            if (!isEliminationMatch(m)) return;
+            const mp = state.pronos[m.id];
+            if (!mp) return;
+            Object.keys(mp).forEach(pid => {
+              const pr = mp[pid];
+              if (pr && pr.s1 != null && pr.s1 === pr.s2 && pr.winner !== 1 && pr.winner !== 2) {
+                delete mp[pid];
+                if (db) db.ref(`cdm2026/shared/pronos/${m.id}/${pid}`).remove().catch(()=>{});
+              }
+            });
+          });
+          state.koDrawPronoReset = 'v1';
+          migrated = true;
+        }
         // Sauvegarde dans le cache local l'état FUSIONNÉ (state), pas le snapshot
         // brut Firebase (data) — évite d'écraser en localStorage un prono qu'on
         // venait de saisir et qui n'est pas encore arrivé dans le snapshot Firebase.
@@ -1411,6 +1438,8 @@ function playerDisplayName(p) {
 
 // Stocke les scores précédents lors d'une modification de prono
 const _pendingEditValues = {};
+// Qualifié choisi par le joueur (matchs à élimination, score nul) en attente de validation.
+const _pendingKoWinner = {}; // matchId → 1 | 2
 
 // Drapeaux : emoji sur iOS/Android, images flagcdn.com sur Windows/Linux
 const _useFlagImages = /Windows NT|Linux x86_64/.test(navigator.userAgent) && !/Android/.test(navigator.userAgent);
@@ -1497,6 +1526,42 @@ function ptsLabel(pts, phase) {
   if (pts===3*x) return 'pts-3';
   if (pts===2*x) return 'diff-win';
   return 'wrong';
+}
+// ===== ÉLIMINATION : score 90 min + bonus qualifié =====
+// Score de référence pour la notation = score à 90 min (reg1/reg2 écrit par le
+// cron ESPN) ; à défaut, le score final (cas sans prolongation).
+function regScore(m) {
+  return { r1: m.reg1 != null ? m.reg1 : m.score1, r2: m.reg2 != null ? m.reg2 : m.score2 };
+}
+// Équipe qualifiée d'un match à élimination : vainqueur du score final s'il est
+// décisif (prolongation), sinon vainqueur aux t.a.b. (penWinner). 1, 2 ou null.
+function koAdvancer(m) {
+  if (m.score1 != null && m.score2 != null && m.score1 !== m.score2) return m.score1 > m.score2 ? 1 : 2;
+  if (m.penWinner === 1 || m.penWinner === 2) return m.penWinner;
+  return null;
+}
+// Bonus "bon qualifié" : +1 (16e/8e) ou +2 (quarts→finale). Uniquement si le vrai
+// match est allé au-delà de 90 min (90 min = nul), que le joueur a prédit un nul,
+// et qu'il a choisi le bon qualifié.
+function pronoBonus(m, pr) {
+  if (!pr || !isEliminationMatch(m)) return 0;
+  const { r1, r2 } = regScore(m);
+  if (r1 == null || r2 == null || r1 !== r2) return 0;
+  if (pr.s1 == null || pr.s2 == null || pr.s1 !== pr.s2) return 0;
+  if (pr.winner !== 1 && pr.winner !== 2) return 0;
+  return pr.winner === koAdvancer(m) ? phaseMultiplier(m.phase) : 0;
+}
+// Points de base (sans bonus) d'un prono pour un match — noté sur le score 90 min.
+function calcBasePoints(m, pr) {
+  if (!pr) return null;
+  const { r1, r2 } = regScore(m);
+  return calcPoints(r1, r2, pr.s1, pr.s2, m.phase);
+}
+// Points totaux (base + bonus qualifié) d'un prono pour un match.
+function calcMatchPoints(m, pr) {
+  const base = calcBasePoints(m, pr);
+  if (base == null) return null;
+  return base + pronoBonus(m, pr);
 }
 
 // ===== VENUES (stades officiels CdM 2026 par numéro de match) =====
@@ -1883,10 +1948,10 @@ function getRanking(opts = {}) {
     visiblePlayers.forEach(p => {
       const pr = pronos[p.id];
       if (!pr) return;
-      const pts = calcPoints(m.score1, m.score2, pr.s1, pr.s2, m.phase);
-      if (pts==null) return;
-      scores[p.id].pts += pts;
-      if (pts===5*(isKnockout(m.phase)?2:1)) scores[p.id].exact++;
+      const base = calcBasePoints(m, pr);
+      if (base==null) return;
+      scores[p.id].pts += base + pronoBonus(m, pr);
+      if (base===5*phaseMultiplier(m.phase)) scores[p.id].exact++;
     });
   });
   return Object.values(scores).sort((a,b) => b.pts!==a.pts ? b.pts-a.pts : b.exact-a.exact);
@@ -2056,6 +2121,10 @@ function renderMatches() {
       const dateStr = dt.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
       const pronos = state.pronos[m.id] || {};
       const myProno = myId ? pronos[myId] : null;
+      const isElim = isEliminationMatch(m);
+      const kd1 = koDisplay(m.team1, m.flag1, _koMemo), kd2 = koDisplay(m.team2, m.flag2, _koMemo);
+      const teamName1 = kd1.ph ? m.team1 : kd1.name;
+      const teamName2 = kd2.ph ? m.team2 : kd2.name;
       // Statut d'affichage : ESPN si dispo, sinon déduit du temps (cf. effectiveStatus)
       const dispStatus = effectiveStatus(m);
       // "en cours" déduit du temps (ESPN ne suit pas) : pas de minute disponible
@@ -2075,16 +2144,31 @@ function renderMatches() {
       let scoreHtml = dispStatus==='upcoming'
         ? `<div class="score-area"><span class="score-display" style="font-size:18px;color:var(--text3)">vs</span></div>`
         : `<div class="score-area"><span class="score-display">${m.score1??'?'}</span><span class="score-sep">:</span><span class="score-display">${m.score2??'?'}</span></div>`;
+      // Ligne d'info élimination : score à 90 min (si prolongation) + qualifié.
+      let koInfo = '';
+      if (isElim && dispStatus==='finished') {
+        const { r1, r2 } = regScore(m);
+        const parts = [];
+        if (m.reg1!=null && m.reg2!=null && (m.reg1!==m.score1 || m.reg2!==m.score2)) parts.push(`90 min : ${m.reg1}–${m.reg2}`);
+        if (r1!=null && r2!=null && r1===r2) {
+          const adv = koAdvancer(m);
+          if (adv) parts.push(`Qualifié : ${adv===1?teamName1:teamName2} (${(m.score1!=null && m.score1===m.score2) ? 't.a.b.' : 'a.p.'})`);
+        }
+        if (parts.length) koInfo = `<div class="ko-info">${parts.join(' · ')}</div>`;
+      }
       let pronoHtml = '';
       if (myId) {
         if (myProno) {
-          const pts = canSeeAll ? calcPoints(m.score1,m.score2,myProno.s1,myProno.s2,m.phase) : null;
-          const label = pts!=null ? ptsLabel(pts,m.phase) : '';
-          const ptsTag = pts!=null ? `<span class="prono-tag ${label}">${pts>0?'+':''}${pts}pts</span>` : '';
+          const base = canSeeAll ? calcBasePoints(m, myProno) : null;
+          const bonus = canSeeAll ? pronoBonus(m, myProno) : 0;
+          const total = base!=null ? base+bonus : null;
+          const label = base!=null ? ptsLabel(base,m.phase) : '';
+          const ptsTag = total!=null ? `<span class="prono-tag ${label}">${total>0?'+':''}${total}pts${bonus>0?' 🎯':''}</span>` : '';
+          const winTxt = (myProno.s1===myProno.s2 && (myProno.winner===1||myProno.winner===2)) ? ` <span style="font-size:12px;color:var(--text3)">➜ ${myProno.winner===1?teamName1:teamName2}</span>` : '';
           const pending = isPronoPending(m.id, myId);
           const savedTag = pending
-            ? `<span class="prono-saved prono-pending">⏳ ${myProno.s1}–${myProno.s2} · synchronisation…</span>`
-            : `<span class="prono-saved">✓ ${myProno.s1}–${myProno.s2} ${ptsTag}</span>`;
+            ? `<span class="prono-saved prono-pending">⏳ ${myProno.s1}–${myProno.s2}${winTxt} · synchronisation…</span>`
+            : `<span class="prono-saved">✓ ${myProno.s1}–${myProno.s2}${winTxt} ${ptsTag}</span>`;
           pronoHtml = `<div class="prono-section">
             <label>Mon prono</label>
             <div class="prono-inputs">
@@ -2093,16 +2177,28 @@ function renderMatches() {
             </div>
           </div>`;
         } else if (canProno) {
+          const ev = _pendingEditValues[m.id];
+          const evDraw = ev && ev.s1!=null && ev.s2!=null && ev.s1!=='' && ev.s2!=='' && String(ev.s1)===String(ev.s2);
+          const curW = _pendingKoWinner[m.id];
+          const koPicker = isElim ? `
+              <div id="koWinner_${m.id}" class="ko-winner-pick" style="display:${evDraw?'flex':'none'}">
+                <span class="ko-winner-q">⚽ Nul à 90 min → qui se qualifie (prolong. ou t.a.b.) ?</span>
+                <div class="ko-winner-btns">
+                  <button type="button" id="koW1_${m.id}" class="ko-wbtn${curW===1?' active':''}" onclick="setKoWinner('${m.id}',1)">${teamName1}</button>
+                  <button type="button" id="koW2_${m.id}" class="ko-wbtn${curW===2?' active':''}" onclick="setKoWinner('${m.id}',2)">${teamName2}</button>
+                </div>
+              </div>` : '';
           pronoHtml = `<div class="prono-section">
             <label>Mon prono</label>
             <div class="prono-inputs">
               <div class="prono-score-input">
-                <input type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" class="score-input" id="p1_${m.id}" placeholder=" " value="${_pendingEditValues[m.id]?.s1 ?? ''}" onfocus="this.select()" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,1);if(this.value)document.getElementById('p2_${m.id}')?.focus()">
+                <input type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" class="score-input" id="p1_${m.id}" placeholder=" " value="${_pendingEditValues[m.id]?.s1 ?? ''}" onfocus="this.select()" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,1);if(this.value)document.getElementById('p2_${m.id}')?.focus();onKoPronoInput('${m.id}')">
                 <span class="prono-sep">–</span>
-                <input type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" class="score-input" id="p2_${m.id}" placeholder=" " value="${_pendingEditValues[m.id]?.s2 ?? ''}" onfocus="this.select()" onkeydown="if(event.key==='Enter')submitProno('${m.id}')">
+                <input type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" class="score-input" id="p2_${m.id}" placeholder=" " value="${_pendingEditValues[m.id]?.s2 ?? ''}" onfocus="this.select()" oninput="this.value=this.value.replace(/[^0-9]/g,'').slice(0,1);onKoPronoInput('${m.id}')" onkeydown="if(event.key==='Enter')submitProno('${m.id}')">
               </div>
               <button class="btn btn-success" onclick="submitProno('${m.id}')">Valider</button>
             </div>
+            ${koPicker}
           </div>`;
         } else {
           pronoHtml = `<div class="prono-section"><p style="font-size:12px;color:var(--text3)">Aucun prono enregistré pour ce match</p></div>`;
@@ -2117,14 +2213,17 @@ function renderMatches() {
         // Trie par points décroissants si le match a un score (5→3→2→0), sinon ordre naturel
         const sortedPronos = m.score1 != null
           ? [...validPronos].sort(([,a],[,b]) =>
-              calcPoints(m.score1,m.score2,b.s1,b.s2,m.phase) - calcPoints(m.score1,m.score2,a.s1,a.s2,m.phase))
+              (calcMatchPoints(m,b)??0) - (calcMatchPoints(m,a)??0))
           : validPronos;
         let tags = '', lastPts = undefined, lineCount = 0;
         sortedPronos.forEach(([pid, pr]) => {
           const pl = getPlayerById(pid);
-          const pts = m.score1!=null ? calcPoints(m.score1,m.score2,pr.s1,pr.s2,m.phase) : null;
-          const label = pts!=null ? ptsLabel(pts,m.phase) : '';
-          const ptsStr = pts!=null ? ` +${pts}` : '';
+          const base = m.score1!=null ? calcBasePoints(m, pr) : null;
+          const bonus = m.score1!=null ? pronoBonus(m, pr) : 0;
+          const pts = base!=null ? base+bonus : null;
+          const label = base!=null ? ptsLabel(base,m.phase) : '';
+          const ptsStr = pts!=null ? ` +${pts}${bonus>0?'🎯':''}` : '';
+          const winStr = (pr.s1===pr.s2 && (pr.winner===1||pr.winner===2)) ? `➜${(pr.winner===1?teamName1:teamName2).slice(0,3)}` : '';
           const newGroup = (pts !== null && lastPts !== undefined && pts !== lastPts);
           if (newGroup) {
             // Nouveau groupe de points → saut de ligne avec un peu d'espace
@@ -2135,7 +2234,7 @@ function renderMatches() {
             tags += `<div style="width:100%;height:0"></div>`;
             lineCount = 0;
           }
-          tags += `<span class="prono-tag ${label}">${playerDisplayName(pl)}: ${pr.s1}–${pr.s2}${ptsStr}</span>`;
+          tags += `<span class="prono-tag ${label}">${playerDisplayName(pl)}: ${pr.s1}–${pr.s2}${winStr}${ptsStr}</span>`;
           lineCount++;
           lastPts = pts;
         });
@@ -2180,6 +2279,7 @@ function renderMatches() {
           ${scoreHtml}
           ${_mkTeamBlock(d2, !d2.ph, _teamFilter)}
         </div>
+        ${koInfo}
         ${pronoHtml}${allPronosHtml}
       </div>`;
     }
@@ -2204,9 +2304,22 @@ function submitProno(matchId) {
   if (v1 === '' || v2 === '') { toast('❌ Entre un score pour les deux équipes'); return; }
   const s1 = parseInt(v1) || 0;
   const s2 = parseInt(v2) || 0;
+  // Match à élimination + nul à 90 min → le joueur doit désigner le qualifié.
+  let winner;
+  if (match && isEliminationMatch(match) && s1 === s2) {
+    winner = _pendingKoWinner[matchId];
+    if (winner !== 1 && winner !== 2) {
+      _pendingEditValues[matchId] = { s1: v1, s2: v2 };
+      toast("⚽ Match nul : choisis l'équipe qui se qualifie");
+      renderMatches();
+      return;
+    }
+  }
   delete _pendingEditValues[matchId];
+  delete _pendingKoWinner[matchId];
   if (!state.pronos[matchId]) state.pronos[matchId] = {};
   const prono = { s1, s2, at: new Date().toISOString() };
+  if (winner === 1 || winner === 2) prono.winner = winner;
   state.pronos[matchId][myId] = prono;
   writeProno(matchId, myId, prono);
   if (isOffline()) toast(`⚠️ Pas de réseau — prono PAS encore envoyé. Il partira tout seul au retour du réseau.`);
@@ -2216,7 +2329,10 @@ function submitProno(matchId) {
 function editProno(matchId) {
   const myId = state.currentPlayer;
   const existing = state.pronos[matchId]?.[myId];
-  if (existing) _pendingEditValues[matchId] = { s1: existing.s1, s2: existing.s2 };
+  if (existing) {
+    _pendingEditValues[matchId] = { s1: existing.s1, s2: existing.s2 };
+    if (existing.winner === 1 || existing.winner === 2) _pendingKoWinner[matchId] = existing.winner;
+  }
   if (state.pronos[matchId]) delete state.pronos[matchId][myId];
   writeProno(matchId, myId, null); renderMatches();
 }
@@ -2224,9 +2340,24 @@ function resetProno(matchId) {
   if (!confirm('Supprimer ton prono pour ce match ?')) return;
   const myId = state.currentPlayer;
   delete _pendingEditValues[matchId];
+  delete _pendingKoWinner[matchId];
   if (state.pronos[matchId]) delete state.pronos[matchId][myId];
   writeProno(matchId, myId, null); renderMatches(); renderRanking();
   toast('🗑 Prono supprimé');
+}
+// Affiche/masque le sélecteur "qui se qualifie" selon que le score saisi est un nul.
+function onKoPronoInput(matchId) {
+  const el = document.getElementById('koWinner_'+matchId);
+  if (!el) return;
+  const v1 = document.getElementById('p1_'+matchId)?.value;
+  const v2 = document.getElementById('p2_'+matchId)?.value;
+  const draw = v1 !== '' && v2 !== '' && v1 != null && v2 != null && v1 === v2;
+  el.style.display = draw ? 'flex' : 'none';
+}
+function setKoWinner(matchId, w) {
+  _pendingKoWinner[matchId] = w;
+  document.getElementById('koW1_'+matchId)?.classList.toggle('active', w === 1);
+  document.getElementById('koW2_'+matchId)?.classList.toggle('active', w === 2);
 }
 
 // ===== RANKING RENDER =====
@@ -3049,6 +3180,11 @@ function onUpdateMatchSelect() {
   if (dt) dt.value = toDatetimeLocal(m.date);
   const pw = document.getElementById('uPenWinner');
   if (pw) pw.value = m.penWinner ? String(m.penWinner) : '';
+  const regRow = document.getElementById('uRegRow');
+  const r1 = document.getElementById('uReg1'), r2 = document.getElementById('uReg2');
+  if (regRow) regRow.style.display = isEliminationMatch(m) ? '' : 'none';
+  if (r1) r1.value = m.reg1 != null ? m.reg1 : '';
+  if (r2) r2.value = m.reg2 != null ? m.reg2 : '';
   refreshPenWinnerUI();
 }
 // Affiche le sélecteur de vainqueur t.a.b. uniquement pour un match éliminatoire à égalité
@@ -3173,6 +3309,16 @@ function updateMatchScore() {
     m.penWinner = parseInt(penVal);
   } else {
     delete m.penWinner;
+  }
+  // Score à 90 min (override admin du champ rempli normalement par ESPN)
+  if (isEliminationMatch(m)) {
+    const rv1 = document.getElementById('uReg1')?.value;
+    const rv2 = document.getElementById('uReg2')?.value;
+    if (rv1 !== '' && rv2 !== '' && rv1 != null && rv2 != null) {
+      m.reg1 = parseInt(rv1) || 0; m.reg2 = parseInt(rv2) || 0;
+    } else {
+      delete m.reg1; delete m.reg2;
+    }
   }
   if (status === 'finished' && !wasFinished) notifyMatchFinished(m);
   save(); renderMatches(); renderRanking(); renderElimination();
@@ -3333,6 +3479,15 @@ function renderAdminPanel() {
         </select>
       </div>
       <div class="form-group"><label>Date &amp; heure (heure locale)</label><input type="datetime-local" class="form-input" id="uDate"></div>
+      <div class="form-group" id="uRegRow" style="display:none">
+        <label>⏱ Score à 90 min (auto par ESPN — corriger seulement si besoin)</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input type="text" inputmode="numeric" pattern="[0-9]" maxlength="2" class="form-input" id="uReg1" placeholder="—" style="flex:1">
+          <span style="color:var(--text3)">–</span>
+          <input type="text" inputmode="numeric" pattern="[0-9]" maxlength="2" class="form-input" id="uReg2" placeholder="—" style="flex:1">
+          <button type="button" onclick="document.getElementById('uReg1').value='';document.getElementById('uReg2').value=''" style="background:none;border:none;color:#888;font-size:18px;cursor:pointer;padding:0 4px">✕</button>
+        </div>
+      </div>
       <div class="form-group" id="uPenRow" style="display:none"><label>🥅 Vainqueur aux tirs au but</label>
         <select class="form-input" id="uPenWinner">
           <option value="">— (match nul, pas de t.a.b.)</option>
