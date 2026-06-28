@@ -1056,12 +1056,13 @@ function initFirebase() {
         // Correction ponctuelle des 16e mal résolus (demandée par l'admin) :
         // on fixe les équipes réelles sur 4 créneaux (placeholders 1E/1I/1G/1B vs 3e).
         // Migration unique : un drapeau persistant en Firebase empêche toute relance.
-        if (!state.r32ManualFix) {
+        if (state.r32ManualFix !== 'v2') {
           const R32_FIX = {
-            74: { t1:'Allemagne', f1:'🇩🇪', t2:'Paraguay', f2:'🇵🇾' },
-            77: { t1:'France',    f1:'🇫🇷', t2:'Suède',    f2:'🇸🇪' },
-            82: { t1:'Belgique',  f1:'🇧🇪', t2:'Sénégal',  f2:'🇸🇳' },
-            85: { t1:'Suisse',    f1:'🇨🇭', t2:'Algérie',  f2:'🇩🇿' },
+            74: { t1:'Allemagne', f1:'🇩🇪', t2:'Paraguay',  f2:'🇵🇾' },
+            77: { t1:'France',    f1:'🇫🇷', t2:'Suède',     f2:'🇸🇪' },
+            79: { t1:'Mexique',   f1:'🇲🇽', t2:'Équateur',  f2:'🇪🇨' },
+            82: { t1:'Belgique',  f1:'🇧🇪', t2:'Sénégal',   f2:'🇸🇳' },
+            85: { t1:'Suisse',    f1:'🇨🇭', t2:'Algérie',   f2:'🇩🇿' },
           };
           state.matches.forEach(m => {
             const fix = R32_FIX[m.matchNum];
@@ -1069,7 +1070,7 @@ function initFirebase() {
               m.team1 = fix.t1; m.flag1 = fix.f1; m.team2 = fix.t2; m.flag2 = fix.f2;
             }
           });
-          state.r32ManualFix = 'v1';
+          state.r32ManualFix = 'v2';
           migrated = true;
         }
         // Nouveau système élimination : un prono NUL nécessite désormais le choix
@@ -1820,7 +1821,18 @@ function _resolveThirdsAssignment(memo) {
     state.matches.forEach(m => [m.team1, m.team2].forEach(t => {
       if (/^3[A-L]{2,}$/.test(t || '')) slots.push({ label: t, allowed: t.slice(1).split('') });
     }));
-    const asg = {}; const usedGroups = new Set();
+    // Groupes dont le 3e est DÉJÀ placé en dur (équipe réelle) dans un match de
+    // 16e : on bloque leur réassignation pour éviter qu'une même équipe apparaisse
+    // dans deux matchs différents (doublon).
+    const preUsedGroups = new Set();
+    state.matches.forEach(m => {
+      if (m.phase !== '16e de finale') return;
+      [m.team1, m.team2].forEach(name => {
+        const th = thirds.find(t => t.name === name);
+        if (th) preUsedGroups.add(th.group);
+      });
+    });
+    const asg = {}; const usedGroups = new Set(preUsedGroups);
     const bt = i => {
       if (i === slots.length) return true;
       for (const th of thirds) {
