@@ -1956,12 +1956,18 @@ function renderElimination() {
 // Sert à calculer le classement de référence figé d'avant les matchs en cours,
 // pour les flèches de tendance en direct.
 function getRanking(opts = {}) {
-  const statuses = opts.finishedOnly ? ['finished'] : ['finished','live','halftime'];
   const scores = {};
   const visiblePlayers = state.players.filter(p => !p.hiddenFromNonAdmins && !isRankingExcluded(p));
   visiblePlayers.forEach(p => { scores[p.id] = { id: p.id, pts: 0, exact: 0 }; });
   state.matches.forEach(m => {
-    if (!statuses.includes(m.status) || m.score1==null) return;
+    // Un match compte dès qu'il a un score COMPLET et qu'il a effectivement eu
+    // lieu (effectiveStatus ≠ "à venir"), PEU IMPORTE que le statut stocké ait
+    // été basculé sur "Terminé". Évite qu'un statut oublié sur "À venir" ne prive
+    // tout le monde de ses points (cas Mexique–Corée du Sud).
+    if (m.score1==null || m.score2==null) return;
+    const es = effectiveStatus(m);
+    if (es === 'upcoming') return;
+    if (opts.finishedOnly && es !== 'finished') return; // baseline flèches : exclut les matchs en cours
     const pronos = state.pronos[m.id] || {};
     visiblePlayers.forEach(p => {
       const pr = pronos[p.id];
