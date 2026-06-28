@@ -1041,6 +1041,25 @@ function initFirebase() {
             m.date = '2026-06-14T00:00:00-04:00'; migrated = true;
           }
         });
+        // Correction ponctuelle des 16e mal résolus (demandée par l'admin) :
+        // on fixe les équipes réelles sur 4 créneaux (placeholders 1E/1I/1G/1B vs 3e).
+        // Migration unique : un drapeau persistant en Firebase empêche toute relance.
+        if (!state.r32ManualFix) {
+          const R32_FIX = {
+            74: { t1:'Allemagne', f1:'🇩🇪', t2:'Paraguay', f2:'🇵🇾' },
+            77: { t1:'France',    f1:'🇫🇷', t2:'Suède',    f2:'🇸🇪' },
+            82: { t1:'Belgique',  f1:'🇧🇪', t2:'Sénégal',  f2:'🇸🇳' },
+            85: { t1:'Suisse',    f1:'🇨🇭', t2:'Algérie',  f2:'🇩🇿' },
+          };
+          state.matches.forEach(m => {
+            const fix = R32_FIX[m.matchNum];
+            if (fix && m.phase === '16e de finale') {
+              m.team1 = fix.t1; m.flag1 = fix.f1; m.team2 = fix.t2; m.flag2 = fix.f2;
+            }
+          });
+          state.r32ManualFix = 'v1';
+          migrated = true;
+        }
         // Sauvegarde dans le cache local l'état FUSIONNÉ (state), pas le snapshot
         // brut Firebase (data) — évite d'écraser en localStorage un prono qu'on
         // venait de saisir et qui n'est pas encore arrivé dans le snapshot Firebase.
