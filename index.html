@@ -2268,7 +2268,7 @@ function renderMatches() {
           const total = base!=null ? base+bonus : null;
           const label = base!=null ? ptsLabel(base,m.phase) : '';
           const ptsTag = total!=null ? `<span class="prono-tag ${label}">${total>0?'+':''}${total}pts${bonus>0?' 🎯':''}</span>` : '';
-          const winTxt = (myProno.s1===myProno.s2 && (myProno.winner===1||myProno.winner===2)) ? ` <span style="font-size:12px;color:var(--text3)">➜ ${myProno.winner===1?teamName1:teamName2}</span>` : '';
+          const winTxt = (myProno.s1===myProno.s2 && (myProno.winner===1||myProno.winner===2)) ? ` <span style="font-size:14px;font-weight:700;color:#00c853">➜ ${myProno.winner===1?teamName1:teamName2}</span>` : '';
           const pending = isPronoPending(m.id, myId);
           const savedTag = pending
             ? `<span class="prono-saved prono-pending">⏳ ${myProno.s1}–${myProno.s2}${winTxt} · synchronisation…</span>`
@@ -2462,6 +2462,10 @@ function setKoWinner(matchId, w) {
   _pendingKoWinner[matchId] = w;
   document.getElementById('koW1_'+matchId)?.classList.toggle('active', w === 1);
   document.getElementById('koW2_'+matchId)?.classList.toggle('active', w === 2);
+  // Cliquer sur l'équipe vaut validation : inutile de cliquer ensuite sur « Valider ».
+  // Le score nul est déjà saisi (le sélecteur ne s'affiche que sur un nul) → submitProno
+  // lit les champs, voit le vainqueur fraîchement posé et enregistre directement.
+  submitProno(matchId);
 }
 
 // ===== RANKING RENDER =====
