@@ -294,8 +294,6 @@ header {
 .prono-saved { font-size: 16px; font-weight: 700; color: #00c853; display: flex; align-items: center; gap: 6px; }
 .pronos-reveal { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
 .pronos-reveal-title { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 7px; }
-.pronos-hidden-toggle { cursor: pointer; margin-bottom: 0; }
-.pronos-hidden-toggle:hover { color: var(--text2); }
 .prono-tags { display: flex; flex-wrap: wrap; gap: 5px; }
 details[open] .suivi-arrow { transform: rotate(90deg); }
 .prono-tag { font-family: var(--font-mono); font-size: 11px; padding: 3px 9px; border-radius: 20px; border: 1px solid var(--border); background: var(--bg2); color: var(--text2); }
@@ -719,9 +717,6 @@ select.form-input { cursor: pointer; }
           <button class="filter-btn phase-filter-btn" onclick="filterPhase('Quarts',this)">Quarts</button>
           <button class="filter-btn phase-filter-btn" onclick="filterPhase('Demies',this)">Demies</button>
           <button class="filter-btn phase-filter-btn" onclick="filterPhase('Finale',this)">Finale</button>
-        </div>
-        <div class="filters" style="margin-top:6px">
-          <button id="hideOthersBtn" class="filter-btn" onclick="toggleHideOthers()">👁 Pronos des autres : affichés</button>
         </div>
         <div id="matchesList"></div>
       </div>
@@ -2118,22 +2113,6 @@ function filterByTeam(name) {
   document.getElementById('matchFilters')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 function clearTeamFilter() { _teamFilter = null; renderMatches(); }
-// Préférence PERSONNELLE (par appareil, stockée en localStorage, JAMAIS synchronisée
-// sur Firebase) : masquer les pronos des autres joueurs. Par défaut ils restent
-// affichés (comportement actuel inchangé). Chacun choisit pour lui-même.
-function isHideOthers() { return localStorage.getItem('cdm2026_hideOthers') === '1'; }
-function updateHideOthersBtn() {
-  const b = document.getElementById('hideOthersBtn');
-  if (!b) return;
-  const hidden = isHideOthers();
-  b.textContent = hidden ? '🙈 Pronos des autres : masqués' : '👁 Pronos des autres : affichés';
-  b.classList.toggle('active', hidden);
-}
-function toggleHideOthers() {
-  localStorage.setItem('cdm2026_hideOthers', isHideOthers() ? '0' : '1');
-  updateHideOthersBtn();
-  renderMatches();
-}
 
 // ===== STATUT D'AFFICHAGE CALCULÉ =====
 // N'écrit JAMAIS dans Firebase — purement visuel, recalculé à chaque rendu.
@@ -2177,7 +2156,6 @@ function _mkTeamBlock(d, clickable, activeTeam) {
 }
 function renderMatches() {
   const container = document.getElementById('matchesList');
-  updateHideOthersBtn();
   const myId = state.currentPlayer;
   const _koMemo = {}; // cache de résolution des qualifiés, partagé sur ce rendu
   let allMatches = [...state.matches].sort((a,b) => new Date(a.date)-new Date(b.date));
@@ -2352,10 +2330,7 @@ function renderMatches() {
         return pl && (!pl.hiddenFromNonAdmins || isAdmin());
       });
       let allPronosHtml = '';
-      if (canSeeAll && validPronos.length > 0 && isHideOthers()) {
-        // Préférence locale « masquer » : repli compact cliquable (afficher ponctuellement).
-        allPronosHtml = `<div class="pronos-reveal"><div class="pronos-reveal-title pronos-hidden-toggle" onclick="toggleHideOthers()">🙈 ${validPronos.length} prono(s) masqué(s) — afficher</div></div>`;
-      } else if (canSeeAll && validPronos.length > 0) {
+      if (canSeeAll && validPronos.length > 0) {
         // Trie par points décroissants si le match a un score (5→3→2→0), sinon ordre naturel
         const sortedPronos = m.score1 != null
           ? [...validPronos].sort(([,a],[,b]) =>
