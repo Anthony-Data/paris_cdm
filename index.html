@@ -2359,7 +2359,13 @@ function renderMatches() {
           lineCount++;
           lastPts = pts;
         });
-        allPronosHtml = `<div class="pronos-reveal"><div class="pronos-reveal-title">Pronos (${validPronos.length})</div><div class="prono-tags">${tags}</div></div>`;
+        allPronosHtml = `<div class="pronos-reveal"><details open>
+          <summary class="pronos-reveal-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;list-style:none;user-select:none;margin-bottom:0">
+            <span style="font-size:10px;transition:transform .2s" class="suivi-arrow">▶</span>
+            Pronos (${validPronos.length})
+          </summary>
+          <div class="prono-tags" style="margin-top:8px">${tags}</div>
+        </details></div>`;
       } else if (!canSeeAll && validPronos.length > 0) {
         allPronosHtml = `<div class="pronos-reveal"><div class="pronos-reveal-title">🔒 ${validPronos.length} prono(s) — révélés au coup d'envoi</div></div>`;
       }
