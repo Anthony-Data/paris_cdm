@@ -2118,9 +2118,20 @@ function clearTeamFilter() { _teamFilter = null; renderMatches(); }
 // puis au-delà de 2h15 → « terminé » (l'admin saisira le score à la main).
 // Empêche qu'un match déjà joué reste affiché « à venir » et pronostiquable.
 const MATCH_LIVE_WINDOW_MS = 135 * 60 * 1000; // 2h15
+// Durée max plausible d'un match (90 min + prolongation + t.a.b. + interruptions)
+// ≈ 3h30. Au-delà, un match encore marqué « en direct » est forcément terminé.
+const MATCH_MAX_DURATION_MS = 210 * 60 * 1000; // 3h30
 function effectiveStatus(m) {
   if (!m) return 'upcoming';
-  if (m.status && m.status !== 'upcoming') return m.status; // ESPN/admin a tranché
+  if (m.status && m.status !== 'upcoming') {
+    // Filet anti-blocage : un match figé « en direct »/« mi-temps » bien au-delà de
+    // la durée max réelle est forcément fini — évite qu'il reste « en direct » sans
+    // fin si aucune source (cron/ESPN) n'a écrit le statut terminé (ex. t.a.b. sorti
+    // du scoreboard ESPN, cron en panne). Aucun faux positif : aucun match ne dure 3h30.
+    if ((m.status === 'live' || m.status === 'halftime') && m.date
+        && (Date.now() - new Date(m.date).getTime()) > MATCH_MAX_DURATION_MS) return 'finished';
+    return m.status; // ESPN/admin a tranché
+  }
   if (!m.date) return 'upcoming';
   const diff = Date.now() - new Date(m.date).getTime();
   if (diff < 0) return 'upcoming';                 // pas encore commencé

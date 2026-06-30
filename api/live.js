@@ -167,6 +167,16 @@ async function fetchEspn(matchId, league, dates) {
     const away = competitors.find(c => c.homeAway === 'away') || {};
     const isActive = statusType.state === 'in' || statusType.state === 'post';
     const scoreStarted = statusType.state !== 'pre';
+    // Statut normalisé + FILET DE SÉCURITÉ « fin de match ». Pour une fin aux t.a.b.
+    // ou en prolongation, ESPN peut renvoyer un nom de statut non répertorié (ex.
+    // STATUS_FINAL_PEN) qui retomberait sur 'upcoming' → combiné à la garde monotone
+    // (cron ET client refusent de rétrograder un match), le match resterait FIGÉ
+    // « en direct » indéfiniment, et le qualifié t.a.b. ne serait jamais capturé.
+    // state==='post' (ou completed) signifie sans ambiguïté « terminé » → on force.
+    let espnStatus = normalizeEspnStatus(statusType.name);
+    if (espnStatus !== 'finished' && (statusType.state === 'post' || statusType.completed === true)) {
+      espnStatus = 'finished';
+    }
 
     return {
       fdId: event.id,
@@ -179,7 +189,7 @@ async function fetchEspn(matchId, league, dates) {
       score2: scoreStarted && away.score !== undefined ? (parseInt(away.score) >= 0 ? parseInt(away.score) : null) : null,
       minute: isActive ? Math.round(status.clock) : null,
       displayClock: isActive ? (status.displayClock || null) : null,
-      status: normalizeEspnStatus(statusType.name),
+      status: espnStatus,
       // Statut brut ESPN (END_OF_REGULATION, OVERTIME, SHOOTOUT…) : permet au cron
       // de figer le score à 90 min et de détecter prolongation / t.a.b.
       statusName: statusType.name || null,
