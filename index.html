@@ -307,7 +307,10 @@ details[open] .suivi-arrow { transform: rotate(90deg); }
 .prono-saved.wrong   { color: var(--red); }
 .prono-saved.prono-pending { color: #ff9800; font-size: 13px; animation: pendingPulse 1.4s ease-in-out infinite; }
 @keyframes pendingPulse { 0%,100% { opacity: .55; } 50% { opacity: 1; } }
-.ko-info { text-align: center; font-size: 11.5px; color: var(--text3); margin-top: 4px; letter-spacing: .2px; }
+.ko-info { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; justify-content: center; text-align: center; font-size: 11.5px; color: var(--text3); margin-top: 6px; letter-spacing: .2px; }
+.ko-reg { color: var(--text3); }
+.ko-qual { display: inline-flex; align-items: center; gap: 5px; background: var(--gold); color: #0D1421; font-weight: 700; font-size: 13px; letter-spacing: .3px; padding: 4px 12px; border-radius: 20px; box-shadow: 0 1px 6px rgba(245,197,24,.3); }
+.ko-qual-how { font-weight: 600; opacity: .85; }
 .ko-winner-pick { flex-direction: column; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); }
 .ko-winner-q { font-size: 12px; font-weight: 600; color: var(--gold); }
 .ko-winner-btns { display: flex; gap: 6px; }
@@ -2264,12 +2267,15 @@ function renderMatches() {
       if (isElim && dispStatus==='finished') {
         const { r1, r2 } = regScore(m);
         const parts = [];
-        if (m.reg1!=null && m.reg2!=null && (m.reg1!==m.score1 || m.reg2!==m.score2)) parts.push(`90 min : ${m.reg1}–${m.reg2}`);
+        if (m.reg1!=null && m.reg2!=null && (m.reg1!==m.score1 || m.reg2!==m.score2)) parts.push(`<span class="ko-reg">90 min : ${m.reg1}–${m.reg2}</span>`);
         if (r1!=null && r2!=null && r1===r2) {
           const adv = koAdvancer(m);
-          if (adv) parts.push(`Qualifié : ${adv===1?teamName1:teamName2} (${(m.score1!=null && m.score1===m.score2) ? 't.a.b.' : 'a.p.'})`);
+          if (adv) {
+            const how = (m.score1!=null && m.score1===m.score2) ? 't.a.b.' : 'a.p.';
+            parts.push(`<span class="ko-qual">✓ Qualifié : ${adv===1?teamName1:teamName2} <span class="ko-qual-how">(${how})</span></span>`);
+          }
         }
-        if (parts.length) koInfo = `<div class="ko-info">${parts.join(' · ')}</div>`;
+        if (parts.length) koInfo = `<div class="ko-info">${parts.join('')}</div>`;
       }
       let pronoHtml = '';
       if (myId) {
