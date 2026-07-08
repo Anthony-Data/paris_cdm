@@ -329,8 +329,10 @@ details[open] .suivi-arrow { transform: rotate(90deg); }
 
 /* ===== RANKING ===== */
 .ranking-table { width: 100%; border-collapse: collapse; }
-.ranking-table th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); font-weight: 500; }
-.ranking-table td { padding: 10px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.ranking-table th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); padding: 8px 7px; text-align: left; border-bottom: 1px solid var(--border); font-weight: 500; }
+.ranking-table td { padding: 10px 7px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.ranking-table th:first-child, .ranking-table td:first-child { padding-left: 10px; }
+.ranking-table th:last-child, .ranking-table td:last-child { padding-right: 10px; }
 .ranking-table tr:last-child td { border-bottom: none; }
 .rank-num { font-family: var(--font-display); font-size: 20px; color: var(--text3); }
 .rank-1 .rank-num { color: var(--gold); }
@@ -724,6 +726,7 @@ select.form-input { cursor: pointer; }
       <div id="tab-classement" class="tab-pane">
         <div id="podiumArea"></div>
         <div class="section-title">Classement <span>général</span></div>
+        <div id="rankingPlayedInfo" style="font-size:12px;color:var(--text2);margin:-6px 0 12px;letter-spacing:.3px;font-weight:500"></div>
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:14px;">
           <table class="ranking-table" id="rankingTable">
             <thead>
@@ -731,6 +734,7 @@ select.form-input { cursor: pointer; }
                 <th>#</th>
                 <th>Joueur</th>
                 <th style="text-align:center">🎯 Exacts</th>
+                <th style="text-align:center">✅ Bons</th>
                 <th style="text-align:right">Total</th>
               </tr>
             </thead>
@@ -2041,7 +2045,7 @@ function renderElimination() {
 function getRanking(opts = {}) {
   const scores = {};
   const visiblePlayers = state.players.filter(p => !p.hiddenFromNonAdmins && !isRankingExcluded(p));
-  visiblePlayers.forEach(p => { scores[p.id] = { id: p.id, pts: 0, exact: 0 }; });
+  visiblePlayers.forEach(p => { scores[p.id] = { id: p.id, pts: 0, exact: 0, bon: 0 }; });
   state.matches.forEach(m => {
     // Un match compte dès qu'il a un score COMPLET et qu'il a effectivement eu
     // lieu (effectiveStatus ≠ "à venir"), PEU IMPORTE que le statut stocké ait
@@ -2057,11 +2061,19 @@ function getRanking(opts = {}) {
       if (!pr) return;
       const base = calcBasePoints(m, pr);
       if (base==null) return;
-      scores[p.id].pts += base + pronoBonus(m, pr);
+      const total = base + pronoBonus(m, pr);
+      scores[p.id].pts += total;
       if (base===5*phaseMultiplier(m.phase)) scores[p.id].exact++;
+      // « Bon résultat » : au moins 2 points pris sur ce match (bonne tendance ou mieux).
+      if (total >= 2) scores[p.id].bon++;
     });
   });
   return Object.values(scores).sort((a,b) => b.pts!==a.pts ? b.pts-a.pts : b.exact-a.exact);
+}
+// Nombre de matchs déjà JOUÉS et notés (score complet + réellement disputé) — même
+// critère que le comptage des points ci-dessus. Sert au ratio bons/matchs joués.
+function playedMatchesCount() {
+  return state.matches.filter(m => m.score1!=null && m.score2!=null && effectiveStatus(m)!=='upcoming').length;
 }
 
 // ===== RENDER MATCHES =====
@@ -2496,7 +2508,10 @@ function renderRanking() {
   const ranking = getRanking();
   const myId = state.currentPlayer;
   const body = document.getElementById('rankingBody');
-  if (!ranking.length) { body.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:28px">Aucun joueur</td></tr>`; renderPodium([]); return; }
+  const played = playedMatchesCount();
+  const playedInfo = document.getElementById('rankingPlayedInfo');
+  if (playedInfo) playedInfo.textContent = `⚽ ${played} match${played>1?'s':''} déjà joué${played>1?'s':''}`;
+  if (!ranking.length) { body.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:28px">Aucun joueur</td></tr>`; renderPodium([]); return; }
   // Flèches de tendance : actives uniquement s'il y a au moins un match en direct.
   // Référence = classement figé en ne comptant QUE les matchs terminés (donc avant
   // les matchs en cours). Recalculé à chaque rendu → reste fixe pendant tout le
@@ -2536,6 +2551,7 @@ function renderRanking() {
         <div><div class="rank-name" style="${textColor}">${playerDisplayName(p)}${trend}${isMe?' 👈':''}</div></div>
       </div></td>
       <td><div class="rank-exact" style="${isBottom3?'color:var(--red)':''}">${r.exact} 🎯</div></td>
+      <td><div class="rank-exact" style="${isBottom3?'color:var(--red)':''}">${r.bon} ✅</div></td>
       <td><div class="rank-pts" style="color:${ptsColor}">${r.pts}</div></td>
     </tr>`;
   }).join('');
